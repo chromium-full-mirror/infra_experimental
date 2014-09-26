@@ -1,0 +1,95 @@
+#!/usr/bin/env python
+# Copyright 2014 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+"""Collect stats about failing slaves."""
+
+import argparse
+import logging
+import operator
+import requests_cache
+import sys
+
+CHROME_BUILD_EXTRACT_BASE_URL = "http://chrome-build-extract.appspot.com"
+
+
+def get_options():
+  parser = argparse.ArgumentParser(__doc__)
+  parser.add_argument("--count", default=1000, type=int,
+                      help='Number of builds per builder to retrieve.')
+  parser.add_argument('-v', '--verbose', default=False, action='store_true',
+                      help='Enables debugging log messages.')
+  parser.add_argument('--masters',
+                      help='Comma-separated list of masters to scan for '
+                           'builds. If not specified, the list is retrieved '
+                           'from server.')
+  parser.add_argument('--builders',
+                      help='Comma-separated list of builders to scan for '
+                           'builds. If not specified, list of builders is '
+                           'retrieved from server.')
+  parser.add_argument('--clear', action='store_true',
+                      help='Clear the cache before starting.')
+  return parser.parse_args()
+
+
+def main():
+  options = get_options()
+  logging.basicConfig(level=logging.DEBUG if options.verbose else logging.WARN)
+
+  requests_cache.install_cache('cq')
+  session = requests_cache.CachedSession()
+  if options.clear:
+    logging.info('Clearing cache...')
+    session.cache.clear()
+
+  slaves = {}
+  if options.masters:
+    master_names = options.masters.split(',')
+  else:
+    masters_url = '%s/get_masters?json=1' % CHROME_BUILD_EXTRACT_BASE_URL
+    master_names = session.get(masters_url).json()['masters']
+
+  for master_name in master_names:
+    if options.builders:
+      builder_names = options.builders.split(',')
+    else:
+      builders_url = '%s/get_builders/%s?json=1' % (
+        CHROME_BUILD_EXTRACT_BASE_URL, master_name)
+      builder_names = session.get(builders_url).json()['builders']
+    for builder_name in builder_names:
+      builds = []
+      cursor = None
+      while len(builds) < options.count:
+        build_url = '%s/get_builds?master=%s&builder=%s&json=1' % (
+            CHROME_BUILD_EXTRACT_BASE_URL, master_name, builder_name)
+        if cursor:
+          build_url += '&cursor=%s' % cursor
+        build_data = session.get(build_url).json()
+        cursor = build_data['cursor']
+        builds.extend(build_data['builds'])
+
+      for build in builds:
+        slave_name = build['slave']
+        results = slaves.setdefault(slave_name, [])
+        results.append(build['results'])
+
+  slave_failure_rates = []
+  for slave_name, results in slaves.iteritems():
+    failures = len([result for result in results if result == 2])
+    successes = len([result for result in results if result == 0])
+    if successes == 0:
+      failure_rate = 1.0
+    else:
+      failure_rate = failures / float(successes + failures)
+    slave_failure_rates.append((slave_name, failures, successes, failure_rate))
+  slave_failure_rates = sorted(slave_failure_rates, key=operator.itemgetter(3),
+                               reverse=True)
+
+  print '20 slaves with highest failure rates:'
+  for slave_name, failures, successes, failure_rate in slave_failure_rates[:20]:
+    print '%s - %.2f%% (%d failures, %d successes)' % (
+        slave_name, failure_rate * 100, failures, successes)
+
+
+if __name__ == '__main__':
+  sys.exit(main())
