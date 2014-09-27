@@ -6,9 +6,11 @@
 
 import argparse
 import logging
+from multiprocessing.pool import ThreadPool
 import operator
 import requests_cache
 import sys
+
 
 CHROME_BUILD_EXTRACT_BASE_URL = "http://chrome-build-extract.appspot.com"
 
@@ -56,7 +58,7 @@ def main():
       builders_url = '%s/get_builders/%s?json=1' % (
         CHROME_BUILD_EXTRACT_BASE_URL, master_name)
       builder_names = session.get(builders_url).json()['builders']
-    for builder_name in builder_names:
+    def process_builder(builder_name):
       builds = []
       cursor = None
       while len(builds) < options.count:
@@ -72,6 +74,10 @@ def main():
         slave_name = build['slave']
         results = slaves.setdefault(slave_name, [])
         results.append(build['results'])
+
+#    pool = ThreadPool(100)
+    for builder_name in builder_names:
+      process_builder(builder_name)
 
   slave_failure_rates = []
   for slave_name, results in slaves.iteritems():
