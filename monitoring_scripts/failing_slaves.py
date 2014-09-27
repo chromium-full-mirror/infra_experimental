@@ -17,7 +17,7 @@ CHROME_BUILD_EXTRACT_BASE_URL = "http://chrome-build-extract.appspot.com"
 
 def get_options():
   parser = argparse.ArgumentParser(__doc__)
-  parser.add_argument("--count", default=1000, type=int,
+  parser.add_argument("--count", default=20, type=int,
                       help='Number of builds per builder to retrieve.')
   parser.add_argument('-v', '--verbose', default=False, action='store_true',
                       help='Enables debugging log messages.')
@@ -66,6 +66,7 @@ def main():
             CHROME_BUILD_EXTRACT_BASE_URL, master_name, builder_name)
         if cursor:
           build_url += '&cursor=%s' % cursor
+        logging.debug('Fetching %s', build_url)
         build_data = session.get(build_url).json()
         cursor = build_data['cursor']
         builds.extend(build_data['builds'])
@@ -75,9 +76,9 @@ def main():
         results = slaves.setdefault(slave_name, [])
         results.append(build['results'])
 
-#    pool = ThreadPool(100)
-    for builder_name in builder_names:
-      process_builder(builder_name)
+    pool = ThreadPool(100)
+    for _ in pool.imap_unordered(process_builder, builder_names):
+      pass
 
   slave_failure_rates = []
   for slave_name, results in slaves.iteritems():
