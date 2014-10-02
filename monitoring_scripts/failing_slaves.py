@@ -80,12 +80,12 @@ def print_results(slaves, options):
         slave['failures'],
         slave['exceptions'],
         slave['successes'],
-        len(slave['builds']),
+        slave['num_builds'],
         SLAVE_URL % (slave['master'], slave['slave']))
 
 
-def extract_builders(slave):
-  builders = sorted([b['builderName'] for b in slave['builds']])
+def extract_builders(builds):
+  builders = sorted([b['builderName'] for b in builds])
   builder_counts = {}
   for builder in builders:
     builder_counts.setdefault(builder, 0)
@@ -93,13 +93,10 @@ def extract_builders(slave):
   # Dedup and sort by highest occurance.
   builders = sorted(builder_counts.keys(), key=lambda b: builder_counts[b],
                     reverse=True)
-  return ['=hyperlink("%s", "%s")' % (BUILDER_URL % (slave['master'], b),
-                                      '%s (%d)' % (b, builder_counts[b]))
-          for b in builders]
+  return [{'builder': b, 'count': builder_counts[b]} for b in builders]
 
 
-def last_build_time(slave):
-  builds = slave.get('builds', [])
+def last_build_time(builds):
   if not builds:
     return 'N/A'
   # Assume the latest builder is the first on the list.
@@ -122,9 +119,12 @@ def print_csv(slaves, options):
         '%d' % slave['failures'],
         '%d' % slave['exceptions'],
         '%d' % slave['successes'],
-        '%d' % len(slave['builds']),
-        '%s' % last_build_time(slave),
-        '%s' % '\t'.join(extract_builders(slave))])
+        '%d' % slave['num_builds'],
+        '%s' % slave['last_build_time'],
+        '%s' % '\t'.join(['=hyperlink("%s", "%s")' % (
+              BUILDER_URL % (slave['master'], b['builder']),
+              '%s (%d)' % (b['builder'], b['count']))
+          for b in slave['builders']])])
 
 
 def main():
@@ -186,10 +186,13 @@ def main():
       else:
         failure_rate = float(bad_runs) / total
         success_rate = float(successes) / total
+      # Important: drop the actual builds, to save memory.
       slaves.append({
           'slave': slave_name,
           'master': master_name,
-          'builds': builds,
+          'num_builds': len(builds),
+          'builders': extract_builders(builds),
+          'last_build_time': last_build_time(builds),
           'failures': failures,
           'exceptions': exceptions,
           'successes': successes,
