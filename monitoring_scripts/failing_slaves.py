@@ -25,8 +25,8 @@ def get_options():
   parser = argparse.ArgumentParser(__doc__)
   parser.add_argument("--count", default=20, type=int,
                       help='Number of builds per slave to retrieve.')
-  parser.add_argument("--top", default=20, type=int,
-                      help='Number of top failing slaves to print.')
+  parser.add_argument("--top", default=0, type=int,
+                      help='Number of top failing slaves to print. 0=all.')
   parser.add_argument('-v', '--verbose', default=False, action='store_true',
                       help='Enables debugging log messages.')
   parser.add_argument('--masters',
@@ -72,7 +72,8 @@ def fetch_json(url):
 
 
 def print_results(slaves, options):
-  print 'Top %d slaves with lowest success rates:' % options.top
+  print 'Top %s slaves with lowest success rates:' % (
+      options.top if options.top else '')
   print 'Success % | Failed | Exceptions | Succeeded | Total | URL'
   for slave in slaves[:options.top]:
     print ('%8.2f%% | %6d | %10d | %9d | %5d | %s') % (
@@ -109,7 +110,9 @@ def last_build_time(builds):
 def print_csv(slaves, options):
   print '\t'.join(['Master', 'Slave', 'Success %', 'Failed', 'Exceptions',
                    'Succeeded', 'Total', 'Last build time', 'Builders'])
-  for slave in slaves[:options.top]:
+  if options.top:
+    slaves = slaves[:options.top]
+  for slave in slaves:
     print '\t'.join([
         slave['master'],
         '=hyperlink("%s", "%s")' % (
@@ -170,8 +173,8 @@ def main():
                  ', '.join(slave_set))
 
     pool = ThreadPool(100)
-    for slave_name, builds in pool.imap_unordered(process_slave(options.count),
-                                          slave_set):
+    for slave_name, builds in pool.imap_unordered(
+        process_slave(options.count), slave_set):
       total = len(builds)
       logging.debug('Got %d builds for slave %s', total, slave_name)
 
@@ -190,7 +193,7 @@ def main():
       slaves.append({
           'slave': slave_name,
           'master': master_name,
-          'num_builds': len(builds),
+          'num_builds': total,
           'builders': extract_builders(builds),
           'last_build_time': last_build_time(builds),
           'failures': failures,
