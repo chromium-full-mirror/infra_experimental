@@ -5,6 +5,7 @@
 """Collect stats about failing slaves."""
 
 import argparse
+import datetime
 import json
 import logging
 from multiprocessing.pool import ThreadPool
@@ -14,8 +15,10 @@ import urllib2
 
 CHROME_BUILD_EXTRACT_BASE_URL = 'http://chrome-build-extract.appspot.com'
 
-# Expects % (master, slave)
+# Expects % (master, slave).
 SLAVE_URL = 'http://build.chromium.org/p/%s/buildslaves/%s'
+# Expects % (master, builder).
+BUILDER_URL = 'http://build.chromium.org/p/%s/builders/%s'
 
 
 def get_options():
@@ -34,6 +37,8 @@ def get_options():
                       help='Comma-separated list of builders to scan for '
                            'builds. If not specified, list of builders is '
                            'retrieved from server.')
+  parser.add_argument('--csv', action='store_true',
+                      help='Dump data in CSV format for spreadsheets.')
   return parser.parse_args()
 
 
@@ -64,6 +69,62 @@ def fetch_json(url):
   except Exception as e:
     logging.error('Failed to fetch JSON from %s: %s', url, e)
     return {'error': '404'}
+
+
+def print_results(slaves, options):
+  print 'Top %d slaves with lowest success rates:' % options.top
+  print 'Success % | Failed | Exceptions | Succeeded | Total | URL'
+  for slave in slaves[:options.top]:
+    print ('%8.2f%% | %6d | %10d | %9d | %5d | %s') % (
+        slave['success_rate'] * 100.0,
+        slave['failures'],
+        slave['exceptions'],
+        slave['successes'],
+        len(slave['builds']),
+        SLAVE_URL % (slave['master'], slave['slave']))
+
+
+def extract_builders(slave):
+  builders = sorted([b['builderName'] for b in slave['builds']])
+  builder_counts = {}
+  for builder in builders:
+    builder_counts.setdefault(builder, 0)
+    builder_counts[builder] += 1
+  # Dedup and sort by highest occurance.
+  builders = sorted(builder_counts.keys(), key=lambda b: builder_counts[b],
+                    reverse=True)
+  return ['=hyperlink("%s", "%s")' % (BUILDER_URL % (slave['master'], b),
+                                      '%s (%d)' % (b, builder_counts[b]))
+          for b in builders]
+
+
+def last_build_time(slave):
+  builds = slave.get('builds', [])
+  if not builds:
+    return 'N/A'
+  # Assume the latest builder is the first on the list.
+  timestamp = builds[0].get('times', [None, None])[1]
+  if not timestamp:
+    return 'N/A'
+  return datetime.datetime.fromtimestamp(int(timestamp))
+
+
+def print_csv(slaves, options):
+  print '\t'.join(['Master', 'Slave', 'Success %', 'Failed', 'Exceptions',
+                   'Succeeded', 'Total', 'Last build time', 'Builders'])
+  for slave in slaves[:options.top]:
+    print '\t'.join([
+        slave['master'],
+        '=hyperlink("%s", "%s")' % (
+            SLAVE_URL % (slave['master'], slave['slave']),
+            slave['slave']),
+        '%.2f%%' % (slave['success_rate'] * 100.0),
+        '%d' % slave['failures'],
+        '%d' % slave['exceptions'],
+        '%d' % slave['successes'],
+        '%d' % len(slave['builds']),
+        '%s' % last_build_time(slave),
+        '%s' % '\t'.join(extract_builders(slave))])
 
 
 def main():
@@ -138,16 +199,10 @@ def main():
 
   slaves_sorted = sorted(slaves, key=lambda s: s.get('success_rate', 0))
 
-  print 'Top %d slaves with lowest success rates:' % options.top
-  print 'Success % | failed | exceptions | succeeded | total | URL'
-  for slave in slaves_sorted[:options.top]:
-    print ('%8.2f%% | %6d | %10d | %9d | %5d | %s') % (
-        slave['success_rate'] * 100.0,
-        slave['failures'],
-        slave['exceptions'],
-        slave['successes'],
-        len(slave['builds']),
-        SLAVE_URL % (slave['master'], slave['slave']))
+  if options.csv:
+    print_csv(slaves_sorted, options)
+  else:
+    print_results(slaves_sorted, options)
 
 
 if __name__ == '__main__':
