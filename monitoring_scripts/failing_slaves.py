@@ -32,8 +32,12 @@ TRYSERVERS = [
     'tryserver.webrtc',
 ]
 
+DEAD_MASTERS = [
+    'tryserver.chromium',
+]
 
-def get_options():
+
+def get_args():
   parser = argparse.ArgumentParser(__doc__)
   parser.add_argument("--count", default=20, type=int,
                       help='Number of builds per slave to retrieve.')
@@ -43,8 +47,9 @@ def get_options():
                       help='Enables debugging log messages.')
   parser.add_argument(
       '--masters',
+      default='all',
       help=('Comma-separated list of masters to scan for '
-            'builds. Special values: tryservers, waterfall. '
+            'builds. Special values: tryservers, waterfall, all. '
             'If not specified, the list is retrieved from server.'))
   parser.add_argument(
       '--builders',
@@ -55,10 +60,27 @@ def get_options():
                       help='Dump data in CSV format for spreadsheets.')
   args = parser.parse_args()
 
+  logging.basicConfig(level=logging.DEBUG if args.verbose else logging.WARN)
+
   if args.masters == 'tryservers':
     args.masters = TRYSERVERS
+  elif args.masters in ['waterfall', 'all']:
+    masters_url = '%s/get_masters?json=1' % CHROME_BUILD_EXTRACT_BASE_URL
+    logging.debug('Fetching masters from %s', masters_url)
+    master_names = fetch_json(masters_url).get('masters',[])
+    logging.debug('Got %d masters', len(master_names))
+    master_names = [m for m in master_names if m not in DEAD_MASTERS]
+    logging.debug('Undead masters: %d: %r', len(master_names), master_names)
+    if args.masters == 'waterfall':
+      args.masters = [m for m in master_names if m not in TRYSERVERS]
+    else:
+      args.masters = master_names
   elif args.masters:
     args.masters = args.masters.split(',')
+
+  if not args.masters:
+    print 'No masters found, exiting.'
+    return 1
 
   if args.builders:
     args.builders = args.builders.split(',')
@@ -95,12 +117,12 @@ def fetch_json(url):
     return {'error': '404'}
 
 
-def print_results(slaves, options):
+def print_results(slaves, args):
   print 'Top %s slaves with lowest success rates:' % (
-      options.top if options.top else '')
+      args.top if args.top else '')
   print 'Success % | Failed | Exceptions | Succeeded | Total | URL'
-  if options.top:
-    slaves = slaves[:options.top]
+  if args.top:
+    slaves = slaves[:args.top]
   for slave in slaves:
     print ('%8.2f%% | %6d | %10d | %9d | %5d | %s') % (
         slave['success_rate'] * 100.0,
@@ -135,11 +157,11 @@ def last_build_time(builds):
   return datetime.datetime.fromtimestamp(int(timestamp))
 
 
-def print_csv(slaves, options):
+def print_csv(slaves, args):
   print '\t'.join(['Master', 'Slave', 'Success %', 'Failed', 'Exceptions',
                    'Succeeded', 'Total', 'Last build time', 'Builders'])
-  if options.top:
-    slaves = slaves[:options.top]
+  if args.top:
+    slaves = slaves[:args.top]
   for slave in slaves:
     print '\t'.join([
         slave['master'],
@@ -159,26 +181,16 @@ def print_csv(slaves, options):
 
 
 def main():
-  options = get_options()
-  logging.basicConfig(level=logging.DEBUG if options.verbose else logging.WARN)
+  args = get_args()
 
-  if not options.masters or options.masters == 'waterfall':
-    masters_url = '%s/get_masters?json=1' % CHROME_BUILD_EXTRACT_BASE_URL
-    master_names = fetch_json(masters_url).get('masters',[])
-    if options.masters == 'waterfall':
-      options.masters = [m for m in master_names if m not in TRYSERVERS]
-    else:
-      options.masters = master_names
-
-  if not options.masters:
-    print 'No masters found, exiting.'
-    return 1
+  print 'Got %d masters: %r' % (len(args.masters), args.masters)
+  return 0
 
 
   slaves = []
-  for master_name in options.masters:
-    if options.builders:
-      builder_names = options.builders.split(',')
+  for master_name in args.masters:
+    if args.builders:
+      builder_names = args.builders.split(',')
     else:
       builders_url = '%s/get_builders/%s?json=1' % (
         CHROME_BUILD_EXTRACT_BASE_URL, master_name)
@@ -206,7 +218,7 @@ def main():
 
     pool = ThreadPool(100)
     for slave_name, builds in pool.imap_unordered(
-        process_slave(options.count), slave_set):
+        process_slave(args.count), slave_set):
       total = len(builds)
       logging.debug('Got %d builds for slave %s', total, slave_name)
 
@@ -237,10 +249,10 @@ def main():
 
   slaves_sorted = sorted(slaves, key=lambda s: s.get('success_rate', 0))
 
-  if options.csv:
-    print_csv(slaves_sorted, options)
+  if args.csv:
+    print_csv(slaves_sorted, args)
   else:
-    print_results(slaves_sorted, options)
+    print_results(slaves_sorted, args)
 
 
 if __name__ == '__main__':
