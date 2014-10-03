@@ -183,10 +183,6 @@ def print_csv(slaves, args):
 def main():
   args = get_args()
 
-  print 'Got %d masters: %r' % (len(args.masters), args.masters)
-  return 0
-
-
   slaves = []
   for master_name in args.masters:
     if args.builders:
