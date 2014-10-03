@@ -20,6 +20,18 @@ SLAVE_URL = 'http://build.chromium.org/p/%s/buildslaves/%s'
 # Expects % (master, builder).
 BUILDER_URL = 'http://build.chromium.org/p/%s/builders/%s'
 
+TRYSERVERS = [
+    'tryserver.blink',
+    'tryserver.chromium.gpu',
+    'tryserver.chromium.linux',
+    'tryserver.chromium.mac',
+    'tryserver.chromium.win',
+    'tryserver.libyuv',
+    'tryserver.nacl',
+    'tryserver.v8',
+    'tryserver.webrtc',
+]
+
 
 def get_options():
   parser = argparse.ArgumentParser(__doc__)
@@ -29,17 +41,29 @@ def get_options():
                       help='Number of top failing slaves to print. 0=all.')
   parser.add_argument('-v', '--verbose', default=False, action='store_true',
                       help='Enables debugging log messages.')
-  parser.add_argument('--masters',
-                      help='Comma-separated list of masters to scan for '
-                           'builds. If not specified, the list is retrieved '
-                           'from server.')
-  parser.add_argument('--builders',
-                      help='Comma-separated list of builders to scan for '
-                           'builds. If not specified, list of builders is '
-                           'retrieved from server.')
+  parser.add_argument(
+      '--masters',
+      help=('Comma-separated list of masters to scan for '
+            'builds. Special values: tryservers, waterfall. '
+            'If not specified, the list is retrieved from server.'))
+  parser.add_argument(
+      '--builders',
+      help=('Comma-separated list of builders to scan for '
+            'builds. If not specified, list of builders is '
+            'retrieved from server.'))
   parser.add_argument('--csv', action='store_true',
                       help='Dump data in CSV format for spreadsheets.')
-  return parser.parse_args()
+  args = parser.parse_args()
+
+  if args.masters == 'tryservers':
+    args.masters = TRYSERVERS
+  elif args.masters:
+    args.masters = args.masters.split(',')
+
+  if args.builders:
+    args.builders = args.builders.split(',')
+
+  return args
 
 
 def process_slave(count):
@@ -75,7 +99,9 @@ def print_results(slaves, options):
   print 'Top %s slaves with lowest success rates:' % (
       options.top if options.top else '')
   print 'Success % | Failed | Exceptions | Succeeded | Total | URL'
-  for slave in slaves[:options.top]:
+  if options.top:
+    slaves = slaves[:options.top]
+  for slave in slaves:
     print ('%8.2f%% | %6d | %10d | %9d | %5d | %s') % (
         slave['success_rate'] * 100.0,
         slave['failures'],
@@ -100,8 +126,10 @@ def extract_builders(builds):
 def last_build_time(builds):
   if not builds:
     return 'N/A'
-  # Assume the latest builder is the first on the list.
-  timestamp = builds[0].get('times', [None, None])[1]
+  timestamp = 0
+  for build in builds:
+    timestamp = max(timestamp, build.get('times', [0, 0])[1])
+
   if not timestamp:
     return 'N/A'
   return datetime.datetime.fromtimestamp(int(timestamp))
@@ -134,17 +162,21 @@ def main():
   options = get_options()
   logging.basicConfig(level=logging.DEBUG if options.verbose else logging.WARN)
 
-  if options.masters:
-    master_names = options.masters.split(',')
-  else:
+  if not options.masters or options.masters == 'waterfall':
     masters_url = '%s/get_masters?json=1' % CHROME_BUILD_EXTRACT_BASE_URL
     master_names = fetch_json(masters_url).get('masters',[])
-  if not master_names:
+    if options.masters == 'waterfall':
+      options.masters = [m for m in master_names if m not in TRYSERVERS]
+    else:
+      options.masters = master_names
+
+  if not options.masters:
     print 'No masters found, exiting.'
     return 1
 
+
   slaves = []
-  for master_name in master_names:
+  for master_name in options.masters:
     if options.builders:
       builder_names = options.builders.split(',')
     else:
