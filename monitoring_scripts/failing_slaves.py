@@ -56,8 +56,12 @@ def get_args():
       help=('Comma-separated list of builders to scan for '
             'builds. If not specified, list of builders is '
             'retrieved from server.'))
-  parser.add_argument('--csv', action='store_true',
-                      help='Dump data in CSV format for spreadsheets.')
+  parser.add_argument(
+      '--format',
+      choices=['csv', 'text'],
+      default='csv',
+      help='Format to dump the data. '
+      'default=csv - for importing into spreadsheets.')
   args = parser.parse_args()
 
   logging.basicConfig(level=logging.DEBUG if args.verbose else logging.WARN)
@@ -133,8 +137,8 @@ def print_results(slaves, args):
         SLAVE_URL % (slave['master'], slave['slave']))
 
 
-def extract_builders(builds):
-  builders = sorted([b['builderName'] for b in builds])
+def extract_failing_builders(builds):
+  builders = sorted([b['builderName'] for b in builds if b['results'] != 0])
   builder_counts = {}
   for builder in builders:
     builder_counts.setdefault(builder, 0)
@@ -234,7 +238,7 @@ def main():
           'slave': slave_name,
           'master': master_name,
           'num_builds': total,
-          'builders': extract_builders(builds),
+          'builders': extract_failing_builders(builds),
           'last_build_time': last_build_time(builds),
           'failures': failures,
           'exceptions': exceptions,
@@ -245,7 +249,7 @@ def main():
 
   slaves_sorted = sorted(slaves, key=lambda s: s.get('success_rate', 0))
 
-  if args.csv:
+  if args.format == 'csv':
     print_csv(slaves_sorted, args)
   else:
     print_results(slaves_sorted, args)
