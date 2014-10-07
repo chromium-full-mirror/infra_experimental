@@ -5,7 +5,6 @@
 '''Generate stats of CQ usage.'''
 
 import argparse
-import calendar
 import datetime
 import json
 import logging
@@ -33,7 +32,11 @@ def parse_args():
       '--project',
       required=True,
       help='Collect stats about this project.')
-  parser.add_argument('-v', '--verbose', action='store_true')
+  parser.add_argument(
+      '-v', '--verbose',
+      default='error',
+      choices=['debug', 'info', 'warning', 'error', 'critical'],
+      help='Set verbosity level. Default=%(default)s.')
   parser.add_argument('--list-rejected', action='store_true',
                       dest='list_rejected',
                       help='List rejected CLs and reasons for rejection.')
@@ -67,6 +70,11 @@ def parse_args():
     default=20,
     help='Print top N flaky builders (default=%(default)s)')
   parser.add_argument(
+      '--use-logs', action='store_true',
+      help=('Fetch the detailed logs and recompute the stats in this script, '
+            'instead of fetching precomputed stats (default). '
+            'Slower, but more accurate, and helps validate the cached stats.'))
+  parser.add_argument(
       '--date',
       help='Date of stats YYYY-MM-DD[ HH[:MM]]. Default: now.')
   parser.add_argument('--range',
@@ -82,6 +90,15 @@ def parse_args():
     print 'Rejecting jobs: [%s]' % ', '.join(args.rejecting_jobs)
   if args.date:
     args.date = date_from_string(args.date)
+
+  verbosity_map = {
+      'debug': logging.DEBUG,
+      'info': logging.INFO,
+      'warning': logging.WARNING,
+      'error': logging.ERROR,
+      'critical': logging.CRITICAL,
+  }
+  args.verbose = verbosity_map[args.verbose]
 
   return args
 
@@ -106,7 +123,7 @@ def date_from_timestamp(timestamp):
 
 def fetch_stats(args):
   if args.date:
-    timestamp = int(calendar.timegm(args.date.timetuple()))
+    timestamp = int(time.mktime(args.date.timetuple()))
   else:
     timestamp = int(time.time())
 
@@ -129,10 +146,44 @@ def fetch_stats(args):
   return stats
 
 
-def organize_stats(stats):
-  """Changes flat lists of stats into dictionaries.
+def fetch_logs(date=None, time_range=None, filters=[]):
+  begin_time = None
+  end_time = None
+  if date:
+    end_time = int(time.mktime(date.timetuple()))
+  if time_range:
+    begin_time = end_time - 60 * INTERVALS[time_range]
+  results = []
+  cursor = None
+  while(True):
+    params = {}
+    if begin_time:
+      params['begin'] = begin_time
+    if end_time:
+      params['end'] = end_time
+    if cursor:
+      params['cursor'] = cursor
+    query = 'query/%s?%s' % ('/'.join(filters), urllib.urlencode(params))
+    url = urlparse.urljoin(STATS_URL, query)
+    logging.debug('Fetching %s', url)
+    try:
+      data = json.loads(urllib2.urlopen(url).read())
+    except Exception as e:
+      logging.error('Failed to fetch %s: %s', url, e)
+      data = {'error': '404'}
+    results.extend(data.get('results', []))
+    logging.info('fetch_logs: Got %d results', len(results))
+    cursor = data.get('cursor', None)
+    if not data.get('more', False) or not cursor:
+      break
 
-  'latest' | 'previous' -> stat.name -> stats json.
+  return results
+
+
+def organize_stats(stats):
+  """Changes cached lists of stats into dictionaries.
+
+  Return a dict mapping ('latest' | 'previous') -> stat.name -> <stats json>.
   """
   if 'results' not in stats:
     return None
@@ -175,6 +226,58 @@ def organize_stats(stats):
   return result
 
 
+def derive_stats(args, results):
+  """Process raw CQ updates log and derive stats.
+
+  Return the same format as organize_stats().
+  Assumes |results| are action=patch_stop logs sorted by timestamp in
+  descending order.
+  """
+  stats = {}
+  if not results:
+    return stats
+
+  stats['begin'] = date_from_timestamp(results[-1]['timestamp'])
+  stats['end'] = date_from_timestamp(results[0]['timestamp'])
+  # Create map issue:patchset -> #attempts
+  patches = {}
+  attempts_count = 0
+  issues = set()
+  for r in results:
+    issues.add(r['fields']['issue'])
+    patch_id = '%s:%s' % (r['fields']['issue'], r['fields']['patchset'])
+    patches.setdefault(patch_id, 0)
+    patches[patch_id] += 1
+    attempts_count += 1
+  stats['issue-count'] = len(issues)
+  stats['patchset-count'] = len(patches)
+  stats['attempt-count'] = attempts_count
+  # TODO(sergeyberezin): refine this count: exclude missing LGTMs and
+  # possibly presubmit bot failures.
+  stats['patchset-false-reject-count'] = attempts_count - len(patches)
+  # TODO(sergeyberezin): fill these in.
+  stats['patchset-commit-count'] = -1
+  list_stats_stub = {
+      '10': -1,
+      '25': -1,
+      '50': -1,
+      '75': -1,
+      '90': -1,
+      '95': -1,
+      '99': -1,
+      'min': -1,
+      'max': -1,
+      'mean': -1,
+      'size': -1,
+  }
+  stats['patchset-durations'] = list_stats_stub
+  stats['patchset-total-commit-queue-durations'] = list_stats_stub
+  stats['patchset-durations'] = list_stats_stub
+  stats['patchset-attempts'] = list_stats_stub
+  stats['jobs'] = {}
+  return stats
+
+
 def percentage(n, total):
   if total:
     return 100. * n / total
@@ -191,8 +294,9 @@ def print_stats(args, stats):
   previous = stats.get('previous')
   if not latest:
     print 'No stats to display.'
-  print 'Statistics for project %s, interval: %s beginning %s.' % (
-      args.project, args.range, latest['begin'])
+  print 'Statistics for project %s' % args.project
+  print 'from %s till %s (local time).' % (
+      latest['begin'], latest['end'])
 
   print '%4d issues (%d patchsets) were tried by CQ, resulting in' % (
       latest['issue-count'], latest['patchset-count'])
@@ -279,8 +383,18 @@ def print_stats(args, stats):
 
 def main():
   args = parse_args()
-  logging.basicConfig(level=logging.DEBUG if args.verbose else logging.WARN)
-  stats = organize_stats(fetch_stats(args))
+  logging.basicConfig(level=args.verbose)
+  if args.use_logs:
+    filters = ['project=%s' % args.project, 'action=patch_stop']
+    latest_results = fetch_logs(args.date, args.range, filters)
+    stats = {}
+    stats['latest'] = derive_stats(args, latest_results)
+    prev_date = args.date - datetime.timedelta(minutes=INTERVALS[args.range])
+    previous_results = fetch_logs(prev_date, args.range, filters)
+    stats['previous'] = derive_stats(args, previous_results)
+  else:
+    stats = organize_stats(fetch_stats(args))
+
   print_stats(args, stats)
 
 
