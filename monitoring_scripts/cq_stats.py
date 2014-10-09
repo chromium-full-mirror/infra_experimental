@@ -5,9 +5,11 @@
 '''Generate stats of CQ usage.'''
 
 import argparse
+import copy
 import datetime
 import json
 import logging
+from multiprocessing.pool import ThreadPool
 import re
 import sys
 import time
@@ -38,8 +40,9 @@ def parse_args():
       choices=['debug', 'info', 'warning', 'error', 'critical'],
       help='Set verbosity level. Default=%(default)s.')
   parser.add_argument('--list-rejected', action='store_true',
-                      dest='list_rejected',
                       help='List rejected CLs and reasons for rejection.')
+  parser.add_argument('--list-false-rejections', action='store_true',
+                      help='List CLs that were committed in more than one attempt.')
   parser.add_argument(
       '--top-rejecting-jobs',
       default=0,
@@ -226,7 +229,7 @@ def organize_stats(stats):
   return result
 
 
-def derive_stats(args, results):
+def derive_stats(args, end_date):
   """Process raw CQ updates log and derive stats.
 
   Return the same format as organize_stats().
@@ -234,27 +237,37 @@ def derive_stats(args, results):
   descending order.
   """
   stats = {}
+  filters = ['project=%s' % args.project, 'action=patch_stop']
+  results = fetch_logs(end_date, args.range, filters)
   if not results:
     return stats
 
   stats['begin'] = date_from_timestamp(results[-1]['timestamp'])
   stats['end'] = date_from_timestamp(results[0]['timestamp'])
   # Create map issue:patchset -> #attempts
-  patches = {}
+  patches = set()
   attempts_count = 0
   issues = set()
   for r in results:
     issues.add(r['fields']['issue'])
-    patch_id = '%s:%s' % (r['fields']['issue'], r['fields']['patchset'])
-    patches.setdefault(patch_id, 0)
-    patches[patch_id] += 1
+    patches.add((r['fields']['issue'], r['fields']['patchset']))
     attempts_count += 1
   stats['issue-count'] = len(issues)
   stats['patchset-count'] = len(patches)
   stats['attempt-count'] = attempts_count
+  patch_stats = {}
+  # Fetch and process each patchset log
+  pool = ThreadPool(min(100, len(patches)))
+  for patch_id, pstats in pool.imap_unordered(derive_patch_stats, patches):
+    patch_stats[patch_id] = pstats
   # TODO(sergeyberezin): refine this count: exclude missing LGTMs and
   # possibly presubmit bot failures.
-  stats['patchset-false-reject-count'] = attempts_count - len(patches)
+  stats['patchset-false-reject-count'] = sum([
+      patch_stats[p]['false-rejections'] for p in patch_stats])
+  stats['false-rejections'] = [
+      p for p in patch_stats if patch_stats[p]['false-rejections']]
+  stats['rejections'] = [
+      p for p in patch_stats if not patch_stats[p]['committed']]
   # TODO(sergeyberezin): fill these in.
   stats['patchset-commit-count'] = -1
   list_stats_stub = {
@@ -276,6 +289,51 @@ def derive_stats(args, results):
   stats['patchset-attempts'] = list_stats_stub
   stats['jobs'] = {}
   return stats
+
+
+def patch_url(patch_id):
+  return '%s/patch-status/%s/%s' % ((STATS_URL,) + patch_id)
+
+
+def derive_patch_stats(patch_id):
+  """|patch_id| is a tuple (issue, patchset)."""
+  # Assume the results are in descendent order by timestamp.
+  results = fetch_logs(filters=[
+      'issue=%s' % patch_id[0], 'patchset=%s' % patch_id[1]])
+  logging.debug('derive_patch_stats(%r): fetched %d entries.',
+                patch_id, len(results))
+  # Group by attempts
+  attempts = []
+  attempt_empty = {'actions': [], 'committed': False}
+
+  def add_attempt(attempt):
+    attempts.append(attempt)
+    attempt = copy.copy(attempt_empty)
+
+  attempt = copy.copy(attempt_empty)
+  results.reverse()
+  for r in results:
+    attempt['actions'].append(r)
+    action = r['fields'].get('action')
+    if action == 'patch_committed':
+      attempt['committed'] = True
+    if action == 'patch_stop':
+      add_attempt(attempt)
+  # Handle the last, possibly unfinished attempt.
+  if attempt:
+    add_attempt(attempt)
+
+  logging.info('derive_patch_stats: %s has %d attempts, committed=%r',
+               patch_url(patch_id), len(attempts), attempt['committed'])
+
+  stats = {}
+  stats['committed'] = len([a for a in attempts if a['committed']])
+  stats['attempts'] = len(attempts)
+  stats['rejections'] = stats['attempts'] - stats['committed']
+  stats['false-rejections'] = 0
+  if stats['committed']:
+    stats['false-rejections'] = stats['rejections']
+  return patch_id, stats
 
 
 def percentage(n, total):
@@ -385,13 +443,10 @@ def main():
   args = parse_args()
   logging.basicConfig(level=args.verbose)
   if args.use_logs:
-    filters = ['project=%s' % args.project, 'action=patch_stop']
-    latest_results = fetch_logs(args.date, args.range, filters)
     stats = {}
-    stats['latest'] = derive_stats(args, latest_results)
+    stats['latest'] = derive_stats(args, args.date)
     prev_date = args.date - datetime.timedelta(minutes=INTERVALS[args.range])
-    previous_results = fetch_logs(prev_date, args.range, filters)
-    stats['previous'] = derive_stats(args, previous_results)
+    stats['previous'] = derive_stats(args, prev_date)
   else:
     stats = organize_stats(fetch_stats(args))
 
