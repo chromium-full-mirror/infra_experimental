@@ -499,7 +499,9 @@ def round_timedelta(seconds):
   return datetime.timedelta(seconds=round(seconds))
 
 
-def print_attempt_counts(stats, args, name, message):
+def print_attempt_counts(stats, name, message, item_name='', details=False):
+  if not item_name:
+    item_name = message
   count = sum([p['count'] for p in stats[name]])
   print '  %4d attempt%s (%.1f%% of %d attempts) %s in %d patches' % (
       count, '' if count == 1 else 's',
@@ -507,10 +509,10 @@ def print_attempt_counts(stats, args, name, message):
       stats['attempt-count'],
       message,
       len(stats[name]))
-  if args.list_rejected:
+  if details:
     print '\n'.join([
         '      %d %s %s' % (
-        p['count'], message, patch_url(p['patch_id']))
+        p['count'], item_name, patch_url(p['patch_id']))
         for p in stats[name]])
     print
 
@@ -534,13 +536,19 @@ def print_stats(args, stats):
       percentage(latest['patchset-commit-count'], latest['patchset-count']),
       percentage(latest['patchset-commit-count'], latest['attempt-count'])))
 
-  print_attempt_counts(latest, args, 'rejections', 'unsuccessful')
+  print_attempt_counts(latest, 'rejections', 'were unsuccessful',
+                       item_name='failures', details=args.list_rejected)
   print '  This includes:'
-  print_attempt_counts(latest, args, 'missing-lgtm', 'missing LGTM')
-  print_attempt_counts(latest, args, 'failed-commit', 'failed to commit')
-  print_attempt_counts(latest, args, 'manual-cancel', 'stopped manually')
-  print_attempt_counts(latest, args, 'failed-presubmit-bot',
-                       'failed presubmit bot')
+  print_attempt_counts(latest, 'missing-lgtm', 'are missing LGTM',
+                       item_name='missed LGTM',
+                       details=args.list_rejected)
+  print_attempt_counts(latest, 'failed-commit', 'failed to commit',
+                       details=args.list_rejected)
+  print_attempt_counts(latest, 'manual-cancel', 'stopped manually',
+                       details=args.list_rejected)
+  print_attempt_counts(latest, 'failed-presubmit-bot',
+                       'failed presubmit bot',
+                       details=args.list_rejected)
 
   if args.list_rejected:
     print
@@ -588,20 +596,11 @@ def print_stats(args, stats):
       prev_cq_only, round(prev_cq_only.total_seconds() / 60.0))
 
   print
-  print('%d attempts (%.1f%% of %d attempts) were false rejections\n'
-        '  (CQ eventually landed the patch it previously rejected)' % (
-      latest['patchset-false-reject-count'],
-      percentage(latest['patchset-false-reject-count'],
-                 latest['attempt-count']),
-      latest['attempt-count']))
-  # TODO(sergeyberezin): add breakdown by #attempts.
+  print_attempt_counts(latest, 'false-rejections', 'were false rejections',
+                       item_name='flakes',
+                       details=args.list_false_rejections)
 
   if args.list_false_rejections:
-    print
-    print '%d patches had false rejections:' % len(latest['false-rejections'])
-    print '\n'.join(['  %2d false rejections: %s' % (
-        p['count'], patch_url(p['patch_id']))
-        for p in latest['false-rejections']])
     print
     print '%d patches committed that were first rejected for missing LGTM:' % (
         len(latest['missing-lgtm']),)
