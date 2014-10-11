@@ -80,9 +80,16 @@ def parse_args():
     help='Print top N flaky builders (default=%(default)s)')
   parser.add_argument(
       '--use-logs', action='store_true',
-      help=('Fetch the detailed logs and recompute the stats in this script, '
-            'instead of fetching precomputed stats (default). '
+      default=True,
+      help=('On by default. '
+            'Fetch the detailed logs and recompute the stats in this script, '
+            'instead of fetching precomputed stats. '
             'Slower, but more accurate, and helps validate the cached stats.'))
+  parser.add_argument(
+      '--use-cache',
+      dest='use_logs',
+      action='store_false',
+      help=('Fetch the cached stats from the app. Opposite to --use-logs.'))
   parser.add_argument(
       '--date',
       help='Date of stats YYYY-MM-DD[ HH[:MM]]. Default: now.')
