@@ -602,12 +602,13 @@ def print_stats(args, stats):
 
   if args.list_false_rejections:
     print
-    print '%d patches committed that were first rejected for missing LGTM:' % (
-        len(latest['missing-lgtm']),)
-    print '\n'.join([
+    missing_lgtms = [
         '  %s' % patch_url(p['patch_id'])
         for p in latest['missing-lgtm']
-        if latest['patch_stats'][p['patch_id']]['committed']])
+        if latest['patch_stats'][p['patch_id']]['committed']]
+    print '%d patches committed that were first rejected for missing LGTM:' % (
+        len(missing_lgtms),)
+    print '\n'.join(missing_lgtms)
     manual_cancels = [
         '  %d manual cancellations %s' % (p['count'], patch_url(p['patch_id']))
         for p in latest['manual-cancel']
