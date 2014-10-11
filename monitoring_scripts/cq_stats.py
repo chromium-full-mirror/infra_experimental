@@ -49,35 +49,35 @@ def parse_args():
   parser.add_argument(
       '--list-false-rejections', action='store_true',
       help='List CLs that were committed in more than one attempt.')
-  parser.add_argument(
-      '--top-rejecting-jobs',
-      default=0,
-      type=int,
-      dest='top_rejecting_jobs',
-      help=('List N fastests jobs that failed on a CL rejected by CQ.'))
-  parser.add_argument(
-      '--rejecting-jobs',
-      default='',
-      type=str,
-      dest='rejecting_jobs',
-      help=('Comma-separated list of bots: listed in this order if any '
-            'of them fail on a CLs rejected by CQ. '
-            'This can be used to compare bot coverage.'))
-  parser.add_argument('--list-flaky-jobs', action='store_true',
-                      dest='list_flaky_jobs',
-                      help='List build URLs of all flaky try jobs.')
-  parser.add_argument(
-    '--top-jobs',
-    dest='top_jobs',
-    type=int,
-    default=0,
-    help='Print top N issues with maxium number of jobs (default=%(default)s)')
-  parser.add_argument(
-    '--top-flakes',
-    dest='top_flakes',
-    type=int,
-    default=20,
-    help='Print top N flaky builders (default=%(default)s)')
+  # parser.add_argument(
+  #     '--top-rejecting-jobs',
+  #     default=0,
+  #     type=int,
+  #     dest='top_rejecting_jobs',
+  #     help=('List N fastests jobs that failed on a CL rejected by CQ.'))
+  # parser.add_argument(
+  #     '--rejecting-jobs',
+  #     default='',
+  #     type=str,
+  #     dest='rejecting_jobs',
+  #     help=('Comma-separated list of bots: listed in this order if any '
+  #           'of them fail on a CLs rejected by CQ. '
+  #           'This can be used to compare bot coverage.'))
+  # parser.add_argument('--list-flaky-jobs', action='store_true',
+  #                     dest='list_flaky_jobs',
+  #                     help='List build URLs of all flaky try jobs.')
+  # parser.add_argument(
+  #   '--top-jobs',
+  #   dest='top_jobs',
+  #   type=int,
+  #   default=0,
+  #   help='Print top N issues with maxium number of jobs (default=%(default)s)')
+  # parser.add_argument(
+  #   '--top-flakes',
+  #   dest='top_flakes',
+  #   type=int,
+  #   default=20,
+  #   help='Print top N flaky builders (default=%(default)s)')
   parser.add_argument(
       '--use-logs', action='store_true',
       default=True,
@@ -97,13 +97,13 @@ def parse_args():
                       choices=INTERVALS.keys(),
                       default='week',
                       help='Time range to print stats for.')
-  parser.add_argument('--owner', default=None,
-                      help=('search for issues of specified owner'))
+  # parser.add_argument('--owner', default=None,
+  #                     help=('search for issues of specified owner'))
   args = parser.parse_args()
 
-  if args.rejecting_jobs:
-    args.rejecting_jobs = args.rejecting_jobs.split(',')
-    print 'Rejecting jobs: [%s]' % ', '.join(args.rejecting_jobs)
+  # if args.rejecting_jobs:
+  #   args.rejecting_jobs = args.rejecting_jobs.split(',')
+  #   print 'Rejecting jobs: [%s]' % ', '.join(args.rejecting_jobs)
   if args.date:
     args.date = date_from_string(args.date)
 
