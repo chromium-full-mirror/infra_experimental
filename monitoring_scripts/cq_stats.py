@@ -92,7 +92,7 @@ def parse_args():
       help=('Fetch the cached stats from the app. Opposite to --use-logs.'))
   parser.add_argument(
       '--date',
-      help='Date of stats YYYY-MM-DD[ HH[:MM]]. Default: now.')
+      help='Start date of stats YYYY-MM-DD[ HH[:MM]]. Default: --range ago.')
   parser.add_argument('--range',
                       choices=INTERVALS.keys(),
                       default='week',
@@ -106,6 +106,9 @@ def parse_args():
   #   print 'Rejecting jobs: [%s]' % ', '.join(args.rejecting_jobs)
   if args.date:
     args.date = date_from_string(args.date)
+  else:
+    args.date = (datetime.datetime.now() -
+                 datetime.timedelta(minutes=INTERVALS[args.range]))
 
   verbosity_map = {
       'debug': logging.DEBUG,
@@ -137,14 +140,31 @@ def date_from_timestamp(timestamp):
   return datetime.datetime.fromtimestamp(int(timestamp))
 
 
-def fetch_stats(args):
-  if args.date:
-    timestamp = int(time.mktime(args.date.timetuple()))
+def fetch_json(url):
+  result = {'error': '404'}
+  for retry in range(3):
+    try:
+      result = json.loads(urllib2.urlopen(url).read())
+      return result
+    except Exception as e:
+      logging.error('Failed to fetch (attempt %d) %s: %s', retry + 1, url, e)
+  logging.error('Permanently failed to fetch %s: %s', url, e)
+  return result
+
+
+def fetch_stats(args, begin_date=None, stats_range=None):
+  if not begin_date:
+    begin_date = args.date
+  if not stats_range:
+    stats_range = args.range
+  if begin_date:
+    timestamp = (int(time.mktime(begin_date.timetuple())) +
+                 INTERVALS[stats_range] * 60)
   else:
     timestamp = int(time.time())
 
   params = {
-      'interval_minutes': INTERVALS[args.range],
+      'interval_minutes': INTERVALS[stats_range],
       'end': timestamp,
       'count': 2, # Fetch requested and previous set, for comparison.
   }
@@ -155,7 +175,7 @@ def fetch_stats(args):
   url = urlparse.urljoin(STATS_URL, query)
   logging.debug('Fetching %s', url)
   try:
-    stats = json.loads(urllib2.urlopen(url).read())
+    stats = fetch_json(url)
   except Exception as e:
     logging.error('Failed to fetch %s: %s', url, e)
     stats = {'error': '404'}
@@ -166,9 +186,9 @@ def fetch_logs(date=None, time_range=None, filters=[]):
   begin_time = None
   end_time = None
   if date:
-    end_time = int(time.mktime(date.timetuple()))
-  if time_range:
-    begin_time = end_time - 60 * INTERVALS[time_range]
+    begin_time = int(time.mktime(date.timetuple()))
+    if time_range:
+      end_time = begin_time + 60 * INTERVALS[time_range]
   results = []
   cursor = None
   while(True):
@@ -183,7 +203,7 @@ def fetch_logs(date=None, time_range=None, filters=[]):
     url = urlparse.urljoin(STATS_URL, query)
     logging.debug('Fetching %s', url)
     try:
-      data = json.loads(urllib2.urlopen(url).read())
+      data = fetch_json(url)
     except Exception as e:
       logging.error('Failed to fetch %s: %s', url, e)
       data = {'error': '404'}
@@ -200,8 +220,8 @@ def fetch_logs(date=None, time_range=None, filters=[]):
 def default_stats():
   """Generate all the required stats fields with default values."""
   stats = {
-      'begin': 0.0,
-      'end': 0.0,
+      'begin': datetime.datetime.now(),
+      'end': datetime.datetime(1, 1, 1),
       'issue-count': 0,
       'patchset-count': 0,
       'attempt-count': 0,
@@ -218,26 +238,36 @@ def default_stats():
       'patchset-commit-count': 0,
       'patchset-total-commit-queue-durations': derive_list_stats([0]),
       'patchset-durations': derive_list_stats([0]),
+      'patchset-committed-durations': derive_list_stats([0]),
       'patchset-attempts': derive_list_stats([0]),
+      'patchset-committed-attempts': derive_list_stats([0]),
       'jobs': {},
   }
   return stats
 
 
-def organize_stats(stats):
+def organize_stats(stats, latest_init=None, previous_init=None):
   """Changes cached lists of stats into dictionaries.
 
   Return a dict mapping ('latest' | 'previous') -> stat.name -> <stats json>.
+  If latest/previous_init are given, add to those stats rather than
+  compute them from scratch.
   """
   if 'results' not in stats:
     return None
-  result = {'latest' : default_stats(), 'previous': default_stats()}
+  result = {
+      'latest' : latest_init if latest_init else default_stats(),
+      'previous': previous_init if previous_init else default_stats()}
   for dataset, name in zip(stats['results'], ['latest', 'previous']):
-    result[name]['begin'] = date_from_timestamp(dataset['begin'])
-    result[name]['end'] = date_from_timestamp(dataset['end'])
+    if not result[name]['begin']:
+      result[name]['begin'] = date_from_timestamp(dataset['begin'])
+    else:
+      result[name]['begin'] = min(
+          date_from_timestamp(dataset['begin']), result[name]['begin'])
+    result[name]['end'] = max(date_from_timestamp(dataset['end']), result[name]['end'])
     re_trybot_pass_count = re.compile('^trybot-(.+)-pass-count$')
     re_trybot_false_reject_count = re.compile('^trybot-(.+)-false-reject-count$')
-    result[name]['jobs'] = {}
+    assert 'jobs' in result[name] and type(result[name]['jobs']) is dict
     for data in dataset['stats']:
       if data['type'] == 'count':
         result[name][data['name']] = data['count']
@@ -245,13 +275,19 @@ def organize_stats(stats):
         match_false_reject = re_trybot_false_reject_count.match(data['name'])
         if match_pass:
           job_name = match_pass.group(1)
-          result[name]['jobs'].setdefault(job_name, {})
-          result[name]['jobs'][job_name]['pass-count'] = data['count']
+          result[name]['jobs'].setdefault(job_name, {
+              'pass-count': 0,
+              'false-reject-count': 0,
+          })
+          result[name]['jobs'][job_name]['pass-count'] += data['count']
           logging.debug('Job %s passed %d times. Jobs: %r', job_name, data['count'], result[name]['jobs'])
         if match_false_reject:
           job_name = match_false_reject.group(1)
-          result[name]['jobs'].setdefault(job_name, {})
-          result[name]['jobs'][job_name]['false-reject-count'] = data['count']
+          result[name]['jobs'].setdefault(job_name, {
+              'pass-count': 0,
+              'false-reject-count': 0,
+          })
+          result[name]['jobs'][job_name]['false-reject-count'] += data['count']
           logging.debug('Job %s flakily failed %d times', job_name, data['count'])
       elif data['type'] == 'list':
         result[name][data['name']] = {
@@ -296,16 +332,18 @@ def stats_by_count(patch_stats, name):
       for p in patch_stats if patch_stats[p][name]])
 
 
-def derive_stats(args, end_date):
+def derive_stats(args, begin_date, init_stats=None):
   """Process raw CQ updates log and derive stats.
 
   Return the same format as organize_stats().
   Assumes |results| are action=patch_stop logs sorted by timestamp in
   descending order.
+  If |init_stats| are given, preserve the jobs stats and replace the
+  other stats.
   """
-  stats = default_stats()
+  stats = init_stats if init_stats else default_stats()
   filters = ['project=%s' % args.project, 'action=patch_stop']
-  results = fetch_logs(end_date, args.range, filters)
+  results = fetch_logs(begin_date, args.range, filters)
   if not results:
     return stats
 
@@ -352,9 +390,14 @@ def derive_stats(args, end_date):
       patch_stats[p]['patchset-duration-wallclock'] for p in patch_stats])
   stats['patchset-durations'] = derive_list_stats([
       patch_stats[p]['patchset-duration'] for p in patch_stats])
+  stats['patchset-committed-durations'] = derive_list_stats([
+      patch_stats[p]['patchset-duration'] for p in patch_stats
+      if patch_stats[p]['committed']])
   stats['patchset-attempts'] = derive_list_stats([
       patch_stats[p]['attempts'] for p in patch_stats])
-  stats['jobs'] = {}
+  stats['patchset-committed-attempts'] = derive_list_stats([
+      patch_stats[p]['attempts'] for p in patch_stats
+      if patch_stats[p]['committed']])
   return stats
 
 
@@ -523,6 +566,10 @@ def print_stats(args, stats):
   if not latest:
     print 'No stats to display.'
   print 'Statistics for project %s' % args.project
+  if latest['begin'] > latest['end']:
+    print '  No stats since %s' % args.date
+    return
+
   print 'from %s till %s (local time).' % (
       latest['begin'], latest['end'])
 
@@ -629,8 +676,8 @@ def print_stats(args, stats):
   print 'Patches which eventually land percentiles:'
   for p in ['10', '25', '50', '75', '90', '95', '99']:
     print '%s: %4.1f hrs, %2d attempts' % (
-        p, latest['patchset-durations'][p] / 3600.0,
-        latest['patchset-attempts'][p])
+        p, latest['patchset-committed-durations'][p] / 3600.0,
+        latest['patchset-committed-attempts'][p])
 
   # TODO(sergeyberezin): add total try jobs / by CQ / unknown. Get it from CBE.
   # TODO(sergeyberezin): recompute bot flakiness from CBE. CQ does not
@@ -640,8 +687,12 @@ def print_stats(args, stats):
 
   logging.debug('Found %d jobs', len(latest['jobs'].keys()))
 
-  jobs = sorted(latest['jobs'].iterkeys(),
-                key=lambda j: latest['jobs'][j]['false-reject-count'],
+  def flakiness(stats, job):
+    passes = stats['jobs'][job]['pass-count']
+    failures = stats['jobs'][job]['false-reject-count']
+    return percentage(failures, passes + failures)
+
+  jobs = sorted(latest['jobs'].iterkeys(), key=lambda j: flakiness(latest, j),
                 reverse=True)
   print '%-40s %-15s %-15s %-15s' % (
       'Builder Name', 'Succeeded', 'Flaky Failures', 'Flakiness (%)')
@@ -650,20 +701,42 @@ def print_stats(args, stats):
     failures = latest['jobs'][job]['false-reject-count']
     print '%-40s %-15s %-15s %-15s' % (
         job, '%5d' % passes, '%5d' % failures,
-        '%6.2f%%' % percentage(failures, passes + failures))
+        '%6.2f%%' % flakiness(latest, job))
 
 
-def main():
-  args = parse_args()
-  logging.basicConfig(level=args.verbose)
+def acquire_stats(args):
+  stats = {}
+  logging.info('Acquiring stats for project %s for a %s of %s using %s',
+               args.project, args.range, args.date,
+               'logs' if args.use_logs else 'cache')
   if args.use_logs:
-    stats = {}
-    stats['latest'] = derive_stats(args, args.date)
+    init_stats = {'latest': default_stats(), 'previous': default_stats()}
+    assert args.date
+    # For weekly stats, collect job flakiness from daily cached stats.
+    if args.range == 'week':
+      for day in range(7):
+        d = args.date + datetime.timedelta(minutes=INTERVALS['day']*day)
+        raw_stats = fetch_stats(args, d, 'day')
+        init_stats = organize_stats(raw_stats, latest_init=init_stats['latest'])
+    elif args.range == 'day':
+      for hour in range(24):
+        d = args.date + datetime.timedelta(minutes=INTERVALS['hour']*hour)
+        raw_stats = fetch_stats(args, d, 'hour')
+        init_stats = organize_stats(raw_stats, latest_init=init_stats['latest'])
+    else:
+      init_stats = organize_stats(fetch_stats(args))
+    stats['latest'] = derive_stats(
+        args, args.date, init_stats=init_stats['latest'])
     prev_date = args.date - datetime.timedelta(minutes=INTERVALS[args.range])
     stats['previous'] = derive_stats(args, prev_date)
   else:
     stats = organize_stats(fetch_stats(args))
+  return stats
 
+def main():
+  args = parse_args()
+  logging.basicConfig(level=args.verbose)
+  stats = acquire_stats(args)
   print_stats(args, stats)
 
 
