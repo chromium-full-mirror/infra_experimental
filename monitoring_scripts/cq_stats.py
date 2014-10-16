@@ -44,6 +44,9 @@ def parse_args():
       '--seq', action='store_true',
       help='Run everything sequentially for debugging.')
   parser.add_argument(
+      '--thread-pool', type=int, default=200,
+      help='Fetch data using this many parallel threads. Default=%(default)s.')
+  parser.add_argument(
       '--list-rejected', action='store_true',
       help='List rejected CLs and reasons for rejection.')
   parser.add_argument(
@@ -142,12 +145,15 @@ def date_from_timestamp(timestamp):
 
 def fetch_json(url):
   result = {'error': '404'}
-  for retry in range(3):
+  delays = [0.0, 0.5, 1.0, 2.0]
+  for retry in range(len(delays)):
+    if retry:
+      time.sleep(delays[retry])
     try:
       result = json.loads(urllib2.urlopen(url).read())
       return result
     except Exception as e:
-      logging.error('Failed to fetch (attempt %d) %s: %s', retry + 1, url, e)
+      logging.warning('Failed to fetch (attempt %d) %s: %s', retry + 1, url, e)
   logging.error('Permanently failed to fetch %s: %s', url, e)
   return result
 
@@ -226,15 +232,20 @@ def default_stats():
       'patchset-count': 0,
       'attempt-count': 0,
       'patch_stats': {},
-      'patchset-false-reject-count': 0,
+      'patchset-false-reject-count': 0, # Deprecated stats?
       'attempt-reject-count': 0, # Num. of rejected attempts
+      'attempt-false-reject-count': 0, # Num. of falsely rejected attempts
       'false-rejections': [], # patches with falsely rejected attempts
       'rejections': [],       # patches with rejected attempts
       'rejected-patches': set(), # Patches that never committed
-      'missing-lgtm': [],
       'manual-cancel': [],
+      'missing-lgtm': [],
+      'invalid-delimiter': [], # Incorrect extra bots config on CL
       'failed-commit': [],
       'failed-presubmit-bot': [],
+      'failed-jobs': [],
+      'failed-to-trigger': [],
+      'failed-unknown': [],
       'patchset-commit-count': 0,
       'patchset-total-commit-queue-durations': derive_list_stats([0]),
       'patchset-durations': derive_list_stats([0]),
@@ -307,6 +318,8 @@ def organize_stats(stats, latest_init=None, previous_init=None):
 
 
 def derive_list_stats(series):
+  if not series:
+    series = [0]
   return {
       '10': numpy.percentile(series, 10),
       '25': numpy.percentile(series, 25),
@@ -326,10 +339,20 @@ def sort_by_count(elements):
   return sorted(elements, key=lambda p: p['count'], reverse=True)
 
 
-def stats_by_count(patch_stats, name):
+def stats_by_count_entry(patch_stats, name, patch, *other_names):
+  entry = {'count': patch_stats[name], 'patch_id': patch}
+  for n in other_names:
+    if n in patch_stats:
+      entry[n] = patch_stats[n]
+      assert type(entry[n]) is int, 'Bad type in %s[%s]: %r\nEntry=%r' % (
+        patch, n, entry[n], entry)
+  return entry
+
+
+def stats_by_count(patch_stats, name, *other_names):
   return sort_by_count([
-      {'count': patch_stats[p][name], 'patch_id': p}
-      for p in patch_stats if patch_stats[p][name]])
+      stats_by_count_entry(patch_stats[p], name, p, *other_names)
+      for p in patch_stats if patch_stats[p].get(name)])
 
 
 def derive_stats(args, begin_date, init_stats=None):
@@ -359,10 +382,10 @@ def derive_stats(args, begin_date, init_stats=None):
   stats['patchset-count'] = len(patches)
   patch_stats = {}
   # Fetch and process each patchset log
-  if args.seq:
+  if args.seq or not args.thread_pool:
     iterable = map(derive_patch_stats, patches)
   else:
-    pool = ThreadPool(min(100, len(patches)))
+    pool = ThreadPool(min(args.thread_pool, len(patches)))
     iterable = pool.imap_unordered(derive_patch_stats, patches)
   for patch_id, pstats in iterable:
     patch_stats[patch_id] = pstats
@@ -377,13 +400,20 @@ def derive_stats(args, begin_date, init_stats=None):
 
   stats['rejected-patches'] = set([
       p for p in patch_stats if not patch_stats[p]['committed']])
-  stats['false-rejections'] = stats_by_count(patch_stats, 'false-rejections')
+  stats['false-rejections'] = stats_by_count(
+      patch_stats, 'false-rejections',
+      'missing-lgtm', 'manual-cancel', 'failed-commit',
+      'failed-jobs', 'failed-unknown')
   stats['rejections'] = stats_by_count(patch_stats, 'rejections')
   stats['missing-lgtm'] = stats_by_count(patch_stats, 'missing-lgtm')
+  stats['invalid-delimiter'] = stats_by_count(patch_stats, 'invalid-delimiter')
   stats['manual-cancel'] = stats_by_count(patch_stats, 'manual-cancel')
   stats['failed-commit'] = stats_by_count(patch_stats, 'failed-commit')
   stats['failed-presubmit-bot'] = stats_by_count(
       patch_stats, 'failed-presubmit-bot')
+  stats['failed-jobs'] = stats_by_count(patch_stats, 'failed-jobs')
+  stats['failed-to-trigger'] = stats_by_count(patch_stats, 'failed-to-trigger')
+  stats['failed-unknown'] = stats_by_count(patch_stats, 'failed-unknown')
   stats['patchset-commit-count'] = len([
       p for p in patch_stats if patch_stats[p]['committed']])
   stats['patchset-total-commit-queue-durations'] = derive_list_stats([
@@ -405,6 +435,17 @@ def patch_url(patch_id):
   return '%s/patch-status/%s/%s' % ((STATS_URL,) + patch_id)
 
 
+def parse_json(obj):
+  """Attempt to interpret a string as JSON, pass through otherwise."""
+  result = obj
+  if type(obj) in [str, unicode]:
+    try:
+      result = json.loads(obj)
+    except Exception as e:
+      logging.error('Could not decode json in "%s": %s', obj, e)
+  return result
+
+
 def derive_patch_stats(patch_id):
   """|patch_id| is a tuple (issue, patchset)."""
   # Assume the results are in descendent order by timestamp.
@@ -424,9 +465,12 @@ def derive_patch_stats(patch_id):
       'reason': {},
       'manual-cancel': False,
       'missing-lgtm': False,
+      'invalid-delimiter': False,
       'failed-commit': False,
-      'failed-jobs': [],
       'failed-presubmit-bot': False,
+      'failed-jobs': [],
+      'failed-to-trigger': False, # A job failed to trigger.
+      'failed-unknown': False,
   }
   attempt_id = {'id': 0}
 
@@ -435,12 +479,15 @@ def derive_patch_stats(patch_id):
       attempt_id['id'] += 1
       attempt['id'] = attempt_id['id']
       attempt['duration'] = attempt['end'] - attempt['begin']
+      reasons = ['manual-cancel', 'missing-lgtm', 'invalid-delimiter',
+                 'failed-commit', 'failed-jobs', 'failed-presubmit-bot',
+                 'failed-to-trigger']
+      if not attempt['committed'] and not [r for r in reasons if attempt[r]]:
+        attempt['failed-unknown'] = True
       logging.debug(
-          'add_attempt: #%d (%s%s%s)',
+          'add_attempt: #%d (%s)',
           attempt['id'],
-          ' committed' if attempt['committed'] else '',
-          ' missing-lgtm' if attempt['missing-lgtm'] else '',
-          ' manually cancelled' if attempt['manual-cancel'] else '')
+          ', '.join([r for r in reasons if attempt[r]]))
       attempts.append(copy.deepcopy(attempt))
       attempt.update(copy.deepcopy(attempt_empty))
 
@@ -465,32 +512,38 @@ def derive_patch_stats(patch_id):
         attempt['manual-cancel'] = True
       if 'No LGTM' in message:
         attempt['missing-lgtm'] = True
+      if 'Transient error: Invalid delimiter' in message:
+        attempt['invalid-delimiter'] = True
       if 'Failed to commit' in message:
         attempt['failed-commit'] = True
-      if 'Try jobs failed' in message and 'presubmit' in message:
-        attempt['failed-presubmit-bot'] = True
+      if 'Try jobs failed' in message:
+        if 'presubmit' in message:
+          attempt['failed-presubmit-bot'] = True
+        else:
+          attempt['failed-jobs'] = message
+      if 'Exceeded time limit waiting for builds to trigger' in message:
+        attempt['failed-to-trigger'] = True
       add_attempt(attempt)
       assert attempt == attempt_empty, 'attempt=%r' % attempt
       state = 'stop'
       continue
     if action == 'patch_committed':
       attempt['committed'] = True
-    if action == 'patch_failed':
-      attempt['reason'] = r['fields'].get('reason', {})
-      if type(attempt['reason']) in [str, unicode]:
-        try:
-          attempt['reason'] = json.loads(attempt['reason'])
-        except Exception as e:
-          logging.error('Could not decode reason "%s": %s',
-                        attempt['reason'], e)
+    # TODO(sergeyberezin): enable this after this action is stable in CQ.
+    if False and action == 'patch_failed':
+      attempt['reason'] = parse_json(r['fields'].get('reason', {}))
       logging.info('Attempt reason: %r', attempt['reason'])
       if attempt['reason'].get('fail_type') == 'reviewer_lgtm':
         attempt['missing-lgtm'] = True
       if attempt['reason'].get('fail_type') == 'commit':
         attempt['failed-commit'] = True
       if attempt['reason'].get('fail_type') == 'simple try job':
-        attempt['failed-jobs'] = attempt['reason'].get(
-            'fail_details', [('unknown_master', 'unknown_bot')])
+        failed_jobs = parse_json(attempt['reason'].get(
+            'fail_details', [('unknown_master', 'unknown_bot')]))
+        # Remove presubmit bot - it's accounted separately.
+        if type(failed_jobs) is list:
+          failed_jobs = [j for j in failed_jobs if 'presubmit' in j[1]]
+        attempt['failed-jobs'] = failed_jobs
 
   stats = {}
   committed_set = set([a['id'] for a in attempts if a['committed']])
@@ -504,6 +557,9 @@ def derive_patch_stats(patch_id):
   missing_lgtm_set = set([
       a['id'] for a in attempts if a['missing-lgtm']])
   stats['missing-lgtm'] = len(missing_lgtm_set)
+  invalid_delimiter_set = set([
+      a['id'] for a in attempts if a['invalid-delimiter']])
+  stats['invalid-delimiter'] = len(invalid_delimiter_set)
   manual_cancel_set = set([
       a['id'] for a in attempts if a.get('manual-cancel')])
   stats['manual-cancel'] = len(manual_cancel_set)
@@ -513,6 +569,12 @@ def derive_patch_stats(patch_id):
   failed_jobs_set = set([
       a['id'] for a in attempts if a['failed-jobs']])
   stats['failed-jobs'] = len(failed_jobs_set)
+  failed_to_trigger_set = set([
+      a['id'] for a in attempts if a['failed-to-trigger']])
+  stats['failed-to-trigger'] = len(failed_jobs_set)
+  failed_unknown_set = set([
+      a['id'] for a in attempts if a['failed-unknown']])
+  stats['failed-unknown'] = len(failed_unknown_set)
   failed_presubmit_bot_set = set([
       a['id'] for a in attempts if a['failed-presubmit-bot']])
   stats['failed-presubmit-bot'] = len(failed_presubmit_bot_set)
@@ -520,7 +582,8 @@ def derive_patch_stats(patch_id):
   if stats['committed']:
     stats['false-rejections'] = len(
         set([a['id'] for a in attempts]) - committed_set
-        - missing_lgtm_set - manual_cancel_set - failed_presubmit_bot_set)
+        - missing_lgtm_set - invalid_delimiter_set
+        - manual_cancel_set - failed_presubmit_bot_set)
   # Sum of attempt duration.
   stats['patchset-duration'] = sum([a['duration'] for a in attempts])
   if attempts:
@@ -542,22 +605,60 @@ def round_timedelta(seconds):
   return datetime.timedelta(seconds=round(seconds))
 
 
-def print_attempt_counts(stats, name, message, item_name='', details=False):
+def print_attempt_counts(stats, name, message, item_name='',
+                         details=False, committed=False):
   if not item_name:
     item_name = message
-  count = sum([p['count'] for p in stats[name]])
-  print '  %4d attempt%s (%.1f%% of %d attempts) %s in %d patches' % (
-      count, '' if count == 1 else 's',
+  patches = [
+      p for p in stats[name]
+      if not committed or stats['patch_stats'][p['patch_id']]['committed']]
+  count = sum([p['count'] for p in patches])
+  print '  %4d attempt%s (%.1f%% of %d attempts) %s in %d%s patches' % (
+      count, ' ' if count == 1 else 's',
       percentage(count, stats['attempt-count']),
       stats['attempt-count'],
       message,
-      len(stats[name]))
+      len(patches),
+      ' committed' if committed else '')
   if details:
+    lines = []
+    for p in patches:
+      line = '      %d %s %s'  % (
+          p['count'], item_name, patch_url(p['patch_id']))
+      extra = []
+      for k in p:
+        if k in ['count', 'patch_id']:
+          continue
+        extra.append(k)
+      if extra:
+        line += ' (%s)' % ', '.join(['%d %s' % (p[k], k) for k in extra])
     print '\n'.join([
         '      %d %s %s' % (
         p['count'], item_name, patch_url(p['patch_id']))
-        for p in stats[name]])
+        for p in patches])
     print
+
+
+def print_duration(name, args, latest, previous, print_name=None):
+  if not print_name:
+    print_name = name.capitalize()
+  print
+  cq_only = round_timedelta(latest['patchset-durations'][name])
+  wallclock = round_timedelta(
+      latest['patchset-total-commit-queue-durations'][name])
+  prev_cq_only = 'unknown'
+  prev_wallclock = 'unknown'
+  if previous:
+    prev_cq_only = round_timedelta(previous['patchset-durations'][name])
+    prev_wallclock = round_timedelta(
+        previous['patchset-total-commit-queue-durations'][name])
+  print '%s duration in CQ trying a patch:' % print_name
+  print '  wallclock:       %8s (%3d min). Prev. %s: %8s (%3d min).' % (
+      wallclock, round(wallclock.total_seconds() / 60.0), args.range,
+      prev_wallclock, round(prev_wallclock.total_seconds() / 60.0))
+  print '  sum of attempts: %8s (%3d min). Prev. %s: %8s (%3d min).' % (
+      cq_only, round(cq_only.total_seconds() / 60.0), args.range,
+      prev_cq_only, round(prev_cq_only.total_seconds() / 60.0))
 
 
 def print_stats(args, stats):
@@ -589,12 +690,30 @@ def print_stats(args, stats):
   print_attempt_counts(latest, 'missing-lgtm', 'are missing LGTM',
                        item_name='missed LGTM',
                        details=args.list_rejected)
+  print_attempt_counts(latest, 'invalid-delimiter',
+                       'have incorrect CQ_EXTRA_TRYBOTS flag',
+                       item_name='errors',
+                       details=args.list_rejected)
   print_attempt_counts(latest, 'failed-commit', 'failed to commit',
+                       item_name='failures',
                        details=args.list_rejected)
   print_attempt_counts(latest, 'manual-cancel', 'stopped manually',
                        details=args.list_rejected)
   print_attempt_counts(latest, 'failed-presubmit-bot',
                        'failed presubmit bot',
+                       item_name='failures',
+                       details=args.list_rejected)
+  print_attempt_counts(latest, 'failed-jobs',
+                       'failed jobs (excluding presubmit)',
+                       item_name='failures',
+                       details=args.list_rejected)
+  print_attempt_counts(latest, 'failed-to-trigger',
+                       'failed to trigger jobs',
+                       item_name='failures',
+                       details=args.list_rejected)
+  print_attempt_counts(latest, 'failed-unknown',
+                       'failed for any other reason',
+                       item_name='failures',
                        details=args.list_rejected)
 
   if args.list_rejected:
@@ -602,75 +721,81 @@ def print_stats(args, stats):
     print '%d uncommitted patches:' % len(latest['rejected-patches'])
     print '\n'.join(['  %s' % patch_url(p) for p in latest['rejected-patches']])
 
+    # print
+    # missing_lgtms = [
+    #     '  %s' % patch_url(p['patch_id'])
+    #     for p in latest['missing-lgtm']
+    #     if latest['patch_stats'][p['patch_id']]['committed']]
+    # print '%d patches committed that were first rejected for missing LGTM:' % (
+    #     len(missing_lgtms),)
+    # print '\n'.join(missing_lgtms)
+    # manual_cancels = [
+    #     '  %d manual cancellations %s' % (p['count'], patch_url(p['patch_id']))
+    #     for p in latest['manual-cancel']
+    #     if latest['patch_stats'][p['patch_id']]['committed']]
+    # print '%d patches committed that were first stopped manually:' % (
+    #     len(manual_cancels),)
+    # print '\n'.join(manual_cancels)
+
+    # failed_presubmit_bot = [
+    #     '  %d failures %s' % (p['count'], patch_url(p['patch_id']))
+    #     for p in latest['failed-presubmit-bot']
+    #     if latest['patch_stats'][p['patch_id']]['committed']]
+    # print '%d patches committed that first failed presubmit bot:' % (
+    #     len(failed_presubmit_bot),)
+    # print '\n'.join(failed_presubmit_bot)
+
   # TODO(sergeyberezin): add gave up count (committed manually after trying CQ).
   # TODO(sergeyberezin): add count of NOTRY=true (if possible).
-  # TODO(sergeyberezin): add counts of rejection reasons (missing
-  # LGTM, failing jobs, etc.)
 
   print
-  cq_only = round_timedelta(latest['patchset-durations']['mean'])
-  wallclock = round_timedelta(
-      latest['patchset-total-commit-queue-durations']['mean'])
-  prev_cq_only = 'unknown'
-  prev_wallclock = 'unknown'
-  if previous:
-    prev_cq_only = round_timedelta(previous['patchset-durations']['mean'])
-    prev_wallclock = round_timedelta(
-        previous['patchset-total-commit-queue-durations']['mean'])
-  print 'Mean duration in CQ trying a patch:'
-  print '  wallclock:       %8s (%3d min). Prev. %s: %8s (%3d min).' % (
-      wallclock, round(wallclock.total_seconds() / 60.0), args.range,
-      prev_wallclock, round(prev_wallclock.total_seconds() / 60.0))
-  print '  sum of attempts: %8s (%3d min). Prev. %s: %8s (%3d min).' % (
-      cq_only, round(cq_only.total_seconds() / 60.0), args.range,
-      prev_cq_only, round(prev_cq_only.total_seconds() / 60.0))
+  if args.use_logs:
+    print_attempt_counts(latest, 'false-rejections', 'were false rejections',
+                         item_name='flakes',
+                         details=args.list_false_rejections)
+    print_attempt_counts(latest, 'rejections', 'were rejected (for any reason)',
+                         item_name='flakes',
+                         details=args.list_false_rejections,
+                         committed=True)
+  else:
+    print '  %4d attempts (%.1f%% of %d attempts) were false rejections' % (
+        latest['attempt-false-reject-count'],
+        percentage(latest['attempt-false-reject-count'], 
+                   latest['attempt-count']),
+        latest['attempt-count'])
 
-  cq_only = round_timedelta(latest['patchset-durations']['50'])
-  wallclock = round_timedelta(
-      latest['patchset-total-commit-queue-durations']['50'])
-  prev_cq_only = 'unknown'
-  prev_wallclock = 'unknown'
-  if previous:
-    prev_cq_only = round_timedelta(previous['patchset-durations']['50'])
-    prev_wallclock = round_timedelta(
-        previous['patchset-total-commit-queue-durations']['50'])
-  print 'Median duration in CQ trying a patch:'
-  print '  wallclock:       %8s (%3d min). Prev. %s: %8s (%3d min).' % (
-      wallclock, round(wallclock.total_seconds() / 60.0), args.range,
-      prev_wallclock, round(prev_wallclock.total_seconds() / 60.0))
-  print '  sum of attempts: %8s (%3d min). Prev. %s: %8s (%3d min).' % (
-      cq_only, round(cq_only.total_seconds() / 60.0), args.range,
-      prev_cq_only, round(prev_cq_only.total_seconds() / 60.0))
-
-  print
-  print_attempt_counts(latest, 'false-rejections', 'were false rejections',
+  print '  This includes:'
+  print_attempt_counts(latest, 'failed-commit', '[flakily] failed to commit',
                        item_name='flakes',
-                       details=args.list_false_rejections)
+                       details=args.list_false_rejections, committed=True)
+  print_attempt_counts(latest, 'failed-jobs',
+                       '[flakily] failed jobs (excluding presubmit)',
+                       item_name='flakes',
+                       details=args.list_false_rejections, committed=True)
+  print_attempt_counts(latest, 'failed-to-trigger',
+                       '[flakily] failed to trigger jobs',
+                       item_name='flakes',
+                       details=args.list_false_rejections, committed=True)
+  print_attempt_counts(latest, 'failed-unknown',
+                       '[flakily] failed for any other reason',
+                       item_name='flakes',
+                       details=args.list_false_rejections, committed=True)
+  print_attempt_counts(latest, 'missing-lgtm', 'are missing LGTM',
+                       item_name='missed LGTM',
+                       details=args.list_rejected, committed=True)
+  print_attempt_counts(latest, 'manual-cancel', 'stopped manually',
+                       details=args.list_rejected, committed=True)
+  print_attempt_counts(latest, 'failed-presubmit-bot',
+                       'failed presubmit bot',
+                       item_name='failures',
+                       details=args.list_rejected, committed=True)
+  print_attempt_counts(latest, 'invalid-delimiter',
+                       'have incorrect CQ_EXTRA_TRYBOTS flag',
+                       item_name='errors',
+                       details=args.list_rejected, committed=True)
 
-  if args.list_false_rejections:
-    print
-    missing_lgtms = [
-        '  %s' % patch_url(p['patch_id'])
-        for p in latest['missing-lgtm']
-        if latest['patch_stats'][p['patch_id']]['committed']]
-    print '%d patches committed that were first rejected for missing LGTM:' % (
-        len(missing_lgtms),)
-    print '\n'.join(missing_lgtms)
-    manual_cancels = [
-        '  %d manual cancellations %s' % (p['count'], patch_url(p['patch_id']))
-        for p in latest['manual-cancel']
-        if latest['patch_stats'][p['patch_id']]['committed']]
-    print '%d patches committed that were first stopped manually:' % (
-        len(manual_cancels),)
-    print '\n'.join(manual_cancels)
-
-    failed_presubmit_bot = [
-        '  %d failures %s' % (p['count'], patch_url(p['patch_id']))
-        for p in latest['failed-presubmit-bot']
-        if latest['patch_stats'][p['patch_id']]['committed']]
-    print '%d patches committed that first failed presubmit bot:' % (
-        len(failed_presubmit_bot),)
-    print '\n'.join(failed_presubmit_bot)
+  print_duration('mean', args, latest, previous)
+  print_duration('50', args, latest, previous, 'Median')
 
   print
   print 'Patches which eventually land percentiles:'
