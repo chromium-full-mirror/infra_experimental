@@ -5,6 +5,7 @@
 '''Generate stats of CQ usage.'''
 
 import argparse
+import collections
 import copy
 import datetime
 import json
@@ -26,6 +27,48 @@ INTERVALS = {
     'day': 60 * 24,
     'hour': 60,
     '15min': 15,
+}
+VALID_REASONS = collections.OrderedDict([
+    ('manual-cancel', {
+        'item': 'stopped manually',
+        'message': 'stopped manually (CQ box was unchecked)',
+    }),
+    ('missing-lgtm',  {
+        'item': 'missed LGTM',
+        'message': 'are missing LGTM',
+    }),
+    ('invalid-delimiter', {
+        'item': 'errors',
+        'message': 'have incorrect CQ_EXTRA_TRYBOTS flag',
+    }),
+    ('failed-presubmit-bot', {
+        'item': 'failures',
+        'message': 'failed presubmit bot (often due to missing OWNERS LGTM)',
+    }),
+])
+FLAKY_REASONS = collections.OrderedDict([
+    ('failed-commit', {
+        'item': 'failures',
+        'message': 'failed to commit',
+    }),
+    ('failed-jobs', {
+        'item': 'failures',
+        'message': 'failed jobs (excluding presubmit)',
+    }),
+    ('failed-to-trigger', {
+        'item': 'failures',
+        'message': 'failed to trigger jobs',
+    }),
+])
+KNOWN_REASONS = collections.OrderedDict()
+KNOWN_REASONS.update(VALID_REASONS)
+KNOWN_REASONS.update(FLAKY_REASONS)
+
+REASONS = collections.OrderedDict()
+REASONS.update(KNOWN_REASONS)
+REASONS['failed-unknown'] = {
+    'item': 'failures',
+    'message': 'failed for any other reason',
 }
 
 
@@ -238,14 +281,6 @@ def default_stats():
       'false-rejections': [], # patches with falsely rejected attempts
       'rejections': [],       # patches with rejected attempts
       'rejected-patches': set(), # Patches that never committed
-      'manual-cancel': [],
-      'missing-lgtm': [],
-      'invalid-delimiter': [], # Incorrect extra bots config on CL
-      'failed-commit': [],
-      'failed-presubmit-bot': [],
-      'failed-jobs': [],
-      'failed-to-trigger': [],
-      'failed-unknown': [],
       'patchset-commit-count': 0,
       'patchset-total-commit-queue-durations': derive_list_stats([0]),
       'patchset-durations': derive_list_stats([0]),
@@ -254,6 +289,8 @@ def default_stats():
       'patchset-committed-attempts': derive_list_stats([0]),
       'jobs': {},
   }
+  for r in REASONS:
+    stats[r] = []
   return stats
 
 
@@ -339,9 +376,9 @@ def sort_by_count(elements):
   return sorted(elements, key=lambda p: p['count'], reverse=True)
 
 
-def stats_by_count_entry(patch_stats, name, patch, *other_names):
+def stats_by_count_entry(patch_stats, name, patch, reasons):
   entry = {'count': patch_stats[name], 'patch_id': patch}
-  for n in other_names:
+  for n in reasons:
     if n in patch_stats:
       entry[n] = patch_stats[n]
       assert type(entry[n]) is int, 'Bad type in %s[%s]: %r\nEntry=%r' % (
@@ -349,9 +386,9 @@ def stats_by_count_entry(patch_stats, name, patch, *other_names):
   return entry
 
 
-def stats_by_count(patch_stats, name, *other_names):
+def stats_by_count(patch_stats, name, reasons=[]):
   return sort_by_count([
-      stats_by_count_entry(patch_stats[p], name, p, *other_names)
+      stats_by_count_entry(patch_stats[p], name, p, reasons)
       for p in patch_stats if patch_stats[p].get(name)])
 
 
@@ -397,23 +434,14 @@ def derive_stats(args, begin_date, init_stats=None):
       patch_stats[p]['false-rejections'] for p in patch_stats])
   stats['attempt-reject-count'] = sum([
       patch_stats[p]['rejections'] for p in patch_stats])
-
   stats['rejected-patches'] = set([
       p for p in patch_stats if not patch_stats[p]['committed']])
   stats['false-rejections'] = stats_by_count(
-      patch_stats, 'false-rejections',
-      'missing-lgtm', 'manual-cancel', 'failed-commit',
-      'failed-jobs', 'failed-unknown')
-  stats['rejections'] = stats_by_count(patch_stats, 'rejections')
-  stats['missing-lgtm'] = stats_by_count(patch_stats, 'missing-lgtm')
-  stats['invalid-delimiter'] = stats_by_count(patch_stats, 'invalid-delimiter')
-  stats['manual-cancel'] = stats_by_count(patch_stats, 'manual-cancel')
-  stats['failed-commit'] = stats_by_count(patch_stats, 'failed-commit')
-  stats['failed-presubmit-bot'] = stats_by_count(
-      patch_stats, 'failed-presubmit-bot')
-  stats['failed-jobs'] = stats_by_count(patch_stats, 'failed-jobs')
-  stats['failed-to-trigger'] = stats_by_count(patch_stats, 'failed-to-trigger')
-  stats['failed-unknown'] = stats_by_count(patch_stats, 'failed-unknown')
+      patch_stats, 'false-rejections', REASONS)
+  stats['rejections'] = stats_by_count(patch_stats, 'rejections', REASONS)
+  for r in REASONS:
+    stats[r] = stats_by_count(patch_stats, r)
+
   stats['patchset-commit-count'] = len([
       p for p in patch_stats if patch_stats[p]['committed']])
   stats['patchset-total-commit-queue-durations'] = derive_list_stats([
@@ -463,15 +491,10 @@ def derive_patch_stats(patch_id):
       'actions': [],
       'committed': False,
       'reason': {},
-      'manual-cancel': False,
-      'missing-lgtm': False,
-      'invalid-delimiter': False,
-      'failed-commit': False,
-      'failed-presubmit-bot': False,
-      'failed-jobs': [],
-      'failed-to-trigger': False, # A job failed to trigger.
-      'failed-unknown': False,
   }
+  for r in REASONS:
+    attempt_empty[r] = False
+
   attempt_id = {'id': 0}
 
   def add_attempt(attempt):
@@ -479,15 +502,13 @@ def derive_patch_stats(patch_id):
       attempt_id['id'] += 1
       attempt['id'] = attempt_id['id']
       attempt['duration'] = attempt['end'] - attempt['begin']
-      reasons = ['manual-cancel', 'missing-lgtm', 'invalid-delimiter',
-                 'failed-commit', 'failed-jobs', 'failed-presubmit-bot',
-                 'failed-to-trigger']
-      if not attempt['committed'] and not [r for r in reasons if attempt[r]]:
+      known_reasons = [r for r in KNOWN_REASONS if attempt[r]]
+      if not attempt['committed'] and not known_reasons:
         attempt['failed-unknown'] = True
       logging.debug(
           'add_attempt: #%d (%s)',
           attempt['id'],
-          ', '.join([r for r in reasons if attempt[r]]))
+          ', '.join([r for r in REASONS if attempt[r]]))
       attempts.append(copy.deepcopy(attempt))
       attempt.update(copy.deepcopy(attempt_empty))
 
@@ -554,36 +575,18 @@ def derive_patch_stats(patch_id):
   logging.info('derive_patch_stats: %s has %d attempts, committed=%d',
                patch_url(patch_id), len(attempts), stats['committed'])
 
-  missing_lgtm_set = set([
-      a['id'] for a in attempts if a['missing-lgtm']])
-  stats['missing-lgtm'] = len(missing_lgtm_set)
-  invalid_delimiter_set = set([
-      a['id'] for a in attempts if a['invalid-delimiter']])
-  stats['invalid-delimiter'] = len(invalid_delimiter_set)
-  manual_cancel_set = set([
-      a['id'] for a in attempts if a.get('manual-cancel')])
-  stats['manual-cancel'] = len(manual_cancel_set)
-  failed_commit_set = set([
-      a['id'] for a in attempts if a['failed-commit']])
-  stats['failed-commit'] = len(failed_commit_set)
-  failed_jobs_set = set([
-      a['id'] for a in attempts if a['failed-jobs']])
-  stats['failed-jobs'] = len(failed_jobs_set)
-  failed_to_trigger_set = set([
-      a['id'] for a in attempts if a['failed-to-trigger']])
-  stats['failed-to-trigger'] = len(failed_jobs_set)
-  failed_unknown_set = set([
-      a['id'] for a in attempts if a['failed-unknown']])
-  stats['failed-unknown'] = len(failed_unknown_set)
-  failed_presubmit_bot_set = set([
-      a['id'] for a in attempts if a['failed-presubmit-bot']])
-  stats['failed-presubmit-bot'] = len(failed_presubmit_bot_set)
+  valid_reasons_set = set()
+  for r in VALID_REASONS:
+    s = set([a['id'] for a in attempts if a[r]])
+    stats[r] = len(s)
+    valid_reasons_set.update(s)
+  for r in set(REASONS) - set(VALID_REASONS):
+    stats[r] = len(set([a['id'] for a in attempts if a[r]]))
+
   stats['false-rejections'] = 0
   if stats['committed']:
     stats['false-rejections'] = len(
-        set([a['id'] for a in attempts]) - committed_set
-        - missing_lgtm_set - invalid_delimiter_set
-        - manual_cancel_set - failed_presubmit_bot_set)
+        set([a['id'] for a in attempts]) - committed_set - valid_reasons_set)
   # Sum of attempt duration.
   stats['patchset-duration'] = sum([a['duration'] for a in attempts])
   if attempts:
@@ -606,20 +609,23 @@ def round_timedelta(seconds):
 
 
 def print_attempt_counts(stats, name, message, item_name='',
-                         details=False, committed=False):
+                         details=False, committed=None, indent=0):
   if not item_name:
     item_name = message
   patches = [
       p for p in stats[name]
-      if not committed or stats['patch_stats'][p['patch_id']]['committed']]
+      if committed is None or 
+      bool(stats['patch_stats'][p['patch_id']]['committed']) is committed]
   count = sum([p['count'] for p in patches])
-  print '  %4d attempt%s (%.1f%% of %d attempts) %s in %d%s patches' % (
-      count, ' ' if count == 1 else 's',
+  indent_str = ''.join([' ' for _ in range(indent)])
+  print '%s%4d attempt%s (%.1f%% of %d attempts) %s in %d%s patches' % (
+      indent_str, count, ' ' if count == 1 else 's',
       percentage(count, stats['attempt-count']),
       stats['attempt-count'],
       message,
       len(patches),
-      ' committed' if committed else '')
+      ' committed' if committed is True else
+      ' uncommitted' if committed is False else '')
   if details:
     lines = []
     for p in patches:
@@ -627,16 +633,17 @@ def print_attempt_counts(stats, name, message, item_name='',
           p['count'], item_name, patch_url(p['patch_id']))
       extra = []
       for k in p:
-        if k in ['count', 'patch_id']:
-          continue
-        extra.append(k)
+        if k not in ['count', 'patch_id']:
+          extra.append(k)
       if extra:
-        line += ' (%s)' % ', '.join(['%d %s' % (p[k], k) for k in extra])
-    print '\n'.join([
-        '      %d %s %s' % (
-        p['count'], item_name, patch_url(p['patch_id']))
-        for p in patches])
-    print
+        causes = ['%d %s' % (p[k], k) for k in extra if p[k]]
+        if not causes:
+          causes = ['unknown']
+        line += ' (%s)' % ', '.join(causes)
+      lines.append(line)
+    if lines:
+      print '\n'.join(lines)
+      print
 
 
 def print_duration(name, args, latest, previous, print_name=None):
@@ -684,71 +691,22 @@ def print_stats(args, stats):
       percentage(latest['patchset-commit-count'], latest['patchset-count']),
       percentage(latest['patchset-commit-count'], latest['attempt-count'])))
 
+
+  print
+  print 'Rejections:'
   print_attempt_counts(latest, 'rejections', 'were unsuccessful',
-                       item_name='failures', details=args.list_rejected)
+                       item_name='failures', details=args.list_rejected,
+                       committed=False)
   print '  This includes:'
-  print_attempt_counts(latest, 'missing-lgtm', 'are missing LGTM',
-                       item_name='missed LGTM',
-                       details=args.list_rejected)
-  print_attempt_counts(latest, 'invalid-delimiter',
-                       'have incorrect CQ_EXTRA_TRYBOTS flag',
-                       item_name='errors',
-                       details=args.list_rejected)
-  print_attempt_counts(latest, 'failed-commit', 'failed to commit',
-                       item_name='failures',
-                       details=args.list_rejected)
-  print_attempt_counts(latest, 'manual-cancel', 'stopped manually',
-                       details=args.list_rejected)
-  print_attempt_counts(latest, 'failed-presubmit-bot',
-                       'failed presubmit bot',
-                       item_name='failures',
-                       details=args.list_rejected)
-  print_attempt_counts(latest, 'failed-jobs',
-                       'failed jobs (excluding presubmit)',
-                       item_name='failures',
-                       details=args.list_rejected)
-  print_attempt_counts(latest, 'failed-to-trigger',
-                       'failed to trigger jobs',
-                       item_name='failures',
-                       details=args.list_rejected)
-  print_attempt_counts(latest, 'failed-unknown',
-                       'failed for any other reason',
-                       item_name='failures',
-                       details=args.list_rejected)
-
-  if args.list_rejected:
-    print
-    print '%d uncommitted patches:' % len(latest['rejected-patches'])
-    print '\n'.join(['  %s' % patch_url(p) for p in latest['rejected-patches']])
-
-    # print
-    # missing_lgtms = [
-    #     '  %s' % patch_url(p['patch_id'])
-    #     for p in latest['missing-lgtm']
-    #     if latest['patch_stats'][p['patch_id']]['committed']]
-    # print '%d patches committed that were first rejected for missing LGTM:' % (
-    #     len(missing_lgtms),)
-    # print '\n'.join(missing_lgtms)
-    # manual_cancels = [
-    #     '  %d manual cancellations %s' % (p['count'], patch_url(p['patch_id']))
-    #     for p in latest['manual-cancel']
-    #     if latest['patch_stats'][p['patch_id']]['committed']]
-    # print '%d patches committed that were first stopped manually:' % (
-    #     len(manual_cancels),)
-    # print '\n'.join(manual_cancels)
-
-    # failed_presubmit_bot = [
-    #     '  %d failures %s' % (p['count'], patch_url(p['patch_id']))
-    #     for p in latest['failed-presubmit-bot']
-    #     if latest['patch_stats'][p['patch_id']]['committed']]
-    # print '%d patches committed that first failed presubmit bot:' % (
-    #     len(failed_presubmit_bot),)
-    # print '\n'.join(failed_presubmit_bot)
+  for r in REASONS:
+    print_attempt_counts(latest, r, REASONS[r]['message'], indent=2,
+                         item_name=REASONS[r]['item'], committed=False)
 
   # TODO(sergeyberezin): add gave up count (committed manually after trying CQ).
   # TODO(sergeyberezin): add count of NOTRY=true (if possible).
 
   print
+  print 'False Rejections:'
   if args.use_logs:
     print_attempt_counts(latest, 'false-rejections', 'were false rejections',
                          item_name='flakes',
@@ -765,34 +723,9 @@ def print_stats(args, stats):
         latest['attempt-count'])
 
   print '  This includes:'
-  print_attempt_counts(latest, 'failed-commit', '[flakily] failed to commit',
-                       item_name='flakes',
-                       details=args.list_false_rejections, committed=True)
-  print_attempt_counts(latest, 'failed-jobs',
-                       '[flakily] failed jobs (excluding presubmit)',
-                       item_name='flakes',
-                       details=args.list_false_rejections, committed=True)
-  print_attempt_counts(latest, 'failed-to-trigger',
-                       '[flakily] failed to trigger jobs',
-                       item_name='flakes',
-                       details=args.list_false_rejections, committed=True)
-  print_attempt_counts(latest, 'failed-unknown',
-                       '[flakily] failed for any other reason',
-                       item_name='flakes',
-                       details=args.list_false_rejections, committed=True)
-  print_attempt_counts(latest, 'missing-lgtm', 'are missing LGTM',
-                       item_name='missed LGTM',
-                       details=args.list_rejected, committed=True)
-  print_attempt_counts(latest, 'manual-cancel', 'stopped manually',
-                       details=args.list_rejected, committed=True)
-  print_attempt_counts(latest, 'failed-presubmit-bot',
-                       'failed presubmit bot',
-                       item_name='failures',
-                       details=args.list_rejected, committed=True)
-  print_attempt_counts(latest, 'invalid-delimiter',
-                       'have incorrect CQ_EXTRA_TRYBOTS flag',
-                       item_name='errors',
-                       details=args.list_rejected, committed=True)
+  for r in REASONS:
+    print_attempt_counts(latest, r, REASONS[r]['message'], indent=2,
+                       item_name=REASONS[r]['item'], committed=True)
 
   print_duration('mean', args, latest, previous)
   print_duration('50', args, latest, previous, 'Median')
