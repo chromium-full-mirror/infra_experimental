@@ -37,6 +37,14 @@ VALID_REASONS = collections.OrderedDict([
         'item': 'missed LGTM',
         'message': 'are missing LGTM',
     }),
+    ('not-lgtm',  {
+        'item': 'NOT LGTMs',
+        'message': 'have been disapproved (NOT LGTM)',
+    }),
+    ('failed-patch', {
+        'item': 'failures',
+        'message': 'failed to apply patch',
+    }),
     ('invalid-delimiter', {
         'item': 'errors',
         'message': 'have incorrect CQ_EXTRA_TRYBOTS flag',
@@ -90,7 +98,7 @@ def parse_args():
       '--thread-pool', type=int, default=200,
       help='Fetch data using this many parallel threads. Default=%(default)s.')
   parser.add_argument(
-      '--list-rejected', action='store_true',
+      '--list-rejections', action='store_true',
       help='List rejected CLs and reasons for rejection.')
   parser.add_argument(
       '--list-false-rejections', action='store_true',
@@ -533,10 +541,14 @@ def derive_patch_stats(patch_id):
         attempt['manual-cancel'] = True
       if 'No LGTM' in message:
         attempt['missing-lgtm'] = True
+      if 'A disapproval has been posted' in message:
+        attempt['not-lgtm'] = True
       if 'Transient error: Invalid delimiter' in message:
         attempt['invalid-delimiter'] = True
       if 'Failed to commit' in message:
         attempt['failed-commit'] = True
+      if 'Failed to apply patch' in message:
+        attempt['failed-patch'] = True
       if 'Try jobs failed' in message:
         if 'presubmit' in message:
           attempt['failed-presubmit-bot'] = True
@@ -609,7 +621,14 @@ def round_timedelta(seconds):
 
 
 def print_attempt_counts(stats, name, message, item_name='',
-                         details=False, committed=None, indent=0):
+                         details=False, committed=None, indent=0,
+                         print_zero=False):
+  """Print a summary of a |name| slice of attempts.
+
+  |committed|: None=print all, True=only committed patches, False=only
+   rejected patches.
+
+  |print_zero|: print stats even if no attempts match."""
   if not item_name:
     item_name = message
   patches = [
@@ -617,6 +636,9 @@ def print_attempt_counts(stats, name, message, item_name='',
       if committed is None or 
       bool(stats['patch_stats'][p['patch_id']]['committed']) is committed]
   count = sum([p['count'] for p in patches])
+  if not print_zero and not count:
+    return
+
   indent_str = ''.join([' ' for _ in range(indent)])
   print '%s%4d attempt%s (%.1f%% of %d attempts) %s in %d%s patches' % (
       indent_str, count, ' ' if count == 1 else 's',
@@ -695,11 +717,12 @@ def print_stats(args, stats):
   print
   print 'Rejections:'
   print_attempt_counts(latest, 'rejections', 'were unsuccessful',
-                       item_name='failures', details=args.list_rejected,
+                       item_name='failures',
                        committed=False)
   print '  This includes:'
   for r in REASONS:
     print_attempt_counts(latest, r, REASONS[r]['message'], indent=2,
+                         details=args.list_rejections,
                          item_name=REASONS[r]['item'], committed=False)
 
   # TODO(sergeyberezin): add gave up count (committed manually after trying CQ).
@@ -709,12 +732,11 @@ def print_stats(args, stats):
   print 'False Rejections:'
   if args.use_logs:
     print_attempt_counts(latest, 'false-rejections', 'were false rejections',
-                         item_name='flakes',
-                         details=args.list_false_rejections)
-    print_attempt_counts(latest, 'rejections', 'were rejected (for any reason)',
-                         item_name='flakes',
-                         details=args.list_false_rejections,
-                         committed=True)
+                         item_name='flakes')
+    # print_attempt_counts(latest, 'rejections', 'were rejected (for any reason)',
+    #                      item_name='flakes',
+    #                      details=args.list_false_rejections,
+    #                      committed=True)
   else:
     print '  %4d attempts (%.1f%% of %d attempts) were false rejections' % (
         latest['attempt-false-reject-count'],
@@ -722,10 +744,17 @@ def print_stats(args, stats):
                    latest['attempt-count']),
         latest['attempt-count'])
 
-  print '  This includes:'
-  for r in REASONS:
+  print '  False rejections include:'
+  for r in FLAKY_REASONS.keys() + ['failed-unknown']:
     print_attempt_counts(latest, r, REASONS[r]['message'], indent=2,
-                       item_name=REASONS[r]['item'], committed=True)
+                         item_name=REASONS[r]['item'], committed=True,
+                         details=args.list_false_rejections)
+
+  print '  Other rejections in committed patches for valid reasons:'
+  for r in VALID_REASONS.keys():
+    print_attempt_counts(latest, r, REASONS[r]['message'], indent=2,
+                         item_name=REASONS[r]['item'], committed=True,
+                         details=args.list_false_rejections)
 
   print_duration('mean', args, latest, previous)
   print_duration('50', args, latest, previous, 'Median')
