@@ -67,6 +67,10 @@ FLAKY_REASONS = collections.OrderedDict([
         'item': 'failures',
         'message': 'failed to trigger jobs',
     }),
+    ('failed-presubmit-check', {
+        'item': 'failures',
+        'message': 'failed presubmit check',
+    }),
 ])
 KNOWN_REASONS = collections.OrderedDict()
 KNOWN_REASONS.update(VALID_REASONS)
@@ -448,7 +452,7 @@ def derive_stats(args, begin_date, init_stats=None):
       patch_stats, 'false-rejections', REASONS)
   stats['rejections'] = stats_by_count(patch_stats, 'rejections', REASONS)
   for r in REASONS:
-    stats[r] = stats_by_count(patch_stats, r)
+    stats[r] = stats_by_count(patch_stats, r, set(REASONS) - set([r]))
 
   stats['patchset-commit-count'] = len([
       p for p in patch_stats if patch_stats[p]['committed']])
@@ -549,6 +553,8 @@ def derive_patch_stats(patch_id):
         attempt['failed-commit'] = True
       if 'Failed to apply patch' in message:
         attempt['failed-patch'] = True
+      if 'Presubmit check' in message:
+        attempt['failed-presubmit-check'] = True
       if 'Try jobs failed' in message:
         if 'presubmit' in message:
           attempt['failed-presubmit-bot'] = True
@@ -659,9 +665,8 @@ def print_attempt_counts(stats, name, message, item_name='',
           extra.append(k)
       if extra:
         causes = ['%d %s' % (p[k], k) for k in extra if p[k]]
-        if not causes:
-          causes = ['unknown']
-        line += ' (%s)' % ', '.join(causes)
+        if causes:
+          line += ' (%s)' % ', '.join(causes)
       lines.append(line)
     if lines:
       print '\n'.join(lines)
@@ -732,11 +737,7 @@ def print_stats(args, stats):
   print 'False Rejections:'
   if args.use_logs:
     print_attempt_counts(latest, 'false-rejections', 'were false rejections',
-                         item_name='flakes')
-    # print_attempt_counts(latest, 'rejections', 'were rejected (for any reason)',
-    #                      item_name='flakes',
-    #                      details=args.list_false_rejections,
-    #                      committed=True)
+                         item_name='flakes', committed=True)
   else:
     print '  %4d attempts (%.1f%% of %d attempts) were false rejections' % (
         latest['attempt-false-reject-count'],
