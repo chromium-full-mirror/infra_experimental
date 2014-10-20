@@ -21,6 +21,8 @@ import urlparse
 
 
 STATS_URL = 'http://chromium-cq-status.appspot.com'
+# Expects % project.
+TREE_STATUS_URL = 'http://%s-status.appspot.com'
 # Map of intervals to minutes.
 INTERVALS = {
     'week': 60 * 24 * 7,
@@ -213,6 +215,34 @@ def fetch_json(url):
   return result
 
 
+def fetch_tree_status(project, end_date, start_date=None, limit=1000):
+  end_timestamp = int(time.mktime(end_date.timetuple()))
+  params = {
+      'format': 'json',
+      'limit': limit,
+      # Confusingly, the range is endTime <= t < startTime.
+      'startTime': end_timestamp,
+  }
+  if start_date:
+    params['endTime'] = int(time.mktime(start_date.timetuple()))
+  query = 'allstatus?' + urllib.urlencode(params)
+  url = urlparse.urljoin(TREE_STATUS_URL % project, query)
+  logging.debug('Fetching %s', url)
+  status = fetch_json(url)
+  # Bug in AE app: it may return events outside of time range.
+  def in_range(event):
+    date = date_from_string(event['date'])
+    return start_date <= date and date < end_date
+  def entry(event):
+    return {'date': date_from_string(event['date']),
+            'open': event['general_state'] == 'open'}
+
+  if not status or type(status) is not list:
+    status = []
+  status = sorted([entry(event) for event in status], key=lambda e: e['date'])
+  return status
+
+
 def fetch_stats(args, begin_date=None, stats_range=None):
   if not begin_date:
     begin_date = args.date
@@ -235,12 +265,7 @@ def fetch_stats(args, begin_date=None, stats_range=None):
   query = 'stats/query?' + urllib.urlencode(params)
   url = urlparse.urljoin(STATS_URL, query)
   logging.debug('Fetching %s', url)
-  try:
-    stats = fetch_json(url)
-  except Exception as e:
-    logging.error('Failed to fetch %s: %s', url, e)
-    stats = {'error': '404'}
-  return stats
+  return fetch_json(url)
 
 
 def fetch_logs(date=None, time_range=None, filters=[]):
@@ -615,6 +640,36 @@ def derive_patch_stats(patch_id):
   return patch_id, stats
 
 
+def derive_tree_stats(args):
+  """Given a list of tree status events, derive tree closure stats."""
+  end_date = args.date + datetime.timedelta(minutes=INTERVALS[args.range])
+  # Add one more event right before the range, so we know the initial
+  # tree status.
+  status = (fetch_tree_status(args.project, args.date, limit=1) +
+            fetch_tree_status(args.project, end_date, args.date))
+  stats = {'open': 0.0, 'total': (end_date - args.date).total_seconds()}
+  if not status:
+    return stats
+
+  # Add an artificial event at the end of the range.
+  last_event = copy.deepcopy(status[-1])
+  last_event['date'] = end_date
+  status.append(last_event)
+
+  is_open=status[0]['open']
+  curr_date = args.date
+  for event in status[1:]:
+    delta = event['date'] - curr_date
+    if not is_open:
+      curr_date = event['date']
+    if is_open and not event['open']:
+      stats['open'] += delta.total_seconds()
+      logging.debug('derive_tree_status: +%ds = open %ds',
+                    delta.total_seconds(), stats['open'])
+    is_open = event['open']
+  return stats
+
+
 def percentage(n, total):
   if total:
     return 100. * n / total
@@ -708,6 +763,13 @@ def print_stats(args, stats):
   print 'from %s till %s (local time).' % (
       latest['begin'], latest['end'])
 
+  print
+  print 'Total time tree open: %.1f hours of %.1f hours (%.2f%%).' % (
+      stats['tree']['open'] / 3600.0,
+      stats['tree']['total'] / 3600.0,
+      percentage(stats['tree']['open'], stats['tree']['total']))
+
+  print
   print (
       '%4d issues (%d patches) were tried by CQ, '
       'resulting in %d attempts.') % (
@@ -819,6 +881,8 @@ def acquire_stats(args):
     stats['previous'] = derive_stats(args, prev_date)
   else:
     stats = organize_stats(fetch_stats(args))
+
+  stats['tree'] = derive_tree_stats(args)
   return stats
 
 def main():
