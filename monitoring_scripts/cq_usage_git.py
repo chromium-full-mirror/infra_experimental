@@ -281,7 +281,7 @@ def get_args():
                                'chromeos-commit-bot@chromium.org',
                                'skia-deps-roller@chromium.org',
                               ],
-                      help=('Add an author to be treated as a bot.'
+                      help=('Add an author to be treated as a bot. '
                             'Repeat to add several bots.'))
   options = parser.parse_args()
   if not options.repo:

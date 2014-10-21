@@ -12,6 +12,7 @@ import datetime
 import json
 import logging
 from multiprocessing.pool import ThreadPool
+import numbers
 import numpy
 import re
 import sys
@@ -24,6 +25,18 @@ import urlparse
 STATS_URL = 'http://chromium-cq-status.appspot.com'
 # Expects % project.
 TREE_STATUS_URL = 'http://%s-status.appspot.com'
+PROJECTS = {
+    'chromium': {
+        'tree-status': TREE_STATUS_URL % 'chromium',
+        'type': 'git',
+        'repo': 'https://chromium.googlesource.com/chromium/src',
+    },
+    'blink': {
+        'tree-status': TREE_STATUS_URL % 'blink',
+        'type': 'svn',
+        'repo': 'svn://svn.chromium.org/blink/trunk/',
+    },
+}
 # Map of intervals to minutes.
 INTERVALS = {
     'week': 60 * 24 * 7,
@@ -92,7 +105,19 @@ def parse_args():
   parser.add_argument(
       '--project',
       required=True,
+      choices=PROJECTS.keys(),
       help='Collect stats about this project.')
+  parser.add_argument(
+      '--bot', type=str, dest='bots',
+      action='append',
+      default=['blink-deps-roller@chromium.org',
+               'chrome-admin@google.com',
+               'chrome-release@google.com',
+               'chromeos-commit-bot@chromium.org',
+               'skia-deps-roller@chromium.org',
+              ],
+      help=('Add an author to be treated as a bot. '
+            'Repeat to add several bots. Default: %(default)s.'))
   parser.add_argument(
       '-v', '--verbose',
       default='error',
@@ -201,6 +226,19 @@ def date_from_timestamp(timestamp):
   return datetime.datetime.fromtimestamp(int(timestamp))
 
 
+def date_from_git(date_str):
+  """If date_str is not valid or None, return None."""
+  if not date_str:
+    return None
+  date = None
+  try:
+    date = datetime.datetime.strptime(
+        date_str, '%a %b %d %H:%M:%S %Y')
+  except Exception:
+    pass
+  return date
+
+
 def fetch_json(url):
   result = {'error': '404'}
   delays = [0.0, 0.5, 1.0, 2.0]
@@ -227,7 +265,7 @@ def fetch_tree_status(project, end_date, start_date=None, limit=1000):
   if start_date:
     params['endTime'] = int(time.mktime(start_date.timetuple()))
   query = 'allstatus?' + urllib.urlencode(params)
-  url = urlparse.urljoin(TREE_STATUS_URL % project, query)
+  url = urlparse.urljoin(PROJECTS[project]['tree-status'], query)
   logging.debug('Fetching %s', url)
   status = fetch_json(url)
   # Bug in AE app: it may return events outside of time range.
@@ -249,6 +287,64 @@ def fetch_tree_status(project, end_date, start_date=None, limit=1000):
   status = [entry(event) for event in status]
   status = sorted([e for e in status if in_range(e)], key=lambda e: e['date'])
   return status
+
+
+def fetch_git_page(repo_url, cursor=None, page_size=2000):
+  """Fetch one page worth of logs from gitiles."""
+  params = {
+      'pretty': 'full',
+      'format': 'JSON',
+      'n': page_size,
+  }
+  if cursor:
+    params.update({'s': cursor})
+  url = '%s/%s?%s' % (repo_url, '/+log/master', urllib.urlencode(params))
+  logging.debug('fetch_git_page: url = %s', url)
+  try:
+    # Strip off the anti-XSS string from the response.
+    response = urllib2.urlopen(url)
+    lines = [l.rstrip() for l in response if l.rstrip() != ")]}'"]
+    raw_data = ''.join(lines)
+    page = json.loads(raw_data)
+  except Exception as e:
+    page = {}
+    logging.error('Failed to fetch a page: %s', e)
+  return page
+
+
+def fetch_git_logs(repo, from_date, to_date):
+  """Fetch all logs from Gitiles for the given date range.
+
+  Gitiles does not natively support time ranges, so we just fetch
+  everything until the range is covered. Assume that logs are ordered
+  in reverse chronological order.
+  """
+  cursor = ''
+  commit_date = to_date
+  data = []
+  while(cursor is not None):
+    page = fetch_git_page(repo, cursor)
+    logs = page.get('log', [])
+    cursor = page.get('next')
+    for log in logs:
+      committer = log.get('committer', {})
+      commit_date = date_from_git(committer.get('time'))
+      if not commit_date:
+        continue
+      if commit_date > to_date:
+        continue
+      if commit_date < from_date:
+        break
+      data.append({
+          'author': log.get('author', {}).get('email'),
+          'date': commit_date,
+          'commit-bot': bool('commit-bot' in committer.get('email', '')),
+          'revision': log.get('commit'),
+      })
+
+    if commit_date < from_date:
+      break
+  return data
 
 
 def fetch_stats(args, begin_date=None, stats_range=None):
@@ -333,6 +429,8 @@ def default_stats():
       'patchset-attempts': derive_list_stats([0]),
       'patchset-committed-attempts': derive_list_stats([0]),
       'jobs': {},
+      'tree': {'open': 0.0, 'total': 0.0},
+      'usage': {},
   }
   for r in REASONS:
     stats[r] = []
@@ -648,21 +746,20 @@ def derive_patch_stats(patch_id):
   return patch_id, stats
 
 
-def derive_tree_stats(args):
+def derive_tree_stats(project, start_date, end_date):
   """Given a list of tree status events, derive tree closure stats."""
-  end_date = args.date + datetime.timedelta(minutes=INTERVALS[args.range])
   # Fetch one more event right before the range, so we know the
   # initial tree status.
-  status = (fetch_tree_status(args.project, args.date, limit=1) +
-            fetch_tree_status(args.project, end_date, args.date))
-  stats = {'open': 0.0, 'total': (end_date - args.date).total_seconds()}
+  status = (fetch_tree_status(project, start_date, limit=1) +
+            fetch_tree_status(project, end_date, start_date))
+  stats = {'open': 0.0, 'total': (end_date - start_date).total_seconds()}
   if not status:
     return stats
 
   logging.debug('Tree status:\n%s', '\n'.join(['  %r' % e for e in status]))
 
   is_open=status[0]['open']
-  curr_date = args.date
+  curr_date = start_date
   for event in status[1:]:
     delta = event['date'] - curr_date
     if is_open and not event['open']:
@@ -684,10 +781,57 @@ def derive_tree_stats(args):
   return stats
 
 
-def percentage(n, total):
-  if total:
-    return 100. * n / total
-  return 0.
+def derive_git_stats(project, start_date, end_date, bots):
+  log_data = fetch_git_logs(PROJECTS[project]['repo'], start_date, end_date)
+  # Calculate stats.
+  cq_commits = [v for v in log_data if v['commit-bot']]
+  users = {}
+  for i in cq_commits:
+    users.setdefault(i['author'], 0)
+    users[i['author']] += 1
+  committers = {}
+  manual_committers = {}
+  bot_committers = {}
+  bot_manual_committers = {}
+  for i in log_data:
+    committers.setdefault(i['author'], 0)
+    committers[i['author']] += 1
+    if not i['commit-bot']:
+      manual_committers.setdefault(i['author'], 0)
+      manual_committers[i['author']] += 1
+    if i['author'] in bots:
+      bot_committers.setdefault(i['author'], 0)
+      bot_committers[i['author']] += 1
+    if i['author'] in bots and not i['commit-bot']:
+      bot_manual_committers.setdefault(i['author'], 0)
+      bot_manual_committers[i['author']] += 1
+
+  stats = {}
+  stats['cq_commits'] = len(cq_commits)
+  stats['total_commits'] = len(log_data)
+  stats['users'] = len(users)
+  stats['committers'] = len(committers)
+  stats['manual_committers'] = len(manual_committers)
+  stats['manual_commits'] = sum(x for x in manual_committers.itervalues())
+  stats['bot_committers'] = len(bot_committers)
+  stats['bot_commits'] = sum(x for x in bot_committers.itervalues())
+  stats['bot_manual_commits'] = sum(
+      x for x in bot_manual_committers.itervalues())
+  stats['manual_only_committers'] = {
+      a: c for a, c in committers.iteritems()
+      if c == manual_committers.get(a, 0)}
+  return stats
+
+
+def percentage_tuple(data, total):
+  num_data = data if isinstance(data, numbers.Number) else len(data)
+  num_total = total if isinstance(total, numbers.Number) else len(total)
+  percent = 100. * num_data / num_total if num_total else 0
+  return num_data, num_total, percent
+
+
+def percentage(data, total):
+  return percentage_tuple(data, total)[2]
 
 
 def round_timedelta(seconds):
@@ -708,7 +852,7 @@ def print_attempt_counts(stats, name, message, item_name='',
     item_name = message
   patches = [
       p for p in stats[name]
-      if committed is None or 
+      if committed is None or
       bool(stats['patch_stats'][p['patch_id']]['committed']) is committed]
   count = sum([p['count'] for p in patches])
   if not print_zero and not count:
@@ -764,11 +908,60 @@ def print_duration(name, args, latest, previous, print_name=None):
       prev_cq_only, round(prev_cq_only.total_seconds() / 60.0))
 
 
+def print_usage(args, latest, previous):
+  if latest['usage']:
+    print
+    print('CQ users:      %6d out of %6d total committers %6.2f%%' % (
+        latest['usage']['users'], latest['usage']['committers'],
+        percentage(latest['usage']['users'], latest['usage']['committers'])))
+    fmt_str = ('  Committed    %6d out of %6d commits          %6.2f%%. '
+               'Prev. %s: %6.2f%%.')
+    data = percentage_tuple(latest['usage']['cq_commits'],
+                            latest['usage']['total_commits'])
+    data += (args.range, percentage(previous['usage']['cq_commits'],
+                                    previous['usage']['total_commits']))
+    if latest['usage']['bot_manual_commits']:
+      fmt_str += ' (%6.2f%% by humans)'
+      data += percentage(cq_commits, latest['usage']['total_commits'] -
+                         latest['usage']['bot_manual_commits'])
+    print fmt_str % data
+
+  print
+  print('Bots:                %6d out of %6d total committers %6.2f%%' %
+        percentage_tuple(latest['usage']['bot_committers'],
+                         latest['usage']['committers']))
+  print('  Committed by CQ    %6d out of %6d commits          %6.2f%%' %
+        percentage_tuple(latest['usage']['bot_commits'],
+                         latest['usage']['total_commits']))
+  print('  Committed directly %6d out of %6d commits          %6.2f%%' %
+        percentage_tuple(latest['usage']['bot_manual_commits'],
+                         latest['usage']['total_commits']))
+  print
+  print('Manual committers: %6d out of all %6d users   %6.2f%%' %
+        percentage_tuple(latest['usage']['manual_committers'],
+                         latest['usage']['committers']))
+  print('  Committed        %6d out of     %6d commits %6.2f%%' %
+        percentage_tuple(latest['usage']['manual_commits'],
+                         latest['usage']['total_commits']))
+
+
+def print_tree_status(args, latest, previous):
+  print
+  print 'Total time tree open: %.1f hours of %.1f hours (%.2f%%). Prev. %s: %.2f%%.' % (
+      latest['tree']['open'] / 3600.0,
+      latest['tree']['total'] / 3600.0,
+      percentage(latest['tree']['open'], latest['tree']['total']),
+      args.range,
+      percentage(previous['tree']['open'], previous['tree']['total']))
+
+
 def print_stats(args, stats):
   latest = stats.get('latest')
   previous = stats.get('previous')
   if not latest:
     print 'No stats to display.'
+  if not previous:
+    print 'No previous %s stats loaded.' % args.range
   print 'Statistics for project %s' % args.project
   if latest['begin'] > latest['end']:
     print '  No stats since %s' % args.date
@@ -777,11 +970,8 @@ def print_stats(args, stats):
   print 'from %s till %s (local time).' % (
       latest['begin'], latest['end'])
 
-  print
-  print 'Total time tree open: %.1f hours of %.1f hours (%.2f%%).' % (
-      stats['tree']['open'] / 3600.0,
-      stats['tree']['total'] / 3600.0,
-      percentage(stats['tree']['open'], stats['tree']['total']))
+  print_usage(args, latest, previous)
+  print_tree_status(args, latest, previous)
 
   print
   print (
@@ -817,7 +1007,7 @@ def print_stats(args, stats):
   else:
     print '  %4d attempts (%.1f%% of %d attempts) were false rejections' % (
         latest['attempt-false-reject-count'],
-        percentage(latest['attempt-false-reject-count'], 
+        percentage(latest['attempt-false-reject-count'],
                    latest['attempt-count']),
         latest['attempt-count'])
 
@@ -873,6 +1063,8 @@ def acquire_stats(args):
   logging.info('Acquiring stats for project %s for a %s of %s using %s',
                args.project, args.range, args.date,
                'logs' if args.use_logs else 'cache')
+  end_date = args.date + datetime.timedelta(minutes=INTERVALS[args.range])
+  prev_date = args.date - datetime.timedelta(minutes=INTERVALS[args.range])
   if args.use_logs:
     init_stats = {'latest': default_stats(), 'previous': default_stats()}
     assert args.date
@@ -891,12 +1083,19 @@ def acquire_stats(args):
       init_stats = organize_stats(fetch_stats(args))
     stats['latest'] = derive_stats(
         args, args.date, init_stats=init_stats['latest'])
-    prev_date = args.date - datetime.timedelta(minutes=INTERVALS[args.range])
     stats['previous'] = derive_stats(args, prev_date)
   else:
     stats = organize_stats(fetch_stats(args))
 
-  stats['tree'] = derive_tree_stats(args)
+  stats['latest']['tree'] = derive_tree_stats(args.project, args.date, end_date)
+  stats['previous']['tree'] = derive_tree_stats(args.project, prev_date, args.date)
+
+  if PROJECTS[args.project]['type'] == 'git':
+    stats['latest']['usage'] = derive_git_stats(
+        args.project, args.date, end_date, args.bots)
+    stats['previous']['usage'] = derive_git_stats(
+        args.project, prev_date, args.date, args.bots)
+
   return stats
 
 def main():
