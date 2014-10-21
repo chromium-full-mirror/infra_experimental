@@ -909,22 +909,23 @@ def print_duration(name, args, latest, previous, print_name=None):
 
 
 def print_usage(args, latest, previous):
-  if latest['usage']:
-    print
-    print('CQ users:      %6d out of %6d total committers %6.2f%%' % (
-        latest['usage']['users'], latest['usage']['committers'],
-        percentage(latest['usage']['users'], latest['usage']['committers'])))
-    fmt_str = ('  Committed    %6d out of %6d commits          %6.2f%%. '
-               'Prev. %s: %6.2f%%.')
-    data = percentage_tuple(latest['usage']['cq_commits'],
-                            latest['usage']['total_commits'])
-    data += (args.range, percentage(previous['usage']['cq_commits'],
-                                    previous['usage']['total_commits']))
-    if latest['usage']['bot_manual_commits']:
-      fmt_str += ' (%6.2f%% by humans)'
-      data += percentage(cq_commits, latest['usage']['total_commits'] -
-                         latest['usage']['bot_manual_commits'])
-    print fmt_str % data
+  if not latest['usage']:
+    return
+  print
+  print('CQ users:      %6d out of %6d total committers %6.2f%%' % (
+      latest['usage']['users'], latest['usage']['committers'],
+      percentage(latest['usage']['users'], latest['usage']['committers'])))
+  fmt_str = ('  Committed    %6d out of %6d commits          %6.2f%%. '
+             'Prev. %s: %6.2f%%.')
+  data = percentage_tuple(latest['usage']['cq_commits'],
+                          latest['usage']['total_commits'])
+  data += (args.range, percentage(previous['usage']['cq_commits'],
+                                  previous['usage']['total_commits']))
+  if latest['usage']['bot_manual_commits']:
+    fmt_str += ' (%6.2f%% by humans)'
+    data += percentage(cq_commits, latest['usage']['total_commits'] -
+                       latest['usage']['bot_manual_commits'])
+  print fmt_str % data
 
   print
   print('Bots:                %6d out of %6d total committers %6.2f%%' %
