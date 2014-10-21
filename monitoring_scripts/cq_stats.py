@@ -5,6 +5,7 @@
 '''Generate stats of CQ usage.'''
 
 import argparse
+import calendar
 import collections
 import copy
 import datetime
@@ -230,16 +231,23 @@ def fetch_tree_status(project, end_date, start_date=None, limit=1000):
   logging.debug('Fetching %s', url)
   status = fetch_json(url)
   # Bug in AE app: it may return events outside of time range.
-  def in_range(event):
-    date = date_from_string(event['date'])
-    return start_date <= date and date < end_date
   def entry(event):
-    return {'date': date_from_string(event['date']),
+    date_utc = date_from_string(event['date'])
+    date_local = date_from_timestamp(calendar.timegm(date_utc.utctimetuple()))
+    return {'date': date_local,
             'open': event['general_state'] == 'open'}
+  def in_range(entry):
+    logging.debug('in_range(%r)', entry)
+    if entry['date'] >= end_date:
+      return False
+    if not start_date:
+      return True
+    return start_date <= entry['date']
 
   if not status or type(status) is not list:
     status = []
-  status = sorted([entry(event) for event in status], key=lambda e: e['date'])
+  status = [entry(event) for event in status]
+  status = sorted([e for e in status if in_range(e)], key=lambda e: e['date'])
   return status
 
 
@@ -643,30 +651,36 @@ def derive_patch_stats(patch_id):
 def derive_tree_stats(args):
   """Given a list of tree status events, derive tree closure stats."""
   end_date = args.date + datetime.timedelta(minutes=INTERVALS[args.range])
-  # Add one more event right before the range, so we know the initial
-  # tree status.
+  # Fetch one more event right before the range, so we know the
+  # initial tree status.
   status = (fetch_tree_status(args.project, args.date, limit=1) +
             fetch_tree_status(args.project, end_date, args.date))
   stats = {'open': 0.0, 'total': (end_date - args.date).total_seconds()}
   if not status:
     return stats
 
-  # Add an artificial event at the end of the range.
-  last_event = copy.deepcopy(status[-1])
-  last_event['date'] = end_date
-  status.append(last_event)
+  logging.debug('Tree status:\n%s', '\n'.join(['  %r' % e for e in status]))
 
   is_open=status[0]['open']
   curr_date = args.date
   for event in status[1:]:
     delta = event['date'] - curr_date
-    if not is_open:
-      curr_date = event['date']
     if is_open and not event['open']:
       stats['open'] += delta.total_seconds()
-      logging.debug('derive_tree_status: +%ds = open %ds',
-                    delta.total_seconds(), stats['open'])
+      logging.debug('Tree was open from %s to %s for %s (total of %s)',
+                    curr_date, event['date'],
+                    delta, datetime.timedelta(seconds=stats['open']))
+    if not is_open:
+      curr_date = event['date']
     is_open = event['open']
+
+  # Account for the remaining time after the last event.
+  if is_open:
+    delta = end_date - curr_date
+    stats['open'] += delta.total_seconds()
+    logging.debug('Tree was open from %s to %s for %s (total of %s)',
+                  curr_date, end_date,
+                  delta, datetime.timedelta(seconds=stats['open']))
   return stats
 
 
