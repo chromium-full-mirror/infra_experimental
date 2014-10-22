@@ -372,13 +372,13 @@ def fetch_stats(args, begin_date=None, stats_range=None):
   return fetch_json(url)
 
 
-def fetch_logs(date=None, time_range=None, filters=[]):
+def fetch_cq_logs(start_date=None, end_date=None, filters=[]):
   begin_time = None
   end_time = None
-  if date:
-    begin_time = int(time.mktime(date.timetuple()))
-    if time_range:
-      end_time = begin_time + 60 * INTERVALS[time_range]
+  if start_date:
+    begin_time = int(time.mktime(start_date.timetuple()))
+  if end_date:
+    end_time = int(time.mktime(end_date.timetuple()))
   results = []
   cursor = None
   while(True):
@@ -398,8 +398,10 @@ def fetch_logs(date=None, time_range=None, filters=[]):
       logging.error('Failed to fetch %s: %s', url, e)
       data = {'error': '404'}
     results.extend(data.get('results', []))
-    logging.info('fetch_logs: Got %d results', len(results))
-    logging.debug('  %s', '\n  '.join(['%s %s' % (patch_url((r['fields']['issue'], r['fields']['patchset'])), r['fields'].get('action', '')) for r in results]))
+    logging.info('fetch_cq_logs: Got %d results', len(results))
+    logging.debug('  %s', '\n  '.join(['%s %s' % (
+        patch_url((r['fields']['issue'], r['fields']['patchset'])),
+        r['fields'].get('action', '')) for r in results]))
     cursor = data.get('cursor', None)
     if not data.get('more', False) or not cursor:
       break
@@ -546,7 +548,8 @@ def derive_stats(args, begin_date, init_stats=None):
   """
   stats = init_stats if init_stats else default_stats()
   filters = ['project=%s' % args.project, 'action=patch_stop']
-  results = fetch_logs(begin_date, args.range, filters)
+  end_date = begin_date + datetime.timedelta(minutes=INTERVALS[args.range])
+  results = fetch_cq_logs(begin_date, end_date, filters=filters)
   if not results:
     return stats
 
@@ -562,11 +565,14 @@ def derive_stats(args, begin_date, init_stats=None):
   stats['patchset-count'] = len(patches)
   patch_stats = {}
   # Fetch and process each patchset log
+  def get_patch_stats(patch_id):
+    return derive_patch_stats(end_date, patch_id)
+
   if args.seq or not args.thread_pool:
-    iterable = map(derive_patch_stats, patches)
+    iterable = map(get_patch_stats, patches)
   else:
     pool = ThreadPool(min(args.thread_pool, len(patches)))
-    iterable = pool.imap_unordered(derive_patch_stats, patches)
+    iterable = pool.imap_unordered(get_patch_stats, patches)
   for patch_id, pstats in iterable:
     patch_stats[patch_id] = pstats
 
@@ -617,10 +623,10 @@ def parse_json(obj):
   return result
 
 
-def derive_patch_stats(patch_id):
+def derive_patch_stats(end_date, patch_id):
   """|patch_id| is a tuple (issue, patchset)."""
   # Assume the results are in descendent order by timestamp.
-  results = fetch_logs(filters=[
+  results = fetch_cq_logs(end_date=end_date, filters=[
       'issue=%s' % patch_id[0], 'patchset=%s' % patch_id[1]])
   logging.debug('derive_patch_stats(%r): fetched %d entries.',
                 patch_id, len(results))
