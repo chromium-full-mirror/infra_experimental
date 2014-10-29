@@ -58,9 +58,10 @@ parser.add_option("-c", "--count", dest="count", type="int", default=1000,
 def main(args):
   # data from https://chrome-internal.googlesource.com/infra/infra_internal/+/master/commit_queue/queue_config/chromium.json
   bots = [
-  ['tryserver.chromium.win', ['win_chromium_rel_swarming', 'win_chromium_x64_rel_swarming', 'win8_chromium_rel', 'win_chromium_compile_dbg']],
-  ['tryserver.chromium.mac', ['mac_chromium_rel_swarming', 'mac_chromium_compile_dbg', 'ios_dbg_simulator', 'ios_rel_device', 'ios_rel_device_ninja']],
-  ['tryserver.chromium.linux', ['linux_chromium_rel_swarming', 'linux_chromium_chromeos_rel_swarming', 'linux_chromium_gn_rel', 'chromium_presubmit', 'android_dbg_tests_recipe', 'android_clang_dbg', 'android_aosp', 'android_chromium_gn_compile_rel']],
+  ['tryserver.chromium.win', ['win_chromium_rel', 'win_chromium_rel_ng', 'win_chromium_x64_rel', 'win_chromium_x64_rel_ng', 'win8_chromium_rel', 'win_chromium_compile_dbg']],
+  ['tryserver.chromium.mac', ['mac_chromium_rel', 'mac_chromium_rel_ng', 'mac_chromium_compile_dbg', 'ios_dbg_simulator', 'ios_rel_device', 'ios_rel_device_ninja']],
+  #'linux_chromium_chromeos_rel_ng', 
+  ['tryserver.chromium.linux', ['linux_chromium_rel', 'linux_chromium_rel_ng', 'linux_chromium_chromeos_rel', 'linux_chromium_gn_rel', 'chromium_presubmit', 'android_dbg_tests_recipe', 'android_clang_dbg', 'android_aosp', 'android_chromium_gn_compile_rel']],
   ['tryserver.chromium.gpu', ['linux_gpu', 'linux_gpu_triggered_tests', 'mac_gpu', 'mac_gpu_retina_triggered_tests', 'mac_gpu_triggered_tests', 'win_gpu', 'win_gpu_triggered_tests']]
   ]
   
