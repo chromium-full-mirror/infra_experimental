@@ -522,7 +522,11 @@ def sort_by_count(elements):
 
 
 def stats_by_count_entry(patch_stats, name, patch, reasons):
-  entry = {'count': patch_stats[name], 'patch_id': patch}
+  entry = {
+      'count': patch_stats[name],
+      'patch_id': patch,
+      'failed-jobs-details': patch_stats['failed-jobs-details']
+  }
   for n in reasons:
     if n in patch_stats:
       entry[n] = patch_stats[n]
@@ -622,6 +626,14 @@ def parse_json(obj):
       logging.error('Could not decode json in "%s": %s', obj, e)
   return result
 
+def parse_failing_tryjobs(message):
+  """Parse the message of failing try jobs."""
+  builders = []
+  msg_ary = message.split('\n')
+  for ln in msg_ary[1:]:
+    builder = ln.split()[0]
+    builders.append(builder)
+  return builders
 
 def derive_patch_stats(end_date, patch_id):
   """|patch_id| is a tuple (issue, patchset)."""
@@ -664,6 +676,7 @@ def derive_patch_stats(end_date, patch_id):
   # An attempt is a set of actions between patch_start and patch_stop
   # actions. Repeated patch_start / patch_stop actions are ignored.
   attempt = copy.deepcopy(attempt_empty)
+  failing_builders = {}
   results.reverse()
   state = 'stop'
   for r in results:
@@ -697,6 +710,10 @@ def derive_patch_stats(end_date, patch_id):
           attempt['failed-presubmit-bot'] = True
         else:
           attempt['failed-jobs'] = message
+          builders = parse_failing_tryjobs(message)
+          for b in builders:
+            failing_builders.setdefault(b, 0)
+            failing_builders[b] += 1
       if 'Exceeded time limit waiting for builds to trigger' in message:
         attempt['failed-to-trigger'] = True
       add_attempt(attempt)
@@ -737,6 +754,9 @@ def derive_patch_stats(end_date, patch_id):
     valid_reasons_set.update(s)
   for r in set(REASONS) - set(VALID_REASONS):
     stats[r] = len(set([a['id'] for a in attempts if a[r]]))
+
+  # Populate failed builders.
+  stats['failed-jobs-details'] = failing_builders
 
   stats['false-rejections'] = 0
   if stats['committed']:
@@ -864,15 +884,32 @@ def print_attempt_counts(stats, name, message, item_name='',
   if not print_zero and not count:
     return
 
+  failing_builders = {}
+  for p in patches:
+    for b, cnt in p['failed-jobs-details'].iteritems():
+      failing_builders.setdefault(b, {})
+      failing_builders[b][p['patch_id']] = cnt
+
   indent_str = ''.join([' ' for _ in range(indent)])
-  print '%s%4d attempt%s (%.1f%% of %d attempts) %s in %d%s patches' % (
-      indent_str, count, ' ' if count == 1 else 's',
-      percentage(count, stats['attempt-count']),
-      stats['attempt-count'],
-      message,
-      len(patches),
-      ' committed' if committed is True else
-      ' uncommitted' if committed is False else '')
+  if message.startswith('failed jobs'):
+    print '%s%4d attempt%s (%.1f%% of %d attempts) %s: %d in %d%s patches' % (
+        indent_str, count, ' ' if count == 1 else 's',
+        percentage(count, stats['attempt-count']),
+        stats['attempt-count'],
+        message,
+        sum([sum(d.values()) for d in failing_builders.values()]),
+        len(patches),
+        ' committed' if committed is True else
+        ' uncommitted' if committed is False else '')
+  else:
+    print '%s%4d attempt%s (%.1f%% of %d attempts) %s in %d%s patches' % (
+        indent_str, count, ' ' if count == 1 else 's',
+        percentage(count, stats['attempt-count']),
+        stats['attempt-count'],
+        message,
+        len(patches),
+        ' committed' if committed is True else
+        ' uncommitted' if committed is False else '')
   if details:
     lines = []
     for p in patches:
@@ -880,12 +917,17 @@ def print_attempt_counts(stats, name, message, item_name='',
           p['count'], item_name, patch_url(p['patch_id']))
       extra = []
       for k in p:
-        if k not in ['count', 'patch_id']:
+        if k not in ['count', 'patch_id', 'failed-jobs-details']:
           extra.append(k)
+      causes = []
       if extra:
         causes = ['%d %s' % (p[k], k) for k in extra if p[k]]
-        if causes:
-          line += ' (%s)' % ', '.join(causes)
+      if p['failed-jobs-details']:
+        causes.extend(
+            ['%d %s' % (p['failed-jobs-details'][k], k)
+             for k in p['failed-jobs-details']])
+      if causes:
+        line += ' (%s)' % ', '.join(causes)
       lines.append(line)
     if lines:
       print '\n'.join(lines)
