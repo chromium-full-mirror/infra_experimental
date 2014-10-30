@@ -9,12 +9,14 @@ import calendar
 import collections
 import copy
 import datetime
+from xml.etree import ElementTree
 import json
 import logging
 from multiprocessing.pool import ThreadPool
 import numbers
 import numpy
 import re
+import subprocess
 import sys
 import time
 import urllib
@@ -346,6 +348,37 @@ def fetch_git_logs(repo, from_date, to_date):
       break
   return data
 
+
+def fetch_svn_logs(repo, from_date, to_date):
+  def local_to_utc(LocalTime):
+    EpochSecond = time.mktime(LocalTime.timetuple())
+    utcTime = datetime.datetime.utcfromtimestamp(EpochSecond)
+    return utcTime
+
+  from_date = local_to_utc(from_date)
+  to_date = local_to_utc(to_date)
+  range_str = (
+      '{%s +0000}:{%s +0000}' % (from_date, to_date))
+  out = subprocess.check_output(
+      ['svn', 'log', '--with-all-revprops', '--xml', repo, '-r', range_str])
+  data = []
+  for logentry in ElementTree.XML(out).findall('logentry'):
+    date_str = logentry.find('date').text
+    date = datetime.datetime(*map(int, re.split('[^\d]', date_str)[:-1]))
+    entry = {
+        'author': logentry.find('author').text,
+        'date': date,
+        'revprops': {},
+        'commit-bot': False,
+    }
+    revprops = logentry.find('revprops')
+    if revprops is not None:
+      for revprop in revprops.findall('property'):
+        entry['revprops'][revprop.attrib['name']] = revprop.text
+        if revprop.attrib['name'] == 'commit-bot':
+          entry['commit-bot'] = True
+    data.append(entry)
+  return data
 
 def fetch_stats(args, begin_date=None, stats_range=None):
   if not begin_date:
@@ -807,8 +840,7 @@ def derive_tree_stats(project, start_date, end_date):
   return stats
 
 
-def derive_git_stats(project, start_date, end_date, bots):
-  log_data = fetch_git_logs(PROJECTS[project]['repo'], start_date, end_date)
+def derive_log_stats(log_data, bots):
   # Calculate stats.
   cq_commits = [v for v in log_data if v['commit-bot']]
   users = {}
@@ -847,6 +879,15 @@ def derive_git_stats(project, start_date, end_date, bots):
       a: c for a, c in committers.iteritems()
       if c == manual_committers.get(a, 0)}
   return stats
+
+def derive_git_stats(project, start_date, end_date, bots):
+  log_data = fetch_git_logs(PROJECTS[project]['repo'], start_date, end_date)
+  return derive_log_stats(log_data, bots)
+
+
+def derive_svn_stats(project, start_date, end_date, bots):
+  log_data = fetch_svn_logs(PROJECTS[project]['repo'], start_date, end_date)
+  return derive_log_stats(log_data, bots)
 
 
 def percentage_tuple(data, total):
@@ -1143,6 +1184,11 @@ def acquire_stats(args):
     stats['latest']['usage'] = derive_git_stats(
         args.project, args.date, end_date, args.bots)
     stats['previous']['usage'] = derive_git_stats(
+        args.project, prev_date, args.date, args.bots)
+  else:
+    stats['latest']['usage'] = derive_svn_stats(
+        args.project, args.date, end_date, args.bots)
+    stats['previous']['usage'] = derive_svn_stats(
         args.project, prev_date, args.date, args.bots)
 
   return stats
