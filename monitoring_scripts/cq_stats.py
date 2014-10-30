@@ -137,35 +137,6 @@ def parse_args():
   parser.add_argument(
       '--list-false-rejections', action='store_true',
       help='List CLs that were committed in more than one attempt.')
-  # parser.add_argument(
-  #     '--top-rejecting-jobs',
-  #     default=0,
-  #     type=int,
-  #     dest='top_rejecting_jobs',
-  #     help=('List N fastests jobs that failed on a CL rejected by CQ.'))
-  # parser.add_argument(
-  #     '--rejecting-jobs',
-  #     default='',
-  #     type=str,
-  #     dest='rejecting_jobs',
-  #     help=('Comma-separated list of bots: listed in this order if any '
-  #           'of them fail on a CLs rejected by CQ. '
-  #           'This can be used to compare bot coverage.'))
-  # parser.add_argument('--list-flaky-jobs', action='store_true',
-  #                     dest='list_flaky_jobs',
-  #                     help='List build URLs of all flaky try jobs.')
-  # parser.add_argument(
-  #   '--top-jobs',
-  #   dest='top_jobs',
-  #   type=int,
-  #   default=0,
-  #   help='Print top N issues with maxium number of jobs (default=%(default)s)')
-  # parser.add_argument(
-  #   '--top-flakes',
-  #   dest='top_flakes',
-  #   type=int,
-  #   default=20,
-  #   help='Print top N flaky builders (default=%(default)s)')
   parser.add_argument(
       '--use-logs', action='store_true',
       default=True,
@@ -405,6 +376,7 @@ def fetch_stats(args, begin_date=None, stats_range=None):
   return fetch_json(url)
 
 
+# "Dangerous default value []": pylint: disable=W0102
 def fetch_cq_logs(start_date=None, end_date=None, filters=[]):
   begin_time = None
   end_time = None
@@ -490,9 +462,11 @@ def organize_stats(stats, latest_init=None, previous_init=None):
     else:
       result[name]['begin'] = min(
           date_from_timestamp(dataset['begin']), result[name]['begin'])
-    result[name]['end'] = max(date_from_timestamp(dataset['end']), result[name]['end'])
+    result[name]['end'] = max(date_from_timestamp(dataset['end']),
+                              result[name]['end'])
     re_trybot_pass_count = re.compile('^trybot-(.+)-pass-count$')
-    re_trybot_false_reject_count = re.compile('^trybot-(.+)-false-reject-count$')
+    re_trybot_false_reject_count = re.compile(
+        '^trybot-(.+)-false-reject-count$')
     assert 'jobs' in result[name] and type(result[name]['jobs']) is dict
     for data in dataset['stats']:
       if data['type'] == 'count':
@@ -506,7 +480,8 @@ def organize_stats(stats, latest_init=None, previous_init=None):
               'false-reject-count': 0,
           })
           result[name]['jobs'][job_name]['pass-count'] += data['count']
-          logging.debug('Job %s passed %d times. Jobs: %r', job_name, data['count'], result[name]['jobs'])
+          logging.debug('Job %s passed %d times. Jobs: %r',
+                        job_name, data['count'], result[name]['jobs'])
         if match_false_reject:
           job_name = match_false_reject.group(1)
           result[name]['jobs'].setdefault(job_name, {
@@ -514,7 +489,8 @@ def organize_stats(stats, latest_init=None, previous_init=None):
               'false-reject-count': 0,
           })
           result[name]['jobs'][job_name]['false-reject-count'] += data['count']
-          logging.debug('Job %s flakily failed %d times', job_name, data['count'])
+          logging.debug('Job %s flakily failed %d times',
+                        job_name, data['count'])
       elif data['type'] == 'list':
         result[name][data['name']] = {
             '10': data['percentile_10'],
@@ -568,6 +544,7 @@ def stats_by_count_entry(patch_stats, name, patch, reasons):
   return entry
 
 
+# "Dangerous default value []": pylint: disable=W0102
 def stats_by_count(patch_stats, name, reasons=[]):
   return sort_by_count([
       stats_by_count_entry(patch_stats[p], name, p, reasons)
@@ -817,7 +794,7 @@ def derive_tree_stats(project, start_date, end_date):
 
   logging.debug('Tree status:\n%s', '\n'.join(['  %r' % e for e in status]))
 
-  is_open=status[0]['open']
+  is_open = status[0]['open']
   curr_date = start_date
   for event in status[1:]:
     delta = event['date'] - curr_date
@@ -1012,7 +989,8 @@ def print_usage(args, latest, previous):
                                   previous['usage']['total_commits']))
   if latest['usage']['bot_manual_commits']:
     fmt_str += ' (%6.2f%% by humans)'
-    data += percentage(cq_commits, latest['usage']['total_commits'] -
+    data += percentage(latest['usage']['cq_commits'],
+                       latest['usage']['total_commits'] -
                        latest['usage']['bot_manual_commits'])
   print fmt_str % data
 
@@ -1037,12 +1015,13 @@ def print_usage(args, latest, previous):
 
 def print_tree_status(args, latest, previous):
   print
-  print 'Total time tree open: %.1f hours of %.1f hours (%.2f%%). Prev. %s: %.2f%%.' % (
+  print('Total time tree open: %.1f hours of %.1f hours (%.2f%%). '
+        'Prev. %s: %.2f%%.' % (
       latest['tree']['open'] / 3600.0,
       latest['tree']['total'] / 3600.0,
       percentage(latest['tree']['open'], latest['tree']['total']),
       args.range,
-      percentage(previous['tree']['open'], previous['tree']['total']))
+      percentage(previous['tree']['open'], previous['tree']['total'])))
 
 
 def print_stats(args, stats):
@@ -1178,7 +1157,8 @@ def acquire_stats(args):
     stats = organize_stats(fetch_stats(args))
 
   stats['latest']['tree'] = derive_tree_stats(args.project, args.date, end_date)
-  stats['previous']['tree'] = derive_tree_stats(args.project, prev_date, args.date)
+  stats['previous']['tree'] = derive_tree_stats(
+      args.project, prev_date, args.date)
 
   if PROJECTS[args.project]['type'] == 'git':
     stats['latest']['usage'] = derive_git_stats(
