@@ -711,7 +711,8 @@ def derive_patch_stats(end_date, patch_id):
         attempt['invalid-delimiter'] = True
       if 'Failed to commit' in message:
         attempt['failed-commit'] = True
-      if 'Failed to apply patch' in message:
+      if('Failed to apply patch' in message or
+         'Failed to apply the patch' in message):
         attempt['failed-patch'] = True
       if 'Presubmit check' in message:
         attempt['failed-presubmit-check'] = True
