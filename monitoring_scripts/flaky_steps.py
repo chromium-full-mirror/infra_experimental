@@ -26,8 +26,9 @@ def get_args():
       '--to-date',
       required=True,
       help=('Format: YYYY-MM-DD. Process builds upto and excluding this day.'))
-  parser.add_argument('-v', '--verbose', action="store_true")
-  parser.add_argument('-q', '--quiet', action="store_true")
+  parser.add_argument('-v', '--verbose', action='store_true')
+  parser.add_argument('-q', '--quiet', action='store_true')
+  parser.add_argument('--list-flaky-builds', action='store_true')
   parser.add_argument('--clear', action='store_true',
                       help='Clear requests cache.')
   return parser.parse_args()
@@ -75,6 +76,7 @@ def process_build(build):
   result = {
       'patch_id': patch_id,
       'build': build['number'],
+      'builder': build['builderName'],
       'success': not build['results'],
       'failed_steps': [s for s in map(process_step, build['steps'])
                        if not s['success'] and not s['name'] == 'steps'],
@@ -94,19 +96,45 @@ def process_step(step):
 
 
 def find_flaky_builds(builds):
-  """Iterator returning a sequence of flaky builds.
+  """Find flaky builds and steps that cause those flakes.
 
-  That is, builds that fail on a patch_id for which there is a
+  A flaky build is one that fail on a patch_id for which there is a
   successful run of the same builder.
+
+  Returns result (dict) with the following keys:
+    num_total_builds (int): total builds that should have passed
+    num_successful_builds (int): how many of the above builds passed
+    failed_builds (list): list of failed build objects - these are flakes
+    failed_steps (dict): maping of step names to counts, how many times a
+                         step caused a flaky build.
   """
+  result = {'num_total_builds': 0,
+            'num_successful_builds': 0,
+            'failed_builds': [],
+            'failed_steps': {},
+           }
   for patch_id in builds:
     logging.debug('find_flaky_builds: builds[%r] = %r',
                   patch_id, builds[patch_id])
-    if not any(build['success'] for build in builds[patch_id]):
+    failed_builds = [b for b in builds[patch_id] if not b['success']]
+    num_successful_builds = len(builds[patch_id]) - len(failed_builds)
+    if not num_successful_builds:
       continue
-    for build in builds[patch_id]:
-      if not build['success']:
-        yield build
+    for build in failed_builds:
+      for step in build['failed_steps']:
+        result['failed_steps'].setdefault(step['name'], 0)
+        result['failed_steps'][step['name']] += 1
+    result['num_total_builds'] += len(builds[patch_id])
+    result['num_successful_builds'] += num_successful_builds
+    result['failed_builds'].extend(failed_builds)
+  return result
+
+
+def percentage(x, y):
+  if not y:
+    return 0.0
+  else:
+    return 100.0 * x / y
 
 
 def patch_url(patch_id):
@@ -130,6 +158,19 @@ def print_builds(master, builder, builds):
     print fmt % (patch_url(build['patch_id']),
                  build_url(master, builder, build['build']),
                  ', '.join(map(format_step, build['failed_steps'])))
+
+
+def print_flaky_stats(builder, flaky_builds):
+  steps = sorted(flaky_builds['failed_steps'].iteritems(),
+                 key=lambda x: x[1], reverse=True)
+  print '%s: %d (%6.2f%%) flaky failures out of %d total' % (
+      builder, len(flaky_builds['failed_builds']),
+      percentage(len(flaky_builds['failed_builds']),
+                 flaky_builds['num_total_builds']),
+      flaky_builds['num_total_builds'])
+  for step in steps:
+    print '%d flakes in step %s' % (step[1], step[0])
+
 
 
 def main():
@@ -184,7 +225,10 @@ def main():
       builds.setdefault(b['patch_id'], [])
       builds[b['patch_id']].append(b)
 
-  print_builds(args.master, args.builder, find_flaky_builds(builds))
+  flaky_builds = find_flaky_builds(builds)
+  print_flaky_stats(args.builder, flaky_builds)
+  if args.list_flaky_builds:
+    print_builds(args.master, args.builder, flaky_builds['failed_builds'])
 
 
 if __name__ == '__main__':
