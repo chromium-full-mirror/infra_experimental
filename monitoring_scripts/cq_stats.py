@@ -38,6 +38,10 @@ PROJECTS = {
         'type': 'svn',
         'repo': 'svn://svn.chromium.org/blink/trunk/',
     },
+    'infra': {
+        'type': 'git',
+        'repo': 'https://chromium.googlesource.com/infra/infra',
+    },
 }
 # Map of intervals to minutes.
 INTERVALS = {
@@ -238,6 +242,8 @@ def fetch_tree_status(project, end_date, start_date=None, limit=1000):
   if start_date:
     params['endTime'] = int(time.mktime(start_date.timetuple()))
   query = 'allstatus?' + urllib.urlencode(params)
+  if 'tree-status' not in PROJECTS[project]:
+    return []
   url = urlparse.urljoin(PROJECTS[project]['tree-status'], query)
   logging.debug('Fetching %s', url)
   status = fetch_json(url)
