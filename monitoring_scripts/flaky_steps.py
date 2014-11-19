@@ -17,7 +17,9 @@ CHROME_BUILD_EXTRACT_URL = (
 def get_args():
   parser = argparse.ArgumentParser()
   parser.add_argument('--master', required=True)
-  parser.add_argument('--builder', required=True)
+  parser.add_argument(
+      '--builders', required=True,
+      help='Comma-separated list of builders.')
   parser.add_argument(
       '--from-date',
       required=True,
@@ -26,12 +28,17 @@ def get_args():
       '--to-date',
       required=True,
       help=('Format: YYYY-MM-DD. Process builds upto and excluding this day.'))
+  parser.add_argument(
+      '--by-builders', action='store_true',
+      help='Aggregate by builders instead of steps.')
   parser.add_argument('-v', '--verbose', action='store_true')
   parser.add_argument('-q', '--quiet', action='store_true')
   parser.add_argument('--list-flaky-builds', action='store_true')
   parser.add_argument('--clear', action='store_true',
                       help='Clear requests cache.')
-  return parser.parse_args()
+  args = parser.parse_args()
+  args.builders = args.builders.split(',')
+  return args
 
 
 def setup_logging(args):
@@ -130,6 +137,46 @@ def find_flaky_builds(builds):
   return result
 
 
+def fetch_flaky_builds(session, master, builder, from_date, to_date):
+  # Map (issue, patchset) -> list of builds
+  builds = {}
+  dates = []
+  cur_date = from_date
+  while cur_date < to_date:
+    date_str = cur_date.strftime('%Y-%m-%d')
+    dates.append(date_str)
+    cur_date += datetime.timedelta(days=1)
+    try:
+      cursor = ''
+      data = {'builds': []}
+      logging.debug('Fetching data for %s', date_str)
+      while True:
+        params = urllib.urlencode({
+            'builder': builder,
+            'master': master,
+            'day': date_str,
+            'cursor': cursor,
+        })
+        search_url = CHROME_BUILD_EXTRACT_URL % params
+        response = session.get(search_url)
+        new_data = response.json()
+        cursor = new_data['cursor']
+        data['builds'].extend(new_data['builds'])
+        logging.debug('Read %d builds', len(data['builds']))
+        if not cursor:
+          break
+    except IOError as e:
+      logging.error('skipping the day %s: %s', date_str, e)
+      continue
+
+    for build in data['builds']:
+      b = process_build(build)
+      builds.setdefault(b['patch_id'], [])
+      builds[b['patch_id']].append(b)
+
+  return find_flaky_builds(builds)
+
+
 def percentage(x, y):
   if not y:
     return 0.0
@@ -186,49 +233,19 @@ def main():
 
   from_date = datetime.datetime.strptime(args.from_date, '%Y-%m-%d')
   to_date = datetime.datetime.strptime(args.to_date, '%Y-%m-%d')
-  cur_date = from_date
 
-  # Map {step_name -> { date -> list of runtimes in minutes} }.
-  steps_times = {}
-  # Map (issue, patchset) -> list of builds
-  builds = {}
-  dates = []
-  while cur_date < to_date:
-    date_str = cur_date.strftime('%Y-%m-%d')
-    dates.append(date_str)
-    cur_date += datetime.timedelta(days=1)
-    try:
-      cursor = ''
-      data = {'builds': []}
-      logging.debug('Fetching data for %s', date_str)
-      while True:
-        params = urllib.urlencode({
-            'builder': args.builder,
-            'master': args.master,
-            'day': date_str,
-            'cursor': cursor,
-        })
-        search_url = CHROME_BUILD_EXTRACT_URL % params
-        response = session.get(search_url)
-        new_data = response.json()
-        cursor = new_data['cursor']
-        data['builds'].extend(new_data['builds'])
-        logging.debug('Read %d builds', len(data['builds']))
-        if not cursor:
-          break
-    except Exception as e:
-      logging.error('skipping the day %s: %s', date_str, e)
-      continue
+  flaky_builds = {}
+  flaky_steps = {}
+  for builder in args.builders:
+    flaky_builds[builder] = fetch_flaky_builds(
+        session, args.master, builder, from_date, to_date)
+    for step, num_flakes in flaky_builds[builder]['failed_steps'].iteritems():
+      flaky_steps[step] = flaky_steps.get(step, 0) + num_flakes
 
-    for build in data['builds']:
-      b = process_build(build)
-      builds.setdefault(b['patch_id'], [])
-      builds[b['patch_id']].append(b)
-
-  flaky_builds = find_flaky_builds(builds)
-  print_flaky_stats(args.builder, flaky_builds)
-  if args.list_flaky_builds:
-    print_builds(args.master, args.builder, flaky_builds['failed_builds'])
+  for builder, flakes in flaky_builds.iteritems():
+    print_flaky_stats(builder, flakes)
+    if args.list_flaky_builds:
+      print_builds(args.master, builder, flakes['failed_builds'])
 
 
 if __name__ == '__main__':
