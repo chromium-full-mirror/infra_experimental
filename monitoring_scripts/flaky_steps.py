@@ -66,6 +66,13 @@ def parse_properties(properties):
   return result
 
 
+def percentage(x, y):
+  if not y:
+    return 0.0
+  else:
+    return 100.0 * x / y
+
+
 def process_build(build):
   """Parse buildbot build into a sensible dict.
 
@@ -111,12 +118,14 @@ def find_flaky_builds(builds):
   Returns result (dict) with the following keys:
     num_total_builds (int): total builds that should have passed
     num_successful_builds (int): how many of the above builds passed
+    flakiness (float): percentage of flaky builds
     failed_builds (list): list of failed build objects - these are flakes
     failed_steps (dict): maping of step names to counts, how many times a
                          step caused a flaky build.
   """
   result = {'num_total_builds': 0,
             'num_successful_builds': 0,
+            'flakiness': 0.0,
             'failed_builds': [],
             'failed_steps': {},
            }
@@ -134,6 +143,8 @@ def find_flaky_builds(builds):
     result['num_total_builds'] += len(builds[patch_id])
     result['num_successful_builds'] += num_successful_builds
     result['failed_builds'].extend(failed_builds)
+  result['flakiness'] = percentage(
+      len(result['failed_builds']), result['num_total_builds'])
   return result
 
 
@@ -160,11 +171,11 @@ def fetch_flaky_builds(session, master, builder, from_date, to_date):
         search_url = CHROME_BUILD_EXTRACT_URL % params
         response = session.get(search_url)
         new_data = response.json()
-        cursor = new_data['cursor']
         data['builds'].extend(new_data['builds'])
         logging.debug('Read %d builds', len(data['builds']))
-        if not cursor:
+        if not new_data['cursor'] or cursor == new_data['cursor']:
           break
+        cursor = new_data['cursor']
     except IOError as e:
       logging.error('skipping the day %s: %s', date_str, e)
       continue
@@ -175,13 +186,6 @@ def fetch_flaky_builds(session, master, builder, from_date, to_date):
       builds[b['patch_id']].append(b)
 
   return find_flaky_builds(builds)
-
-
-def percentage(x, y):
-  if not y:
-    return 0.0
-  else:
-    return 100.0 * x / y
 
 
 def patch_url(patch_id):
@@ -207,17 +211,26 @@ def print_builds(master, builder, builds):
                  ', '.join(map(format_step, build['failed_steps'])))
 
 
-def print_flaky_stats(builder, flaky_builds):
+def print_flaky_builder_header():
+  print '\t'.join([
+      'Builder', 'Flakiness %', 'flaky builds', 'total builds', 'flaky steps'])
+
+
+def print_flaky_builder(builder, flaky_builds):
   steps = sorted(flaky_builds['failed_steps'].iteritems(),
                  key=lambda x: x[1], reverse=True)
-  print '%s: %d (%6.2f%%) flaky failures out of %d total' % (
-      builder, len(flaky_builds['failed_builds']),
-      percentage(len(flaky_builds['failed_builds']),
-                 flaky_builds['num_total_builds']),
-      flaky_builds['num_total_builds'])
-  for step in steps:
-    print '%d flakes in step %s' % (step[1], step[0])
+  print '%s\t%6.2f%%\t%d\t%d\t%s' % (
+      builder, flaky_builds['flakiness'],
+      len(flaky_builds['failed_builds']),
+      flaky_builds['num_total_builds'],
+      '\t'.join('%s (%d)' % step for step in steps))
 
+
+def print_flaky_steps(flaky_steps):
+  print '\t'.join(['Step', 'Flakes'])
+  for step, flakes in sorted(flaky_steps.iteritems(),
+                             key=lambda x: x[1], reverse=True):
+    print '%s\t%d' % (step, flakes)
 
 
 def main():
@@ -242,10 +255,16 @@ def main():
     for step, num_flakes in flaky_builds[builder]['failed_steps'].iteritems():
       flaky_steps[step] = flaky_steps.get(step, 0) + num_flakes
 
-  for builder, flakes in flaky_builds.iteritems():
-    print_flaky_stats(builder, flakes)
-    if args.list_flaky_builds:
-      print_builds(args.master, builder, flakes['failed_builds'])
+  if args.by_builders:
+    print_flaky_builder_header()
+    for builder, flakes in sorted(
+        flaky_builds.iteritems(), key=lambda x: x[1]['flakiness'],
+        reverse=True):
+      print_flaky_builder(builder, flakes)
+      if args.list_flaky_builds:
+        print_builds(args.master, builder, flakes['failed_builds'])
+  else:
+    print_flaky_steps(flaky_steps)
 
 
 if __name__ == '__main__':
