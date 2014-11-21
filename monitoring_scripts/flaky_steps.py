@@ -157,6 +157,9 @@ def fetch_flaky_builds(session, master, builder, from_date, to_date):
     date_str = cur_date.strftime('%Y-%m-%d')
     dates.append(date_str)
     cur_date += datetime.timedelta(days=1)
+    # Sometimes we may get a repeating cursor from a few pages
+    # back. AE bug? crbug.com/435241.
+    cursors = set()
     try:
       cursor = ''
       data = {'builds': []}
@@ -169,13 +172,20 @@ def fetch_flaky_builds(session, master, builder, from_date, to_date):
             'cursor': cursor,
         })
         search_url = CHROME_BUILD_EXTRACT_URL % params
+        logging.debug('Fetching %s', search_url)
         response = session.get(search_url)
         new_data = response.json()
         data['builds'].extend(new_data['builds'])
         logging.debug('Read %d builds', len(data['builds']))
-        if not new_data['cursor'] or cursor == new_data['cursor']:
+        if not new_data['cursor'] :
+          logging.debug('Done with %s', date_str)
+          break
+        if new_data['cursor'] in cursors:
+          logging.error('Repeated cursor %s fetched by %s',
+                        new_data['cursor'], search_url)
           break
         cursor = new_data['cursor']
+        cursors.add(cursor)
     except IOError as e:
       logging.error('skipping the day %s: %s', date_str, e)
       continue
