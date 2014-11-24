@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<style>
+p {
+  font-family: sans-serif;
+  max-width: 500px;
+}
+#out {
+  width: 90%;
+  height: 600px;
+  font-family: monospace;
+}
+</style>
+
+<p>This page is an experiment in aggregating consecutive CQStats quantiles from chromium-cq-status.appspot.com into an approximation of the quantiles over a larger interval of time.</p>
+<p>This aggregation algorithm is unfortunately not suitable for use as it can have over 20% divergence from exact quantile values. Additionally it does not apply on a fundamental level to statistics that analyse attempts outside of the designated interval range like patchset-total-wall-time-durations.</p>
+
+<div id="optionsContainer"></div>
+<button id="runButton">Run</button> <button id="clearButton">Clear</button><br>
+<textarea id="out"></textarea>
+
+<script>
+var outputColumWidth = 8;
+var percentages = [0, 10, 25, 50, 75, 90, 95, 99, 100];
+var originTimestamp = 1413187200; // Mon Oct 13 2014 00:00:00 GMT-0800
+var optionsConfig = {
+  project: [
+    'chromium',
+    'blink',
+    'infra',
+  ],
+  stat: [
+    'attempt-durations',
+    'patchset-durations',
+    'patchset-attempts',
+    'patchset-total-wall-time-durations',
+    'patchset-total-commit-queue-durations',
+    'tryjob-verifier-first-run-durations',
+  ],
+  intervalAggregation: [
+    '1440 -> 10080',
+    '60 -> 1440',
+    '15 -> 60',
+  ],
+  intervalOffset: [0, 1, 2, 3, -4, -3, -2, -1],
+};
+var optionElements = {};
+
+function main() {
+  showOptionControls();
+  runButton.addEventListener('click', run);
+  clearButton.addEventListener('click', clearOutput);
+};
+
+function showOptionControls() {
+  Object.keys(optionsConfig).forEach(function(option) {
+    optionsContainer.appendChild(newElement('span', option + ': '));
+    var select = newElement('select');
+    optionsConfig[option].forEach(function(value) {
+      var item = newElement('option', value);
+      select.appendChild(item);
+    });
+    optionsContainer.appendChild(select);
+    optionsContainer.appendChild(newElement('br'));
+    optionElements[option] = select;
+  });
+}
+
+function newElement(tag, text) {
+  var element = document.createElement(tag);
+  if (typeof text !== 'undefined') {
+    element.textContent = text;
+  }
+  return element;
+}
+
+function run() {
+  var options = getOptions();
+  refineOptions(options);
+  outputOptions(options);
+  Promise.all([
+    loadInputQuantileDataList(options).then(aggregateQuantileDataList),
+    loadExpectedQuantileData(options),
+  ]).then(function(quantileDataList) {
+    compareQuantileData(quantileDataList[0], quantileDataList[1]);
+  }).catch(function(error) {
+    console.log(error);
+  });
+}
+
+function getOptions() {
+  var options = {};
+  Object.keys(optionElements).forEach(function(option) {
+    options[option] = optionElements[option].value;
+  });
+  return options;
+}
+
+function refineOptions(options) {
+  var intervals = options.intervalAggregation.split(' -> ').map(Number);
+  options.innerInterval = intervals[0];
+  options.outerInterval = intervals[1];
+  options.beginTimestamp = originTimestamp + (options.intervalOffset * options.outerInterval * 60);
+  options.beginDate = new Date(options.beginTimestamp * 1000);
+}
+
+function outputOptions(options) {
+  Object.keys(options).forEach(function(option) {
+    output(option + ': ' + options[option] + '\n');
+  });
+}
+
+function output(text) {
+  out.textContent += text;
+}
+
+function loadInputQuantileDataList(options) {
+  var slots = options.outerInterval / options.innerInterval;
+  promiseList = [];
+  for (var slot = 0; slot < slots; slot++) {
+    var timestamp = options.beginTimestamp + (slot * options.innerInterval * 60)
+    promiseList.push(loadQuantileData(options.project, options.stat, timestamp, options.innerInterval));
+  }
+  return Promise.all(promiseList);
+}
+
+function loadQuantileData(project, stat, begin, intervalMinutes) {
+  return loadJSON('http://chromium-cq-status.appspot.com/stats/query?' + [
+    'count=1',
+    'project=' + project,
+    'names=' + stat,
+    'interval_minutes=' + intervalMinutes,
+    'end=' + begin,
+  ].join('&')).then(function(json) {
+    var cqStats = json.results[0];
+    if (!cqStats || cqStats.begin !== begin) {
+      console.log('No stats found at', new Date(begin * 1000));
+      return {
+        quantiles: [0, 0, 0, 0, 0, 0, 0, 0, 0],
+        sampleSize: 0,
+      };
+    }
+    var stat = cqStats.stats[0];
+    return {
+      quantiles: [
+        stat.min,
+        stat.percentile_10,
+        stat.percentile_25,
+        stat.percentile_50,
+        stat.percentile_75,
+        stat.percentile_90,
+        stat.percentile_95,
+        stat.percentile_99,
+        stat.max,
+      ],
+      sampleSize: stat.sample_size,
+    };
+  });
+}
+
+function loadJSON(url) {
+  return new Promise(function(resolve) {
+    var xhr = new XMLHttpRequest();
+    xhr.open('get', url, true);
+    xhr.responseType = 'json';
+    xhr.onload = function() {
+      resolve(xhr.response);
+    };
+    xhr.send();
+  });
+}
+
+function aggregateQuantileDataList(quantileDataList) {
+  var quantilesList = quantileDataList.map(function(quantileData) {return quantileData.quantiles;});
+  var sampleSizeList = quantileDataList.map(function(quantileData) {return quantileData.sampleSize;});
+  mergedQuantiles = mergeQuantiles(percentages, quantilesList, sampleSizeList);
+  return {
+    quantiles: forceQuantilePercentages(mergedQuantiles.percentages, mergedQuantiles.quantiles, percentages),
+    sampleSize: mergedQuantiles.sampleSize,
+  };
+}
+
+function compareQuantileData(approxQuantileData, expectedQuantileData) {
+  output('Approx sample size: ' + approxQuantileData.sampleSize + '\n');
+  output('Expected sample size: ' + expectedQuantileData.sampleSize + '\n');
+  output('Sample size delta (approx - expected): ' + (approxQuantileData.sampleSize - expectedQuantileData.sampleSize) + '\n');
+  output('Quantile percentages:\n');
+  outputArray(percentages.map(function(percentage) {
+    return fillLeft(percentage + '%');
+  }));
+  output('Approximate quantiles:\n');
+  var approxQuantiles = approxQuantileData.quantiles;
+  var expectedQuantiles = expectedQuantileData.quantiles;
+  outputArray(approxQuantiles.map(fixedNumber).map(fillLeft));
+  output('Expected quantiles:\n');
+  outputArray(expectedQuantiles.map(fixedNumber).map(fillLeft));
+  output('Quantile deltas (approx - expected):\n');
+  outputArray(approxQuantiles.map(function(quantile, i) {
+    return fillLeft(fixedNumber(quantile - expectedQuantiles[i]));
+  }));
+  output('Quantile delta percentages (expected -> approx):\n');
+  outputArray(expectedQuantiles.map(function(quantile, i) {
+    return fillLeft(fixedNumber((approxQuantiles[i] - quantile) / quantile * 100) + '%');
+  }));
+  output('\n');
+}
+
+function loadExpectedQuantileData(options) {
+  return loadQuantileData(options.project, options.stat, options.beginTimestamp, options.outerInterval);
+}
+
+function calculateQuantile(sortedData, percentage) {
+  if (percentage <= 0)
+    return sortedData[0];
+  if (percentage >= 100)
+    return sortedData[sortedData.length - 1];
+  var exactIndex = percentage / 100 * (sortedData.length - 1);
+  var index = Math.floor(exactIndex);
+  var fraction = exactIndex - index;
+  return lerp(sortedData[index], sortedData[index + 1], fraction);
+}
+
+function mergeQuantiles(percentages, quantilesList, sampleSizeList) {
+  console.assert(quantilesList.every(function(quantiles) {return quantiles.length == percentages.length;}));
+  console.assert(quantilesList.length == sampleSizeList.length);
+  var totalSampleSize = sampleSizeList.reduce(function(x, y) {return x + y;}, 0);
+  var mergedPercentages = [];
+  var mergedQuantiles = [];
+  var nextIndexList = quantilesList.map(function() {return 0;});
+  while (nextIndexList.some(function(index) {return index < percentages.length})) {
+    // Find next smallest quantile.
+    var minQuantile = null;
+    var minQuantileIndex = null;
+    nextIndexList.forEach(function(nextIndex, i) {
+      if (nextIndex >= percentages.length)
+        return;
+      var quantile = quantilesList[i][nextIndex];
+      if (minQuantile === null || quantile < minQuantile) {
+        minQuantile = quantile;
+        minQuantileIndex = i;
+      }
+    });
+    console.assert(minQuantile !== null);
+    console.assert(minQuantileIndex !== null);
+    nextIndexList[minQuantileIndex]++;
+    mergedQuantiles.push(minQuantile);
+
+    var sampleSize = 0;
+    quantilesList.forEach(function(quantiles, i) {
+      sampleSize += samplesLEValue(percentages, quantiles, sampleSizeList[i], minQuantile);
+    });
+    mergedPercentages.push(sampleSize / totalSampleSize * 100);
+  }
+  // Dedup entries.
+  for (var i = mergedPercentages.length - 1; i-- > 0;) {
+    if (mergedPercentages[i] === mergedPercentages[i + 1]) {
+      mergedPercentages.splice(i + 1, 1);
+      mergedQuantiles.splice(i + 1, 1);
+    }
+  }
+  return {
+    percentages: mergedPercentages,
+    quantiles: mergedQuantiles,
+    sampleSize: totalSampleSize,
+  };
+}
+
+function samplesLEValue(percentages, quantiles, sampleSize, value) {
+  console.assert(percentages[0] == 0);
+  console.assert(percentages[percentages.length - 1] == 100);
+  if (value < quantiles[0])
+    return 0;
+  if (value >= quantiles[quantiles.length - 1])
+    return sampleSize;
+  var index = quantiles.filter(function(quantile) {return quantile <= value;}).length - 1;
+  console.assert(index < quantiles.length - 1);
+  var fraction = unlerp(quantiles[index], quantiles[index + 1], value);
+  var percentage = lerp(percentages[index], percentages[index + 1], fraction);
+  return percentage / 100 * sampleSize;
+}
+(function testSamplesLEValue() {
+  // Values are 1 2 3 4 5 6 7 8 9 100
+  var percentages = [0, 10, 25, 50, 75, 90, 95, 99, 100];
+  var quantiles = [1.0, 1.9, 3.3, 5.5, 7.8, 18.1, 59.0, 91.8, 100.0];
+  var sampleSize = 10;
+  function assertClose(actual, expected) {
+    console.assert(Math.abs(expected - actual) < 0.1, 'Expected: ' + expected + ' got: ' + actual + '.');
+  }
+  assertClose(samplesLEValue(percentages, quantiles, sampleSize, 0), 0);
+  assertClose(samplesLEValue(percentages, quantiles, sampleSize, 3), 2.2);
+  assertClose(samplesLEValue(percentages, quantiles, sampleSize, 5.5), 5);
+  assertClose(samplesLEValue(percentages, quantiles, sampleSize, 10), 7.8);
+  assertClose(samplesLEValue(percentages, quantiles, sampleSize, 90), 9.9);
+  assertClose(samplesLEValue(percentages, quantiles, sampleSize, 100), 10);
+  assertClose(samplesLEValue(percentages, quantiles, sampleSize, 200), 10);
+})();
+
+function forceQuantilePercentages(percentages, quantiles, targetPercentages) {
+  return targetPercentages.map(function(targetPercentage) {
+    var index = Math.max(percentages.filter(function(percentage) {return percentage < targetPercentage;}).length - 1, 0);
+    return lerp(quantiles[index], quantiles[index + 1], unlerp(percentages[index], percentages[index + 1], targetPercentage));
+  });
+}
+
+function lerp(a, b, f) {
+  return a + f * (b - a);
+}
+
+function unlerp(a, b, x) {
+  return (x - a) / (b - a);
+}
+
+function fillLeft(text) {
+  if (text.length >= outputColumWidth)
+    return text;
+  return Array(outputColumWidth - text.length + 1).join(' ') + text;
+}
+
+function outputArray(array) {
+  output(array.join('') + '\n');
+}
+
+function fixedNumber(x) {
+  return Number(x).toFixed(1);
+}
+
+function clearOutput() {
+  out.textContent = '';
+}
+
+window.addEventListener('load', main);
+</script>
