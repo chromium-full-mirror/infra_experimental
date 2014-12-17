@@ -381,7 +381,7 @@ def fetch_cq_logs(start_date=None, end_date=None, filters=[]):
   results = []
   cursor = None
   while(True):
-    params = {}
+    params = {'count': 20} # reduce to prevent server OOM.
     if begin_time:
       params['begin'] = begin_time
     if end_time:
@@ -1022,11 +1022,15 @@ def process_false_rejections(patch_stats):
       [s for s in patch_stats.values() if s['false-rejections']],
       key=lambda s: s['end_false_rejection'])
   print '\t'.join(['Patchset', 'Begin', 'End'] + ['%s' % h for h in range(24)])
+  prev_day = None
   for patch in false_rejections:
     begin = date_from_timestamp(patch['begin_false_rejection'])
     end = date_from_timestamp(patch['end_false_rejection'])
-    values = [patch_url(patch['patch_id']), str(begin), str(end)]
     day = datetime.datetime(end.year, end.month, end.day)
+    if day != prev_day:
+      print '\t'.join(['-', '-', '%s' % day] + ['-' for _ in range(24)])
+    prev_day = day
+    values = [patch_url(patch['patch_id']), str(begin), str(end)]
     for hour in range(24):
       d = day + datetime.timedelta(hours=hour)
       values.append('x' if begin <= d and d < end else ' ')
