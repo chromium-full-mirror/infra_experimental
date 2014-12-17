@@ -223,7 +223,7 @@ def fetch_json(url):
     if retry:
       time.sleep(delays[retry])
     try:
-      result = json.loads(urllib2.urlopen(url).read())
+      result = json.loads(urllib2.urlopen(url, timeout=60).read())
       return result
     except Exception as e:
       logging.warning('Failed to fetch (attempt %d) %s: %s', retry + 1, url, e)
@@ -281,7 +281,7 @@ def fetch_git_page(repo_url, cursor=None, page_size=2000):
   logging.debug('fetch_git_page: url = %s', url)
   try:
     # Strip off the anti-XSS string from the response.
-    response = urllib2.urlopen(url)
+    response = urllib2.urlopen(url, timeout=60)
     lines = [l.rstrip() for l in response if l.rstrip() != ")]}'"]
     raw_data = ''.join(lines)
     page = json.loads(raw_data)
@@ -393,7 +393,10 @@ def fetch_cq_logs(start_date=None, end_date=None, filters=[]):
   results = []
   cursor = None
   while(True):
-    params = {}
+    # AE app sometimes fails with
+    # "Values may not be more than 1000000 bytes in length;
+    # received 1174060 bytes". Reducing the limit.
+    params = {'count': 20}
     if begin_time:
       params['begin'] = begin_time
     if end_time:

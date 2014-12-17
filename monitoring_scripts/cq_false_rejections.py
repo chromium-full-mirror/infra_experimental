@@ -142,18 +142,6 @@ def parse_args():
       '--list-false-rejections', action='store_true',
       help='List CLs that were committed in more than one attempt.')
   parser.add_argument(
-      '--use-logs', action='store_true',
-      default=True,
-      help=('On by default. '
-            'Fetch the detailed logs and recompute the stats in this script, '
-            'instead of fetching precomputed stats. '
-            'Slower, but more accurate, and helps validate the cached stats.'))
-  parser.add_argument(
-      '--use-cache',
-      dest='use_logs',
-      action='store_false',
-      help=('Fetch the cached stats from the app. Opposite to --use-logs.'))
-  parser.add_argument(
       '--date',
       help='Start date of stats YYYY-MM-DD[ HH[:MM]]. Default: --range ago.')
   parser.add_argument('--range',
@@ -596,36 +584,36 @@ def derive_stats(args, begin_date, init_stats=None):
   for patch_id, pstats in iterable:
     patch_stats[patch_id] = pstats
 
-  stats['patch_stats'] = patch_stats
-  stats['attempt-count'] = sum([
-      patch_stats[p]['attempts'] for p in patch_stats])
-  stats['patchset-false-reject-count'] = sum([
-      patch_stats[p]['false-rejections'] for p in patch_stats])
-  stats['attempt-reject-count'] = sum([
-      patch_stats[p]['rejections'] for p in patch_stats])
-  stats['rejected-patches'] = set([
-      p for p in patch_stats if not patch_stats[p]['committed']])
-  stats['false-rejections'] = stats_by_count(
-      patch_stats, 'false-rejections', REASONS)
-  stats['rejections'] = stats_by_count(patch_stats, 'rejections', REASONS)
-  for r in REASONS:
-    stats[r] = stats_by_count(patch_stats, r, set(REASONS) - set([r]))
+  # stats['patch_stats'] = patch_stats
+  # stats['attempt-count'] = sum([
+  #     patch_stats[p]['attempts'] for p in patch_stats])
+  # stats['patchset-false-reject-count'] = sum([
+  #     patch_stats[p]['false-rejections'] for p in patch_stats])
+  # stats['attempt-reject-count'] = sum([
+  #     patch_stats[p]['rejections'] for p in patch_stats])
+  # stats['rejected-patches'] = set([
+  #     p for p in patch_stats if not patch_stats[p]['committed']])
+  # stats['false-rejections'] = stats_by_count(
+  #     patch_stats, 'false-rejections', REASONS)
+  # stats['rejections'] = stats_by_count(patch_stats, 'rejections', REASONS)
+  # for r in REASONS:
+  #   stats[r] = stats_by_count(patch_stats, r, set(REASONS) - set([r]))
 
-  stats['patchset-commit-count'] = len([
-      p for p in patch_stats if patch_stats[p]['committed']])
-  stats['patchset-total-commit-queue-durations'] = derive_list_stats([
-      patch_stats[p]['patchset-duration-wallclock'] for p in patch_stats])
-  stats['patchset-durations'] = derive_list_stats([
-      patch_stats[p]['patchset-duration'] for p in patch_stats])
-  stats['patchset-committed-durations'] = derive_list_stats([
-      patch_stats[p]['patchset-duration'] for p in patch_stats
-      if patch_stats[p]['committed']])
-  stats['patchset-attempts'] = derive_list_stats([
-      patch_stats[p]['attempts'] for p in patch_stats])
-  stats['patchset-committed-attempts'] = derive_list_stats([
-      patch_stats[p]['attempts'] for p in patch_stats
-      if patch_stats[p]['committed']])
-  return stats
+  # stats['patchset-commit-count'] = len([
+  #     p for p in patch_stats if patch_stats[p]['committed']])
+  # stats['patchset-total-commit-queue-durations'] = derive_list_stats([
+  #     patch_stats[p]['patchset-duration-wallclock'] for p in patch_stats])
+  # stats['patchset-durations'] = derive_list_stats([
+  #     patch_stats[p]['patchset-duration'] for p in patch_stats])
+  # stats['patchset-committed-durations'] = derive_list_stats([
+  #     patch_stats[p]['patchset-duration'] for p in patch_stats
+  #     if patch_stats[p]['committed']])
+  # stats['patchset-attempts'] = derive_list_stats([
+  #     patch_stats[p]['attempts'] for p in patch_stats])
+  # stats['patchset-committed-attempts'] = derive_list_stats([
+  #     patch_stats[p]['attempts'] for p in patch_stats
+  #     if patch_stats[p]['committed']])
+  return patch_stats
 
 
 def patch_url(patch_id):
@@ -770,7 +758,7 @@ def derive_patch_stats(end_date, patch_id):
           failed_jobs = [j for j in failed_jobs if 'presubmit' in j[1]]
         attempt['failed-jobs'] = failed_jobs
 
-  stats = {}
+  stats = {'patch_id': patch_id}
   committed_set = set([a['id'] for a in attempts if a['committed']])
   stats['committed'] = len(committed_set)
   stats['attempts'] = len(attempts)
@@ -801,7 +789,7 @@ def derive_patch_stats(end_date, patch_id):
       for r in FLAKY_REASONS:
         if a[r]:
           a['false-rejection'] = True
-    stats['first_false_rejection'] = maybe_min(
+    stats['begin_false_rejection'] = maybe_min(
         a['begin'] for a in attempts if a['false-rejection'])
     last_false_rejection = maybe_max(
         a['begin'] for a in attempts if a['false-rejection'])
@@ -958,15 +946,13 @@ def print_stats(args, stats):
 
   print
   print 'False Rejections:'
-  if args.use_logs:
-    print_attempt_counts(latest, 'false-rejections', 'were false rejections',
-                         item_name='flakes', committed=True)
-  else:
-    print '  %4d attempts (%.1f%% of %d attempts) were false rejections' % (
-        latest['attempt-false-reject-count'],
-        percentage(latest['attempt-false-reject-count'],
-                   latest['attempt-count']),
-        latest['attempt-count'])
+  print_attempt_counts(latest, 'false-rejections', 'were false rejections',
+                       item_name='flakes', committed=True)
+  print '  %4d attempts (%.1f%% of %d attempts) were false rejections' % (
+      latest['attempt-false-reject-count'],
+      percentage(latest['attempt-false-reject-count'],
+                 latest['attempt-count']),
+      latest['attempt-count'])
 
   print '  False rejections include:'
   for r in FLAKY_REASONS.keys() + ['failed-unknown']:
@@ -1017,34 +1003,41 @@ def print_stats(args, stats):
 
 def acquire_stats(args):
   stats = {}
-  logging.info('Acquiring stats for project %s for a %s of %s using %s',
-               args.project, args.range, args.date,
-               'logs' if args.use_logs else 'cache')
+  logging.info('Acquiring stats for project %s for a %s of %s',
+               args.project, args.range, args.date)
   end_date = args.date + datetime.timedelta(minutes=INTERVALS[args.range])
   prev_date = args.date - datetime.timedelta(minutes=INTERVALS[args.range])
-  if args.use_logs:
-    init_stats = {'latest': default_stats(), 'previous': default_stats()}
-    assert args.date
-    init_stats = organize_stats(fetch_stats(args))
-    stats['latest'] = derive_stats(
-        args, args.date, init_stats=init_stats['latest'])
-#    stats['previous'] = derive_stats(args, prev_date)
-  else:
-    stats = organize_stats(fetch_stats(args))
+  init_stats = {'latest': default_stats(), 'previous': default_stats()}
+  assert args.date
+  init_stats = organize_stats(fetch_stats(args))
+  patch_stats = derive_stats(
+      args, args.date, init_stats=init_stats['latest'])
 
-  return stats
+  return patch_stats
 
 
-def process_false_rejections(patches):
-  pass
-
+def process_false_rejections(patch_stats):
+  # Sort by end date.
+  false_rejections = sorted(
+      [s for s in patch_stats.values() if s['false-rejections']],
+      key=lambda s: s['end_false_rejection'])
+  print '\t'.join(['Patchset', 'Begin', 'End'] + ['%s' % h for h in range(24)])
+  for patch in false_rejections:
+    begin = date_from_timestamp(patch['begin_false_rejection'])
+    end = date_from_timestamp(patch['end_false_rejection'])
+    values = [patch_url(patch['patch_id']), str(begin), str(end)]
+    day = datetime.datetime(end.year, end.month, end.day)
+    for hour in range(24):
+      d = day + datetime.timedelta(hours=hour)
+      values.append('x' if begin <= d and d < end else ' ')
+    print '\t'.join(values)
 
 def main():
   args = parse_args()
   logging.basicConfig(level=args.verbose)
-  stats = acquire_stats(args)
-  process_false_rejections(stats['latest']['false-rejections'])
-  print_stats(args, stats)
+  patch_stats = acquire_stats(args)
+  process_false_rejections(patch_stats)
+#  print_stats(args, stats)
 
 
 if __name__ == '__main__':
