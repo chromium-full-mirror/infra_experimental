@@ -13,6 +13,7 @@ from protorpc import remote
 
 
 class Record(ndb.Expando):
+  create_time = ndb.DateTimeProperty(auto_now_add=True)
   pass
 
 
@@ -49,7 +50,7 @@ class Handler(remote.Service):
 
     Returns a list of complete entries that match.
     """
-    query = Record.query()
+    query = Record.query().order(Record.create_time)
     for tag in request.tags:
       query = query.filter(ndb.GenericProperty(tag.tag) == tag.value)
       logging.info('search: %s = %s', tag.tag, tag.value)
