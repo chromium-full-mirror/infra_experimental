@@ -6,10 +6,10 @@ import argparse
 from contextlib import closing
 from datetime import datetime
 import functools
+import hashlib
 import json
 import requests
 import urllib2
-import uuid
 import sys
 
 
@@ -246,10 +246,6 @@ def constructor(record):
       record['fields'].get('action'), lambda **kwargs: None)(**record)
 
 
-def gen_zipkin_uuid():
-  return uuid.uuid4().hex[0:15]
-
-
 def datetime_to_timestamp(dt):
   return (dt - datetime(1970, 1, 1)).total_seconds()
 
@@ -304,9 +300,21 @@ class ZipkinSpan(object):
     return result
 
 
-def construct_spans(records):
+def gen_unique_hash(issue, patchset, attempt):
+  h = hashlib.new('sha1')
+  h.update('%s-%s-%s' % (issue, patchset, attempt))
+  return h.hexdigest()[0:15]
+
+
+def hash_dict(d):
+  h = hashlib.new('sha1')
+  h.update(json.dumps(d, sort_keys=True))
+  return h.hexdigest()[0:15]
+
+
+def construct_spans(records, issue, patchset, attempt):
   records = list(records)
-  trace_id = gen_zipkin_uuid()
+  trace_id = gen_unique_hash(issue, patchset, attempt)
 
   root_span = ZipkinSpan('cq_service', trace_id, trace_id, None, 'cq_request', {
       'sr': records[0].timestamp,
@@ -318,7 +326,7 @@ def construct_spans(records):
   for record in records[1:-1]:
     spans.append(ZipkinSpan(
         record['service_name'],
-        trace_id, gen_zipkin_uuid(), trace_id, 'cq_service', record))
+        trace_id, hash_dict(record), trace_id, 'cq_service', record))
 
   return spans
 
@@ -330,39 +338,53 @@ def send_to_restkin(url, spans):
   r = requests.post(url, data=json.dumps(spans), headers=headers)
   print r
 
-
-def main():
-  parser = argparse.ArgumentParser()
-  parser.add_argument('issue', type=int, help='rietveld issue')
-  parser.add_argument(
-      'patchset', type=int, nargs='?', help='patchset', default=1)
-  parser.add_argument('--restkin-url',
-                      default='http://localhost:6956/v1.0/restkin/trace',
-                      help='URL to send restkin data')
-  args = parser.parse_args()
-
+def process_patchset(issue, patchset, restkin_url):
+  print 'processing patchset: %s/%s' % (issue, patchset)
   url_template = ('https://chromium-cq-status.appspot.com/'
                   'query/issue=%d/patchset=%d')
 
-  url = url_template % (args.issue, args.patchset)
+  url = url_template % (issue, patchset)
 
   with closing(urllib2.urlopen(url)) as f:
     items = json.load(f)
 
   sorted_records = sorted(filter(bool, map(constructor, items['results'])))
-  print sorted_records[0].timestamp
-  print datetime_to_timestamp(sorted_records[0].timestamp)
-  print sorted_records[-1].timestamp
-  print datetime_to_timestamp(sorted_records[-1].timestamp)
   spans = []
-  for record_set in list(chunk_attempts(sorted_records)):
+  for attempt, record_set in enumerate((chunk_attempts(sorted_records))):
     for span in construct_spans(
         process_commit_record_types(
         link_jobs_to_trigger(translate_retry_to_start(
-            return_new_jobs(record_set))))):
+            return_new_jobs(record_set)))),
+        issue,
+        patchset,
+        attempt):
       spans.append(span.render())
-  send_to_restkin(args.restkin_url, spans)
+  send_to_restkin(restkin_url, spans)
 
+
+def main():
+  parser = argparse.ArgumentParser()
+  parser.add_argument('issue', type=int, nargs='?', help='rietveld issue')
+  parser.add_argument(
+      'patchset', type=int, nargs='?', help='patchset', default=1)
+  parser.add_argument('--restkin-url',
+                      default='http://localhost:6956/v1.0/restkin/trace',
+                      help='URL to send restkin data')
+  parser.add_argument('--count',
+                      default=100,
+                      type=int,
+                      help='number of patch_stop events to process')
+  args = parser.parse_args()
+
+  if args.issue:
+    process_patchset(args.issue, args.patchset, args.restkin_url)
+  else:
+    query_url = ('http://chromium-cq-status.appspot.com/query/project=chromium/'
+                 'action=patch_stop?count=%d' % args.count)
+    for item in requests.get(query_url).json()['results']:
+      process_patchset(item['fields']['issue'],
+                       item['fields']['patchset'],
+                       args.restkin_url)
   return 0
 
 
