@@ -18,6 +18,7 @@ RUN pip install tryfer requests
 ADD startup.sh /var/www/startup.sh
 ADD process.py /var/www/process.py
 ADD run_script.sh /var/www/run_script.sh
+ADD schema.cql /var/www/schema.cql
 
 # Execute the containers startup script which will start many processes/services
 CMD ["/bin/bash", "/var/www/startup.sh"]

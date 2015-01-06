@@ -5,7 +5,7 @@ cd /home/cassandra
 bin/cassandra
 sleep 2
 cd /home/zipkin
-/home/cassandra/bin/cassandra-cli -host localhost -port 9160 -f zipkin-cassandra/src/schema/cassandra-schema.txt
+/home/cassandra/bin/cqlsh -f /var/www/schema.cql
 bin/web &
 bin/collector cassandra &
 bin/query cassandra &
