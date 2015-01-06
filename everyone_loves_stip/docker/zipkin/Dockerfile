@@ -6,6 +6,7 @@ MAINTAINER stip
 RUN apt-get update && apt-get install -y python python-dev python-distribute python-pip
 #RUN pip install numpy
 
+RUN git clone http://git-wip-us.apache.org/repos/asf/cassandra.git /home/cassandra
 RUN git clone https://github.com/twitter/zipkin.git /home/zipkin
 RUN cd /home/zipkin && bin/sbt compile
 
