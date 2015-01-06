@@ -17,6 +17,7 @@ RUN pip install tryfer requests
 # Add our startup script to the container. This script should be executed upon starting the container.
 ADD startup.sh /var/www/startup.sh
 ADD process.py /var/www/process.py
+ADD run_script.sh /var/www/run_script.sh
 
 # Execute the containers startup script which will start many processes/services
 CMD ["/bin/bash", "/var/www/startup.sh"]
