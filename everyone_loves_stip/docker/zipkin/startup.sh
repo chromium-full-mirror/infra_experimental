@@ -3,9 +3,9 @@ set -e
 
 cd /home/cassandra
 bin/cassandra
-sleep 2
-cd /home/zipkin
+sleep 10
 /home/cassandra/bin/cqlsh -f /var/www/schema.cql
+cd /home/zipkin
 bin/web &
 bin/collector cassandra &
 bin/query cassandra &
