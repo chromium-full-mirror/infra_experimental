@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y python python-dev python-distribute pyt
 #RUN pip install numpy
 
 RUN git clone https://github.com/twitter/zipkin.git /home/zipkin
+RUN cd /home/zipkin && bin/sbt compile
 
 # Add our startup script to the container. This script should be executed upon starting the container.
 ADD startup.sh /var/www/startup.sh
@@ -19,4 +20,4 @@ ADD startup.sh /var/www/startup.sh
 # Execute the containers startup script which will start many processes/services
 CMD ["/bin/bash", "/var/www/startup.sh"]
 
-EXPOSE 80
+EXPOSE 8080
