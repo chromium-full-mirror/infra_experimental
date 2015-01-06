@@ -11,4 +11,7 @@ cd /home/restkin
 ./bin/restkin-api --scribe tcp:localhost:9410 &
 
 sleep 20
-watch -n 60 python /var/www/process.py
+while true;
+do python /var/www/process.py;
+sleep 60;
+done
