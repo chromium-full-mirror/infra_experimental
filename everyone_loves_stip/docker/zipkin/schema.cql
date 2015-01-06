@@ -120,7 +120,7 @@ CREATE TABLE "Zipkin"."Dependencies" (
     AND read_repair_chance = 0.0
     AND speculative_retry = 'NONE';
 
-REATE TABLE "Zipkin"."ServiceNames" (
+CREATE TABLE "Zipkin"."ServiceNames" (
     key blob,
     column1 blob,
     value blob,
