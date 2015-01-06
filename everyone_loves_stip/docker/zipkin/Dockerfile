@@ -8,6 +8,8 @@ RUN apt-get update && apt-get install -y python python-dev python-distribute pyt
 RUN git clone http://git-wip-us.apache.org/repos/asf/cassandra.git /home/cassandra
 RUN git clone https://github.com/twitter/zipkin.git /home/zipkin
 RUN cd /home/zipkin && bin/sbt compile
+RUN apt-get install ant
+RUN cd /home/cassandra && ant
 
 RUN git clone https://github.com/racker/restkin /home/restkin
 RUN pip install tryfer requests

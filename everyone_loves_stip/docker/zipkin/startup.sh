@@ -3,6 +3,7 @@
 cd /home/cassandra
 bin/cassandra
 cd /home/zipkin
+/home/cassandra/bin/cassandra-cli -host localhost -port 9160 -f zipkin-cassandra/src/schema/cassandra-schema.txt
 bin/web &
 bin/collector cassandra &
 bin/query cassandra &
