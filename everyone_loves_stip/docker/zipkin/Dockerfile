@@ -9,7 +9,7 @@ RUN git clone http://git-wip-us.apache.org/repos/asf/cassandra.git /home/cassand
 RUN git clone https://github.com/twitter/zipkin.git /home/zipkin
 RUN cd /home/zipkin && bin/sbt compile
 RUN apt-get install ant
-RUN cd /home/cassandra && ant
+rUN cd /home/cassandra && ant -q
 
 RUN git clone https://github.com/racker/restkin /home/restkin
 RUN pip install tryfer requests
