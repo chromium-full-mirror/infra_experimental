@@ -307,8 +307,14 @@ def gen_unique_hash(issue, patchset, attempt):
 
 
 def hash_dict(d):
+  class DateEncoder(json.JSONEncoder):
+    # pylint: disable=E0202
+    def default(self, obj):
+      if isinstance(obj, datetime):
+        return obj.isoformat()
+      return json.JSONEncoder.default(self, obj)
   h = hashlib.new('sha1')
-  h.update(json.dumps(d, sort_keys=True))
+  h.update(json.dumps(d, cls=DateEncoder, sort_keys=True))
   return h.hexdigest()[0:15]
 
 
