@@ -1,0 +1,20 @@
+apiVersion: v1beta1
+kind: Pod
+id: zipkin
+desiredState:
+  manifest:
+    version: v1beta1
+    id: zipkin
+    containers:
+      - image: cyberstip/zipkin-testv1
+        name: zipkin-cassandra
+        volumeMounts:
+          - mountPath: "/home/cassandra/data"
+            name: zipkin-cassandra-disk
+    volumes:
+      - name: zipkin-cassandra-disk
+        source:
+          persistentDisk:
+            # This GCE PD must already exist and be formatted ext4
+            pdName: zipkin-cassandra-disk
+            fsType: ext4
