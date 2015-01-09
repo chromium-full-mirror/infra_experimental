@@ -11,7 +11,4 @@ bin/query cassandra &
 bin/web &
 
 cd /home/restkin
-./bin/restkin-api --scribe tcp:localhost:9410 &
-
-sleep 60
-bash /var/www/run_script.sh
+./bin/restkin-api --scribe tcp:localhost:9410
