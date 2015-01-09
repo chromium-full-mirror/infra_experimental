@@ -22,7 +22,7 @@ desiredState:
             type: http
             # length of time to wait for a pod to initialize
             # after pod startup, before applying health checking
-            initialDelaySeconds: 120
+            initialDelaySeconds: 600
             # an http probe
             httpGet:
               path: /

@@ -285,6 +285,12 @@ class ZipkinSpan(object):
                 'service_name': self.name,
             }
         })
+      elif annot_name in ('patchset', 'issue', 'attempt'):
+        self.annotations.append({
+            'key': annot_name,
+            'type': 'string',
+            'value': str(annot_value),
+        })
 
   def render(self):
     result = {
@@ -323,10 +329,13 @@ def construct_spans(records, issue, patchset, attempt):
   trace_id = gen_unique_hash(issue, patchset, attempt)
 
   root_span = ZipkinSpan('cq_service', trace_id, trace_id, None, 'cq_request', {
+      'cs': records[0].timestamp,
       'sr': records[0].timestamp,
       'ss': records[-1].timestamp,
-      'cs': records[0].timestamp,
       'cr': records[-1].timestamp,
+      'issue': issue,
+      'patchset': patchset,
+      'attempt': attempt,
   })
   spans = [root_span]
   for record in records[1:-1]:
