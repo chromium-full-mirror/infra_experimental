@@ -1,4 +1,4 @@
-FROM dockerfile/ubuntu:14.04
+FROM dockerfile/ubuntu:trusty
 
 MAINTAINER stip
 
