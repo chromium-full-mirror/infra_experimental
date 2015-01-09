@@ -14,6 +14,21 @@ desiredState:
         ports:
           - containerPort: 8080
             hostPort: 8080
+          - containerPort: 6956
+            hostPort: 6956
+        livenessProbe:
+            # turn on application health checking
+            enabled: true
+            type: http
+            # length of time to wait for a pod to initialize
+            # after pod startup, before applying health checking
+            initialDelaySeconds: 120
+            # an http probe
+            httpGet:
+              path: /
+              port: 8080
+      - image: cyberstip/cq-restkin
+        name: cq-restkin
     volumes:
       - name: zipkin-cassandra-disk
         source:
