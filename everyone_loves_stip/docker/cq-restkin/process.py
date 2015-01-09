@@ -285,7 +285,7 @@ class ZipkinSpan(object):
                 'service_name': self.name,
             }
         })
-      elif annot_name in ('patchset', 'issue', 'attempt'):
+      elif annot_name in ('patchset', 'issue', 'attempt', 'url', 'cq_url'):
         self.annotations.append({
             'key': annot_name,
             'type': 'string',
@@ -335,7 +335,11 @@ def construct_spans(records, issue, patchset, attempt):
       'cr': records[-1].timestamp,
       'issue': issue,
       'patchset': patchset,
-      'attempt': attempt,
+      'attempt': attempt + 1,
+      'url': 'https://chromiumcodereview.appspot.com/%d/#ps%d' % (
+          issue, patchset),
+      'cq_url': 'https://chromium-cq-status.appspot.com/patch-status/%d/%d' % (
+          issue, patchset),
   })
   spans = [root_span]
   for record in records[1:-1]:
