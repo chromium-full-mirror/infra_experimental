@@ -1,0 +1,40 @@
+{
+  "desiredState": {
+    "manifest": {
+      "containers": [
+        {
+          "image": "cyberstip/zipkin-testv1", 
+          "volumeMounts": [
+            {
+              "mountPath": "/home/cassandra/data", 
+              "name": "zipkin-cassandra-disk"
+            }
+          ], 
+          "name": "zipkin-cassandra", 
+          "ports": [
+            {
+              "containerPort": 8080, 
+              "hostPort": 8080
+            }
+          ]
+        }
+      ], 
+      "version": "v1beta1", 
+      "id": "zipkin", 
+      "volumes": [
+        {
+          "source": {
+            "persistentDisk": {
+              "pdName": "zipkin-cassandra-disk", 
+              "fsType": "ext4"
+            }
+          }, 
+          "name": "zipkin-cassandra-disk"
+        }
+      ]
+    }
+  }, 
+  "kind": "Pod", 
+  "id": "zipkin", 
+  "apiVersion": "v1beta1"
+}

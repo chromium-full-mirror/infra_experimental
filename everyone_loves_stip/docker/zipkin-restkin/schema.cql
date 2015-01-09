@@ -1,6 +1,6 @@
-CREATE KEYSPACE "Zipkin" WITH replication = {'class': 'NetworkTopologyStrategy', 'datacenter1': '1'}  AND durable_writes = true;
+CREATE KEYSPACE IF NOT EXISTS "Zipkin" WITH replication = {'class': 'NetworkTopologyStrategy', 'datacenter1': '1'}  AND durable_writes = true;
 
-CREATE TABLE "Zipkin"."ServiceSpanNameIndex" (
+CREATE TABLE IF NOT EXISTS "Zipkin"."ServiceSpanNameIndex" (
     key blob,
     column1 bigint,
     value blob,
@@ -20,7 +20,7 @@ CREATE TABLE "Zipkin"."ServiceSpanNameIndex" (
     AND read_repair_chance = 0.0
     AND speculative_retry = 'NONE';
 
-CREATE TABLE "Zipkin"."TopAnnotations" (
+CREATE TABLE IF NOT EXISTS "Zipkin"."TopAnnotations" (
     key blob,
     column1 bigint,
     value blob,
@@ -40,7 +40,7 @@ CREATE TABLE "Zipkin"."TopAnnotations" (
     AND read_repair_chance = 0.0
     AND speculative_retry = 'NONE';
 
-CREATE TABLE "Zipkin"."ServiceNameIndex" (
+CREATE TABLE IF NOT EXISTS "Zipkin"."ServiceNameIndex" (
     key blob,
     column1 bigint,
     value blob,
@@ -60,7 +60,7 @@ CREATE TABLE "Zipkin"."ServiceNameIndex" (
     AND read_repair_chance = 0.0
     AND speculative_retry = 'NONE';
 
-CREATE TABLE "Zipkin"."SpanNames" (
+CREATE TABLE IF NOT EXISTS "Zipkin"."SpanNames" (
     key blob,
     column1 blob,
     value blob,
@@ -80,7 +80,7 @@ CREATE TABLE "Zipkin"."SpanNames" (
     AND read_repair_chance = 0.0
     AND speculative_retry = 'NONE';
 
-CREATE TABLE "Zipkin"."AnnotationsIndex" (
+CREATE TABLE IF NOT EXISTS "Zipkin"."AnnotationsIndex" (
     key blob,
     column1 bigint,
     value blob,
@@ -100,7 +100,7 @@ CREATE TABLE "Zipkin"."AnnotationsIndex" (
     AND read_repair_chance = 0.0
     AND speculative_retry = 'NONE';
 
-CREATE TABLE "Zipkin"."Dependencies" (
+CREATE TABLE IF NOT EXISTS "Zipkin"."Dependencies" (
     key blob,
     column1 bigint,
     value blob,
@@ -120,7 +120,7 @@ CREATE TABLE "Zipkin"."Dependencies" (
     AND read_repair_chance = 0.0
     AND speculative_retry = 'NONE';
 
-CREATE TABLE "Zipkin"."ServiceNames" (
+CREATE TABLE IF NOT EXISTS "Zipkin"."ServiceNames" (
     key blob,
     column1 blob,
     value blob,
@@ -140,7 +140,7 @@ CREATE TABLE "Zipkin"."ServiceNames" (
     AND read_repair_chance = 0.0
     AND speculative_retry = 'NONE';
 
-CREATE TABLE "Zipkin"."DurationIndex" (
+CREATE TABLE IF NOT EXISTS "Zipkin"."DurationIndex" (
     key blob,
     column1 bigint,
     value blob,
@@ -160,7 +160,7 @@ CREATE TABLE "Zipkin"."DurationIndex" (
     AND read_repair_chance = 0.0
     AND speculative_retry = 'NONE';
 
-CREATE TABLE "Zipkin"."Traces" (
+CREATE TABLE IF NOT EXISTS "Zipkin"."Traces" (
     key blob,
     column1 blob,
     value blob,

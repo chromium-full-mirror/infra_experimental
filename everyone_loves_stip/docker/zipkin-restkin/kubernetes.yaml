@@ -11,6 +11,9 @@ desiredState:
         volumeMounts:
           - mountPath: "/home/cassandra/data"
             name: zipkin-cassandra-disk
+        ports:
+          - containerPort: 8080
+            hostPort: 8080
     volumes:
       - name: zipkin-cassandra-disk
         source:
