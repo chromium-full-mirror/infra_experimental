@@ -16,6 +16,8 @@ desiredState:
             hostPort: 8080
           - containerPort: 6956
             hostPort: 6956
+          - containerPort: 9160
+            hostPort: 9160
         livenessProbe:
             # turn on application health checking
             enabled: true

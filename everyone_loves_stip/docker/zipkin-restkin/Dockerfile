@@ -21,5 +21,6 @@ ADD schema.cql /var/www/schema.cql
 # Execute the containers startup script which will start many processes/services
 CMD ["/bin/bash", "/var/www/startup.sh"]
 
-EXPOSE 8080
 EXPOSE 6956
+EXPOSE 8080
+EXPOSE 9160
