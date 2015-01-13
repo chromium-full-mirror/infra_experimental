@@ -12,15 +12,17 @@ import sys
 
 def main():
   parser = argparse.ArgumentParser()
-  parser.add_argument('output-file', help='write cfg to this file.')
-  parser.add_argument('data-directory', help='write myid to this directory.')
+  parser.add_argument('output_file', help='write cfg to this file.')
   parser.add_argument(
       '--envar-prefix', help='envar prefix to import', default='KUBERNETES')
+  parser.add_argument(
+      '--data-dir-envar', help='envar specifying data dir',
+      default='KUBERNETES_ZK_DATA_DIR')
   parser.add_argument(
       '--idx-envar', help='envar identifying this pod',
       default='KUBERNETES_POD_IDX')
   parser.add_argument(
-      '--dry-run', help='don\'t write anything.')
+      '--dry-run', help='don\'t write anything.', action='store_true')
   parser.add_argument(
       '--template-name', help='template to use.', default='zoo_cfg.template')
   args = parser.parse_args()
@@ -31,6 +33,9 @@ def main():
       ctx[envar] = value
 
   env = Environment(loader=FileSystemLoader('.'))
+  env.globals.update({
+      'int': int,
+  })
   rendered_data = env.get_template(args.template_name).render(ctx)
 
   output_file = os.path.abspath(args.output_file)
@@ -41,8 +46,9 @@ def main():
     with open(output_file, 'w') as f:
       f.write(rendered_data)
 
-  id_file = os.path.abspath(os.path.join(args.data_directory, 'myid'))
-  myid = os.environ(args.idx_envar)
+  id_file = os.path.abspath(os.path.join(
+      os.environ[args.data_dir_envar], 'myid'))
+  myid = int(os.environ[args.idx_envar])
   print 'writing %d to %s' % (myid, id_file)
   if args.dry_run:
     print 'dry run, not writing to file.'
@@ -54,4 +60,4 @@ def main():
 
 
 if __name__ == '__main__':
-  sys.exit(main(sys.argv))
+  sys.exit(main())
