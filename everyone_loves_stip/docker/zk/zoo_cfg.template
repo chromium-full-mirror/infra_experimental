@@ -1,9 +1,8 @@
 tickTime=2000
-dataDir=KUBERNETES_ZK_DATA_DIR
-{{ data_dir }}
+dataDir={{ KUBERNETES_ZK_DATA_DIR }}
 clientPort=2181
 initLimit=5
 syncLimit=2
 {% for server in range(int(KUBERNETES_ZK_CLUSTER_SIZE)) %}
-server.{{server}}=zoo{{server}}:2888:3888
+server.{{ server }}={{ ips['zoo%d' % server] }}:2888:3888
 {% endfor %}

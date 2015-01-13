@@ -1,0 +1,81 @@
+- apiVersion: v1beta1
+  kind: Service
+  # must be a DNS compatible name
+  id: zookeeper
+  # the port that this service should serve on
+  port: 2181
+  # just like the selector in the replication controller,
+  # but this time it identifies the set of pods to load balance
+  # traffic to.
+  selector:
+    service: zookeeper
+  # the container on each pod to connect to, can be a name
+  # (e.g. 'www') or a number (e.g. 80)
+  containerPort: 2181
+
+{% set start_port = 5000 %}
+{% for pod_idx in range(cluster_size) %}
+- apiVersion: v1beta1
+  kind: Pod
+  id: zoo{{ pod_idx }}
+  desiredState:
+    manifest:
+      version: v1beta1
+      id: zookeeper
+      containers:
+        - image: cyberstip/zk-cluster:v28
+          name: zookeeper
+          volumeMounts:
+            - mountPath: /home/zookeeper/data
+              name: zookeeper-disk{{ pod_idx }}
+          ports:
+            - containerPort: 2181
+              hostPort: 2181
+            - containerPort: 2888
+              hostPort: 2888
+            - containerPort: 3888
+              hostPort: 3888
+            - containerPort: 9999
+              hostPort: 9999
+          env:
+            - name: KUBERNETES_ZK_DATA_DIR
+              value: /home/zookeeper/data
+            - name: KUBERNETES_ZK_CLUSTER_SIZE
+              value: {{ cluster_size }}
+            - name: KUBERNETES_POD_IDX
+              value: {{ pod_idx }}
+          livenessProbe:
+              # turn on application health checking
+              enabled: true
+              type: tcp
+              # length of time to wait for a pod to initialize
+              # after pod startup, before applying health checking
+              initialDelaySeconds: 360
+              # a tcp probe
+              tcpSocket:
+                port: 2181
+      volumes:
+        - name: zookeeper-disk{{ pod_idx }}
+          source:
+            persistentDisk:
+              # This GCE PD must already exist and be formatted ext4
+              pdName: zookeeper-disk{{ pod_idx }}
+              fsType: ext4
+  labels:
+    name: zoo{{ pod_idx }}
+    service: zookeeper
+- apiVersion: v1beta1
+  kind: Service
+  # must be a DNS compatible name
+  id: zoo{{ pod_idx }}
+  # the port that this service should serve on
+  port: 9999
+  # just like the selector in the replication controller,
+  # but this time it identifies the set of pods to load balance
+  # traffic to.
+  selector:
+    name: zoo{{ pod_idx }}
+  # the container on each pod to connect to, can be a name
+  # (e.g. 'www') or a number (e.g. 80)
+  containerPort: 9999
+{% endfor %}

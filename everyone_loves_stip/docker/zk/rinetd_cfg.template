@@ -1,0 +1,7 @@
+{% set port = starting_port %}
+{% for i in range(cluster_size) %}
+127.0.0.1 {{ port }} {{ leader_ips[i] }} 2888
+{% set port = port + 1 %}
+127.0.0.1 {{ port }} {{ election_ips[i] }} 3888
+{% set port = port + 1 %}
+{% endfor %}

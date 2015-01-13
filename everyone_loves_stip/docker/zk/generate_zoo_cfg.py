@@ -6,8 +6,30 @@
 import argparse
 from jinja2 import Environment, FileSystemLoader
 import os
+import socket
 import sys
+import time
+import urllib2
 
+SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
+
+
+def exponential_backoff(url, initial_seconds, max_tries):
+  print 'contacting %s for ip' % url
+  sys.stdout.flush()
+  tries = 0
+  last_e = None
+  while tries < max_tries:
+    try:
+      return urllib2.urlopen(url).read()
+    except (urllib2.URLError, socket.error) as e:
+      last_e = str(e)
+      sleep_secs = (2 ** tries) * initial_seconds
+      print 'error, sleeping %s secs' % sleep_secs
+      sys.stdout.flush()
+      time.sleep(sleep_secs)
+      tries += 1
+  raise ValueError('couldn\'t load %s: %s' % (url, last_e))
 
 
 def main():
@@ -22,17 +44,30 @@ def main():
       '--idx-envar', help='envar identifying this pod',
       default='KUBERNETES_POD_IDX')
   parser.add_argument(
+      '--cluster-size-envar', help='envar specifying how big the cluster is',
+      default='KUBERNETES_ZK_CLUSTER_SIZE')
+  parser.add_argument(
       '--dry-run', help='don\'t write anything.', action='store_true')
   parser.add_argument(
       '--template-name', help='template to use.', default='zoo_cfg.template')
   args = parser.parse_args()
 
-  ctx = {}
+  ctx = {
+      'ips': {},
+  }
   for envar, value in os.environ.iteritems():
     if envar.startswith(args.envar_prefix):
       ctx[envar] = value
 
-  env = Environment(loader=FileSystemLoader('.'))
+  for i in range(int(os.environ[args.cluster_size_envar])):
+    print 'tryin server %d' % i
+    ctx['ips']['zoo%d' % i] = exponential_backoff(
+        'http://' + os.environ['ZOO%d_SERVICE_HOST' % i] + ':9999/hostname',
+        1,
+        8
+    )
+
+  env = Environment(loader=FileSystemLoader(SCRIPT_DIR))
   env.globals.update({
       'int': int,
   })
