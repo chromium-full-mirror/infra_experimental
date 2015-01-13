@@ -1,0 +1,8 @@
+tickTime=2000
+dataDir=/home/zookeeper_data/
+clientPort=2181
+initLimit=5
+syncLimit=2
+{% for server in range(cluster_size) %}
+server.{{server}}=zoo{{server}}:2888:3888
+{% endfor %}
