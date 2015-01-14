@@ -352,8 +352,6 @@ def construct_spans(records, issue, patchset, attempt):
 
 def send_to_restkin(url, spans):
   headers = {'content-type': 'application/json'}
-  with open('bruh.json', 'w') as f:
-    json.dump(spans, f, indent=2)
   r = requests.post(url, data=json.dumps(spans), headers=headers)
   print r
 

@@ -29,7 +29,7 @@ desiredState:
             httpGet:
               path: /
               port: 8080
-      - image: cyberstip/cq-restkin
+      - image: cyberstip/cq-restkin:v1
         name: cq-restkin
     volumes:
       - name: zipkin-cassandra-disk
