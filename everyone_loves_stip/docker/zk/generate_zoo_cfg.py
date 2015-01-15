@@ -5,6 +5,7 @@
 
 import argparse
 from jinja2 import Environment, FileSystemLoader
+import httplib
 import os
 import socket
 import sys
@@ -22,7 +23,7 @@ def exponential_backoff(url, initial_seconds, max_tries):
   while tries < max_tries:
     try:
       return urllib2.urlopen(url).read()
-    except (urllib2.URLError, socket.error) as e:
+    except (urllib2.URLError, socket.error, httplib.BadStatusLine) as e:
       last_e = str(e)
       sleep_secs = (2 ** tries) * initial_seconds
       print 'error, sleeping %s secs' % sleep_secs

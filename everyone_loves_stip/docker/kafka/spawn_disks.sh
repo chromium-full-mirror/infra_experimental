@@ -2,7 +2,7 @@
 for i in $(seq 0 $(($1-1)))
 do
 DISK_NAME=kafka-disk$i
-DISK_SIZE=200GB
+DISK_SIZE=1000GB
 ZONE=us-central1-a
 
 gcloud compute disks create --size=$DISK_SIZE --zone=$ZONE $DISK_NAME

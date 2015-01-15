@@ -31,6 +31,9 @@ def main():
       ctx[envar] = value
 
   env = Environment(loader=FileSystemLoader(SCRIPT_DIR))
+  env.globals.update({
+      'int': int,
+  })
   rendered_data = env.get_template(args.template_name).render(ctx)
 
   output_file = os.path.abspath(args.output_file)

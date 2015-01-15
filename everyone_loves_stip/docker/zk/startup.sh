@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+python /var/www/health_server.py &
+
 cd /var/www
 python hostname_writer.py
 cd /var/www/hostname

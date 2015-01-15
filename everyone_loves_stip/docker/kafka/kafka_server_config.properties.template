@@ -30,14 +30,14 @@ port=9092
 # Hostname the broker will advertise to producers and consumers. If not set, it uses the
 # value for "host.name" if configured.  Otherwise, it will use the value returned from
 # java.net.InetAddress.getCanonicalHostName().
-#advertised.host.name=<hostname routable by clients>
+advertised.host.name=kafka{{ KUBERNETES_POD_IDX }}.totallybadasscrbug.com
 
 # The port to publish to ZooKeeper for clients to use. If this is not set,
 # it will publish the same port that the broker binds to.
-#advertised.port=<port accessible by clients>
+advertised.port={{ 9092 + int(KUBERNETES_POD_IDX) }}
 
 # The number of threads handling network requests
-num.network.threads=2
+num.network.threads=100
  
 # The number of threads doing disk I/O
 num.io.threads=8
@@ -55,7 +55,7 @@ socket.request.max.bytes=104857600
 ############################# Log Basics #############################
 
 # A comma seperated list of directories under which to store log files
-log.dirs=/home/kafka/kafka-logs
+log.dirs=/home/kafka/data/kafka
 
 # The default number of log partitions per topic. More partitions allow greater
 # parallelism for consumption, but this will also result in more files across

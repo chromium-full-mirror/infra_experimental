@@ -16,6 +16,7 @@ ADD zoo_cfg.template /var/www/zoo_cfg.template
 ADD log4j.properties /home/zookeeper/log4j.properties
 ADD rinetd_cfg.template /var/www/rinetd_cfg.template
 ADD write_rinetd_conf.py /var/www/write_rinetd_conf.py
+ADD health_server.py /var/www/health_server.py
 
 # Execute the containers startup script which will start many processes/services
 CMD ["/bin/bash", "/var/www/startup.sh"]

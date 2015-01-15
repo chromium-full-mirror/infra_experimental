@@ -5,8 +5,10 @@
 
 import argparse
 from jinja2 import Environment, FileSystemLoader
+import json
 import os
 import sys
+import yaml
 
 SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
 
@@ -15,7 +17,7 @@ def main():
   parser = argparse.ArgumentParser()
   parser.add_argument(
       '--output_file', help='write cfg to this file.',
-      default='kubernetes.yaml')
+      default='kubernetes.json')
   parser.add_argument(
       '--template_name', help='which template to use',
       default='kafka_pod.yaml.template')
@@ -28,12 +30,12 @@ def main():
   }
 
   env = Environment(loader=FileSystemLoader(SCRIPT_DIR))
-  rendered_data = env.get_template(args.template_name).render(ctx)
+  rendered_data = yaml.load(env.get_template(args.template_name).render(ctx))
 
   output_file = os.path.abspath(args.output_file)
   print 'writing to %s' % output_file
   with open(output_file, 'w') as f:
-    f.write(rendered_data)
+    f.write(json.dumps(rendered_data))
 
   return 0
 
