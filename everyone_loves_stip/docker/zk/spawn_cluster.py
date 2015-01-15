@@ -17,7 +17,7 @@ def main():
   parser = argparse.ArgumentParser()
   parser.add_argument(
       '--output_file', help='write cfg to this file.',
-      default='kubernetes.json')
+      default='kubernetes.yaml')
   parser.add_argument(
       '--template_name', help='which template to use',
       default='zookeeper_pod.yaml.template')

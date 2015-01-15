@@ -1,0 +1,56 @@
+- apiVersion: v1beta1
+  kind: Service
+  # must be a DNS compatible name
+  id: kafka
+  # the port that this service should serve on
+  port: 9092
+  # just like the selector in the replication controller,
+  # but this time it identifies the set of pods to load balance
+  # traffic to.
+  selector:
+    service: kafka
+  # the container on each pod to connect to, can be a name
+  # (e.g. 'www') or a number (e.g. 80)
+  containerPort: 9092
+  createExternalLoadBalancer: true
+
+{% for pod_idx in range(cluster_size) %}
+- apiVersion: v1beta1
+  kind: Pod
+  id: kafka{{ pod_idx }}
+  desiredState:
+    manifest:
+      version: v1beta1
+      id: kafka
+      containers:
+        - image: cyberstip/kafka-cluster:v3
+          name: kafka
+          volumeMounts:
+            - mountPath: /home/kafka/data
+              name: kafka-disk{{ pod_idx }}
+          ports:
+            - containerPort: 9092
+              hostPort: 9092
+          env:
+            - name: KUBERNETES_POD_IDX
+              value: {{ pod_idx }}
+          livenessProbe:
+              # turn on application health checking
+              enabled: true
+              type: tcp
+              # length of time to wait for a pod to initialize
+              # after pod startup, before applying health checking
+              initialDelaySeconds: 360
+              # a tcp probe
+              tcpSocket:
+                port: 9092
+      volumes:
+        - name: kafka-disk{{ pod_idx }}
+          source:
+            persistentDisk:
+              # This GCE PD must already exist and be formatted ext4
+              pdName: kafka-disk{{ pod_idx }}
+              fsType: ext4
+  labels:
+    service: kafka
+{% endfor %}
