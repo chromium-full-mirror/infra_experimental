@@ -1,4 +1,5 @@
 import argparse
+import colorama
 import json
 import sys
 import httplib2
@@ -10,6 +11,23 @@ from apiclient.discovery import build
 from oauth2client import client
 from oauth2client import file as oauth2client_file
 from oauth2client import tools
+
+
+class ColorString(str):
+  color = None
+
+  @classmethod
+  def create(cls, string, color):
+    s = cls(string)
+    s.color = color
+    s.string = string
+    return s
+
+  def __str__(self):
+    if self.color:
+      return self.color + self.string + colorama.Fore.RESET
+    else:
+      return self.string
 
 
 def list_topics(service, args):
@@ -38,17 +56,20 @@ def delete_topic(service, args):
 
 @contextmanager
 def subcommand(subparser, command, help):
-  parser = subparser.add_parser(command, help=help)
+  parser = subparser.add_parser(
+      ColorString.create(command, colorama.Fore.GREEN), help=help)
   yield parser.add_subparsers(help='%s subcommands' % command)
 
 
 def add_command(subparser, command, help, func):
-  parser = subparser.add_parser(command, help=help)
+  parser = subparser.add_parser(
+      ColorString.create(command, colorama.Fore.GREEN), help=help)
   parser.set_defaults(func=func)
   return parser
 
 
 def main():
+  colorama.init()
   scope='https://www.googleapis.com/auth/pubsub https://www.googleapis.com/auth/cloud-platform'
 
   CLIENT_ID = '683701591616-tfv414nig13q0i6b6bo8braibfpquvgc.apps.googleusercontent.com'
