@@ -221,13 +221,6 @@ class PatchStop(CQApiRecord):
 
 
 RECORD_TYPES = {
-    'verifier_jobs_update': VerifierJobsUpdate,
-    'verifier_start': VerifierStart,
-    'verifier_retry': VerifierRetry,
-    'patch_committing': PatchCommitting,
-    'patch_committed': PatchCommitted,
-    'patch_throttled': PatchThrottled,
-    'patch_tree_closed': PatchTreeClosed,
     'patch_start': PatchStart,
     'patch_stop': PatchStop,
 }
@@ -326,28 +319,7 @@ def hash_dict(d):
 
 def construct_spans(records, issue, patchset, attempt):
   records = list(records)
-  trace_id = gen_unique_hash(issue, patchset, attempt)
-
-  root_span = ZipkinSpan('cq_service', trace_id, trace_id, None, 'cq_request', {
-      'cs': records[0].timestamp,
-      'sr': records[0].timestamp,
-      'ss': records[-1].timestamp,
-      'cr': records[-1].timestamp,
-      'issue': issue,
-      'patchset': patchset,
-      'attempt': attempt + 1,
-      'url': 'https://chromiumcodereview.appspot.com/%d/#ps%d' % (
-          issue, patchset),
-      'cq_url': 'https://chromium-cq-status.appspot.com/patch-status/%d/%d' % (
-          issue, patchset),
-  })
-  spans = [root_span]
-  for record in records[1:-1]:
-    spans.append(ZipkinSpan(
-        record['service_name'],
-        trace_id, hash_dict(record), trace_id, 'cq_service', record))
-
-  return spans
+  return [records[0].timestamp, records[-1].timestamp - records[0].timestamp]
 
 
 def send_to_restkin(url, spans):
@@ -368,15 +340,13 @@ def process_patchset(issue, patchset, restkin_url):
   sorted_records = sorted(filter(bool, map(constructor, items['results'])))
   spans = []
   for attempt, record_set in enumerate((chunk_attempts(sorted_records))):
-    for span in construct_spans(
+    spans.append(construct_spans(
         process_commit_record_types(
-        link_jobs_to_trigger(translate_retry_to_start(
-            return_new_jobs(record_set)))),
+          record_set),
         issue,
         patchset,
-        attempt):
-      spans.append(span.render())
-  send_to_restkin(restkin_url, spans)
+        attempt))
+  print json.dumps(spans, indent=2)
 
 
 def main():
