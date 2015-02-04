@@ -5,12 +5,23 @@ vm: true
 api_version: 1
 threadsafe: true
 
+manual_scaling:
+  instances: 1
+
 handlers:
 # Endpoints handler.
 - url: /_ah/spi/.*
-  script: main.app
+  script: main.app_endpoints
   secure: always
+
+- url: .*
+  secure: always
+  script: main.app
 
 libraries:
 - name: endpoints
   version: 1.0
+
+health_check:
+  enable_health_check: True
+  check_interval_sec: 30

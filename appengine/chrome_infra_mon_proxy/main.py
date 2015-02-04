@@ -4,8 +4,11 @@
 
 import logging
 import os
+import webapp2
 
+# On managed VMs, we have to import endpoints the old way.
 import endpoints
+# from google.appengine.ext import endpoints
 from protorpc import messages
 from protorpc import message_types
 from protorpc import remote
@@ -43,4 +46,18 @@ class Handler(remote.Service):
     logging.info('Hit point.add()')
     return message_types.VoidMessage()
 
-app = endpoints.api_server([Handler])
+app_endpoints = endpoints.api_server([Handler])
+
+class MainHandler(webapp2.RequestHandler):
+  def get(self):
+    msg = 'There is nothing here. Go away.\n'
+    self.response.headers['Content-Type'] = 'text/plain'
+    self.response.out.write(msg)
+    logging.info('Hit / (info)')
+    logging.debug('Hit / (debug)')
+
+logging.basicConfig(level=logging.DEBUG)
+app = webapp2.WSGIApplication([
+    ('/', MainHandler),
+    (r'/.*', MainHandler)
+    ], debug=True)
