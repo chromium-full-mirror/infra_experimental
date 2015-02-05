@@ -1,12 +1,8 @@
 application: chrome-infra-mon-proxy
 version: 1
 runtime: python27
-vm: true
 api_version: 1
 threadsafe: true
-
-manual_scaling:
-  instances: 1
 
 handlers:
 # Endpoints handler.
@@ -21,7 +17,3 @@ handlers:
 libraries:
 - name: endpoints
   version: 1.0
-
-health_check:
-  enable_health_check: True
-  check_interval_sec: 30

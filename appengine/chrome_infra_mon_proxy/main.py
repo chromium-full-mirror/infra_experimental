@@ -1,17 +1,19 @@
-# Copyright (c) 2014 The Chromium Authors. All rights reserved.
+# Copyright 2015 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
 import logging
 import os
+import urllib
+import urllib2
 import webapp2
 
-# On managed VMs, we have to import endpoints the old way.
 import endpoints
-# from google.appengine.ext import endpoints
 from protorpc import messages
 from protorpc import message_types
 from protorpc import remote
+
+from google.appengine.api import app_identity
 
 
 class Metric(messages.Message):
@@ -43,7 +45,23 @@ class Handler(remote.Service):
                     name='point.add')
   def add(self, request):
     """Add an entry with a set of key:value tags."""
-    logging.info('Hit point.add()')
+    logging.info('Hit timeseries.add()')
+    hostname = app_identity.get_default_version_hostname()
+    url = 'http://%s/vm' % hostname
+    raw_data = {
+        'metric': {'type': request.metric.metric_type,
+                   'value': request.metric.value},
+    }
+    data = urllib.urlencode(raw_data)
+    request = urllib2.Request(url, data)
+    try:
+      response = urllib2.urlopen(request)
+    except urllib2.HTTPError as e:
+      logging.error('Error in the VM backend: %s', e)
+      raise endpoints.InternalServerErrorException()
+    except urllib2.URLError as e:
+      logging.error('Error reaching the VM backend: %s', e)
+      raise endpoints.InternalServerErrorException()
     return message_types.VoidMessage()
 
 app_endpoints = endpoints.api_server([Handler])
@@ -53,11 +71,9 @@ class MainHandler(webapp2.RequestHandler):
     msg = 'There is nothing here. Go away.\n'
     self.response.headers['Content-Type'] = 'text/plain'
     self.response.out.write(msg)
-    logging.info('Hit / (info)')
-    logging.debug('Hit / (debug)')
+    logging.debug('Hit /')
 
 logging.basicConfig(level=logging.DEBUG)
 app = webapp2.WSGIApplication([
     ('/', MainHandler),
-    (r'/.*', MainHandler)
     ], debug=True)
