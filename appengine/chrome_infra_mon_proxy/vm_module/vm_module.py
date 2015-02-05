@@ -5,6 +5,7 @@
 import json
 import logging
 import os
+import urllib2
 import webapp2
 
 from google.appengine.api import app_identity
@@ -31,6 +32,8 @@ class VMHandler(webapp2.RequestHandler):
     if not is_development_server() and requester_id != my_id:
       self.abort(403)
     logging.debug('Authenticated post request to a VM')
+    # TODO(sergeyberezin): this is just a quick IP test. Remove in production.
+    urllib2.urlopen('http://chrome-infra-mon-proxy.appspot.com').read()
 
     try:
       packets = map(json.loads, self.request.get_all('p'))
