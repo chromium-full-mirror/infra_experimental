@@ -1,6 +1,8 @@
 import argparse
 import base64
+import calendar
 import colorama
+import datetime
 import json
 import sys
 import httplib2
@@ -56,12 +58,20 @@ def delete_topic(service, args):
   return service.topics().delete(topic=topic).execute()
 
 
+def get_topic(service, args):
+  topic = '/topics/%s/%s' % (args.proj, args.topic_name)
+  return service.topics().get(topic=topic).execute()
+
+
 def publish_message(service, args):
   fileobj = sys.stdin
   if args.from_file:
     fileobj = open(args.from_file)
   with fileobj as fileobj:
     data = fileobj.read()
+
+  utc_timestamp = calendar.timegm(datetime.datetime.utcnow().utctimetuple())
+  utc_date = datetime.datetime.utcnow().isoformat()
 
   body = {
       'topic': '/topics/%s/%s' % (args.proj, args.topic_name),
@@ -71,6 +81,8 @@ def publish_message(service, args):
           {'key': 'host', 'strValue': socket.gethostname()},
           {'key': 'datatype', 'strValue': 'arbitrary'},
           {'key': 'sending_service', 'strValue': 'submit_event.py'},
+          {'key': 'sending_utc_timestamp', 'numValue': utc_timestamp},
+          {'key': 'sending_utc_date', 'strValue': utc_date},
         ],
       }],
   }
@@ -78,11 +90,67 @@ def publish_message(service, args):
 
 
 def list_subscriptions(service, args):
-  return service.subscriptions().list(
-      query='cloud.googleapis.com/topic in (/projects/%s/%s)' % (
-        args.proj, args.topic_name)
-      ).execute()
+  query = 'cloud.googleapis.com/project in (/projects/%s)' % args.proj
+  if args.topic_name:
+    query='pubsub.googleapis.com/topic in (/topics/%s/%s)' % (
+          args.proj, args.topic_name)
+  return service.subscriptions().list(query = query).execute()
 
+
+def get_subscription(service, args):
+  subscription = '/subscriptions/%s/%s' % (args.proj, args.sub_id)
+  return service.subscriptions().get(subscription=subscription).execute()
+
+
+def create_subscription(service, args):
+  body = {
+      'name': '/subscriptions/%s/%s' % (args.proj, args.sub_id),
+      'topic': '/topics/%s/%s' % (args.proj, args.topic_name),
+  }
+  if args.push:
+    body['pushConfig'] = {'pushEndpoint': args.push}
+
+  try:
+    return service.subscriptions().create(body=body).execute()
+  except apiclient.errors.HttpError as e:
+    if json.loads(e.content)['error']['errors'][0]['reason'] == 'alreadyexists':
+      raise
+    elif not args.success_if_exists:
+      raise
+
+
+def delete_subscription(service, args):
+  subscription = '/subscriptions/%s/%s' % (args.proj, args.sub_id)
+  return service.subscriptions().delete(subscription=subscription).execute()
+
+
+def ack_message_ids(service, proj, sub_id, ids):
+  body = {
+      'subscription': '/subscriptions/%s/%s' % (proj, sub_id),
+      'ackId': ids,
+  }
+  return service.subscriptions().acknowledge(body=body).execute()
+
+
+def pull_from_subscription(service, args):
+  body = {
+      'subscription': '/subscriptions/%s/%s' % (args.proj, args.sub_id),
+      'returnImmediately': not args.wait,
+      'maxEvents': args.max,
+  }
+  results = service.subscriptions().pullBatch(body=body).execute()
+
+  if results:
+    ack_ids = [m['ackId'] for m in results['pullResponses']]
+    if not args.no_ack:
+      ack_message_ids(service, args.proj, args.sub_id, ack_ids)
+    if args.base64unencode:
+      for res in results['pullResponses']:
+        message = res['pubsubEvent']['message']
+        message['data'] = base64.b64decode(message['data'])
+
+  return results
+  
 
 @contextmanager
 def subcommand(subparser, command, help):
@@ -115,18 +183,21 @@ def main():
   publish_parser = add_command(
     subparsers, 'publish', 'publish a message', publish_message)
   publish_parser.add_argument(
-      'topic_name', type=str, help='the topic to publish to')
+      'topic_name', help='the topic to publish to')
   publish_parser.add_argument(
-      '--from-file', type=str, help='read from a file instead of stdin')
+      '--from-file', help='read from a file instead of stdin')
 
   with subcommand(subparsers, 'topics', 'commands on topics') as subparser:
     add_command(subparser, 'list', 'list topics', list_topics)
 
+    get_topic_parser = add_command(subparser, 'get', 'get details about a topic', list_topics)
+    get_topic_parser.add_argument(
+        'topic_name', help='the topic to get')
 
     create_topic_parser = add_command(
       subparser, 'create', 'create a topic', create_topic)
     create_topic_parser.add_argument(
-        'topic_name', type=str, help='the topic to create')
+        'topic_name', help='the topic to create')
     create_topic_parser.add_argument(
         '--success-if-exists', action='store_true',
         help='don\t return failure if the topic already exists')
@@ -134,11 +205,52 @@ def main():
     delete_topic_parser = add_command(
       subparser, 'delete', 'delete a topic', delete_topic)
     delete_topic_parser.add_argument(
-        'topic_name', type=str, help='the topic to delete')
+        'topic_name', help='the topic to delete')
 
   with subcommand(
       subparsers, 'subscriptions', 'commands on subscriptions') as subparser:
-    add_command(subparser, 'list', 'list subscriptions', list_subscriptions)
+    list_sub_parser = add_command(subparser, 'list', 'list subscriptions', list_subscriptions)
+    list_sub_parser.add_argument(
+        '--topic_name', help='the topic the subscription is for')
+
+    get_sub_parser = add_command(subparser, 'get', 'get details about a subscription', get_subscription)
+    get_sub_parser.add_argument(
+        'sub_id', help='the subscription id')
+
+    create_sub_parser = add_command(
+      subparser, 'create', 'create a subscription', create_subscription)
+    create_sub_parser.add_argument(
+        'topic_name', help='the topic to create a subscription for')
+    create_sub_parser.add_argument(
+        'sub_id', help='the subscription id')
+    create_sub_parser.add_argument(
+        '--success-if-exists', action='store_true',
+        help='don\t return failure if the subscription already exists')
+    create_sub_parser.add_argument(
+        '--push', help='configure as push subscription to this endpoint')
+
+    delete_sub_parser = add_command(
+      subparser, 'delete', 'delete a subscription', delete_subscription)
+    delete_sub_parser.add_argument(
+        'sub_id', help='the subscription id')
+
+    pull_sub_parser = add_command(
+      subparser, 'pull', 'pull from a subscription', pull_from_subscription)
+    pull_sub_parser.add_argument(
+        'sub_id', help='the subscription id')
+    pull_sub_parser.add_argument(
+        '--wait', action='store_true',
+        help='wait if no messages have arrived yet')
+    pull_sub_parser.add_argument(
+        '--no-ack', action='store_true',
+        help='don\'t ack the messages, allowing them to be read again after '
+             'deadline')
+    pull_sub_parser.add_argument(
+        '--max', default=100, type=int,
+        help='max messages to return per pull')
+    pull_sub_parser.add_argument(
+        '--base64unencode', action='store_true',
+        help='unencode base64 payload.')
 
   args = parser.parse_args()
 
@@ -156,7 +268,7 @@ def main():
   http = credentials.authorize(httplib2.Http())
   service = build('pubsub', 'v1beta1', http=http)
 
-  print json.dumps(args.func(service, args), indent=2)
+  print json.dumps(args.func(service, args) or {}, indent=2)
 
 if __name__ == '__main__':
   sys.exit(main())
