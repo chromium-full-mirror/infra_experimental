@@ -16,6 +16,10 @@ from protorpc import remote
 from google.appengine.api import app_identity
 
 
+def is_development_server():
+  return os.environ['SERVER_SOFTWARE'].startswith('Development')
+
+
 class Metric(messages.Message):
   # TODO(sergeyberezin): make it enum type.
   metric_type = messages.StringField(1, required=True)
@@ -47,6 +51,10 @@ class Handler(remote.Service):
     """Add an entry with a set of key:value tags."""
     logging.info('Hit timeseries.add()')
     hostname = app_identity.get_default_version_hostname()
+    # For local testing in dev server.
+    if is_development_server():
+      hostname = 'localhost:8081'
+    logging.info('hostname: %s', hostname)
     url = 'http://%s/vm' % hostname
     raw_data = {
         'metric': {'type': request.metric.metric_type,
@@ -58,10 +66,12 @@ class Handler(remote.Service):
       response = urllib2.urlopen(request)
     except urllib2.HTTPError as e:
       logging.error('Error in the VM backend: %s', e)
-      raise endpoints.InternalServerErrorException()
+      raise endpoints.InternalServerErrorException(
+          'Error in the VM backend, url=%s: %s' % (url, e))
     except urllib2.URLError as e:
       logging.error('Error reaching the VM backend: %s', e)
-      raise endpoints.InternalServerErrorException()
+      raise endpoints.InternalServerErrorException(
+          'Error reaching the VM backend: %s' % e)
     return message_types.VoidMessage()
 
 app_endpoints = endpoints.api_server([Handler])

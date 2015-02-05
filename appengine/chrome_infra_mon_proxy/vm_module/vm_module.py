@@ -2,11 +2,16 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import json
 import logging
 import os
 import webapp2
 
 from google.appengine.api import app_identity
+
+
+def is_development_server():
+  return os.environ['SERVER_SOFTWARE'].startswith('Development')
 
 
 class VMHandler(webapp2.RequestHandler):
@@ -18,8 +23,12 @@ class VMHandler(webapp2.RequestHandler):
     logging.debug('Hit / (debug)')
 
   def post(self):
-    app_id = self.request.headers.get('X-Appengine-Inbound-Appid', None)
-    if app_id != app_identity.get_application_id():
+    requester_id = self.request.headers.get('X-Appengine-Inbound-Appid', None)
+    my_id = app_identity.get_application_id()
+    hostname = app_identity.get_default_version_hostname()
+    logging.debug('dev: %s, requester id: %s, my app id: %s, hostname: %s',
+                  is_development_server(), requester_id, my_id, hostname)
+    if not is_development_server() and requester_id != my_id:
       self.abort(403)
     logging.debug('Authenticated post request to a VM')
 
@@ -33,6 +42,7 @@ class VMHandler(webapp2.RequestHandler):
       self.response.write('Invalid packet: %s' % e)
       return
 
+    logging.debug('Got %d packets', len(packets))
     for packet in packets:
       # TODO(sergeyberezin): call ts_mon library here.
       logging.debug('Got packet: %r', packet)

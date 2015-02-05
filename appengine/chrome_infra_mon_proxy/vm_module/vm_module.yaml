@@ -2,12 +2,12 @@ application: chrome-infra-mon-proxy
 version: 1
 runtime: python27
 vm: true
-module: vm_module
+module: vm
 api_version: 1
 threadsafe: true
 
 manual_scaling:
-  instances: 2
+  instances: 1
 
 resources:
   cpu: .5
@@ -15,9 +15,9 @@ resources:
   disk_size_gb: 1
 
 handlers:
-- url: /vm
+- url: /.*
   script: vm_module.app
 
 health_check:
   enable_health_check: True
-  check_interval_sec: 10
+  check_interval_sec: 30

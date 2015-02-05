@@ -10,7 +10,7 @@ handlers:
   script: main.app_endpoints
   secure: always
 
-- url: .*
+- url: /.*
   secure: always
   script: main.app
 
