@@ -1,8 +1,10 @@
 import argparse
+import base64
 import colorama
 import json
 import sys
 import httplib2
+import socket
 from contextlib import contextmanager
 
 import apiclient.errors
@@ -31,7 +33,7 @@ class ColorString(str):
 
 
 def list_topics(service, args):
-  print service.topics().list(
+  return service.topics().list(
       query='cloud.googleapis.com/project in (/projects/%s)' % args.proj
       ).execute()
 
@@ -41,7 +43,7 @@ def create_topic(service, args):
       'name': '/topics/%s/%s' % (args.proj, args.topic_name)
   }
   try:
-    print service.topics().create(body=body).execute()
+    return service.topics().create(body=body).execute()
   except apiclient.errors.HttpError as e:
     if json.loads(e.content)['error']['errors'][0]['reason'] == 'alreadyexists':
       raise
@@ -51,7 +53,35 @@ def create_topic(service, args):
 
 def delete_topic(service, args):
   topic = '/topics/%s/%s' % (args.proj, args.topic_name)
-  print service.topics().delete(topic=topic).execute()
+  return service.topics().delete(topic=topic).execute()
+
+
+def publish_message(service, args):
+  fileobj = sys.stdin
+  if args.from_file:
+    fileobj = open(args.from_file)
+  with fileobj as fileobj:
+    data = fileobj.read()
+
+  body = {
+      'topic': '/topics/%s/%s' % (args.proj, args.topic_name),
+      'messages': [{
+        'data': base64.b64encode(data),
+        'label': [
+          {'key': 'host', 'strValue': socket.gethostname()},
+          {'key': 'datatype', 'strValue': 'arbitrary'},
+          {'key': 'sending_service', 'strValue': 'submit_event.py'},
+        ],
+      }],
+  }
+  return service.topics().publishBatch(body=body).execute()
+
+
+def list_subscriptions(service, args):
+  return service.subscriptions().list(
+      query='cloud.googleapis.com/topic in (/projects/%s/%s)' % (
+        args.proj, args.topic_name)
+      ).execute()
 
 
 @contextmanager
@@ -81,8 +111,17 @@ def main():
                       help='which project to use')
 
   subparsers = parser.add_subparsers(help='subcommands')
+
+  publish_parser = add_command(
+    subparsers, 'publish', 'publish a message', publish_message)
+  publish_parser.add_argument(
+      'topic_name', type=str, help='the topic to publish to')
+  publish_parser.add_argument(
+      '--from-file', type=str, help='read from a file instead of stdin')
+
   with subcommand(subparsers, 'topics', 'commands on topics') as subparser:
     add_command(subparser, 'list', 'list topics', list_topics)
+
 
     create_topic_parser = add_command(
       subparser, 'create', 'create a topic', create_topic)
@@ -96,6 +135,10 @@ def main():
       subparser, 'delete', 'delete a topic', delete_topic)
     delete_topic_parser.add_argument(
         'topic_name', type=str, help='the topic to delete')
+
+  with subcommand(
+      subparsers, 'subscriptions', 'commands on subscriptions') as subparser:
+    add_command(subparser, 'list', 'list subscriptions', list_subscriptions)
 
   args = parser.parse_args()
 
@@ -113,7 +156,7 @@ def main():
   http = credentials.authorize(httplib2.Http())
   service = build('pubsub', 'v1beta1', http=http)
 
-  args.func(service, args)
+  print json.dumps(args.func(service, args), indent=2)
 
 if __name__ == '__main__':
   sys.exit(main())

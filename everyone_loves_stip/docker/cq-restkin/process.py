@@ -16,7 +16,7 @@ import sys
 @functools.total_ordering
 class CQApiRecord(object):
   def __init__(self, timestamp=None, tags=None, key=None, fields=None):
-    self.timestamp = datetime.utcfromtimestamp(timestamp)
+    self.timestamp = timestamp
     self._tags = tags
     self._key = key
     self._fields = fields
@@ -346,7 +346,7 @@ def process_patchset(issue, patchset, restkin_url):
         issue,
         patchset,
         attempt))
-  print json.dumps(spans, indent=2)
+  return spans
 
 
 def main():
@@ -363,15 +363,19 @@ def main():
                       help='number of patch_stop events to process')
   args = parser.parse_args()
 
+  spans = []
   if args.issue:
-    process_patchset(args.issue, args.patchset, args.restkin_url)
+    spans.append(process_patchset(args.issue, args.patchset, args.restkin_url))
   else:
     query_url = ('http://chromium-cq-status.appspot.com/query/project=chromium/'
                  'action=patch_stop?count=%d' % args.count)
     for item in requests.get(query_url).json()['results']:
-      process_patchset(item['fields']['issue'],
+      spans.append(process_patchset(item['fields']['issue'],
                        item['fields']['patchset'],
-                       args.restkin_url)
+                       args.restkin_url))
+  with open('real_results.json', 'w') as f:
+    json.dump(spans, f, indent=2)
+  print 'wrote %d records' % len(spans)
   return 0
 
 
