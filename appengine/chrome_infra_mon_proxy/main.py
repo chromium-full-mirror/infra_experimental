@@ -16,6 +16,9 @@ from protorpc import remote
 from google.appengine.api import app_identity
 
 
+VM_MODULE = 'vm'
+
+
 def is_development_server():
   return os.environ['SERVER_SOFTWARE'].startswith('Development')
 
@@ -54,7 +57,9 @@ class Handler(remote.Service):
     # For local testing in dev server.
     if is_development_server():
       hostname = 'localhost:8081'
-    logging.info('hostname: %s', hostname)
+    else:
+      hostname = '%s.%s' % (VM_MODULE, hostname)
+    logging.info('hostname for VM module: %s', hostname)
     url = 'http://%s/vm' % hostname
     raw_data = {
         'metric': {'type': request.metric.metric_type,
