@@ -4,13 +4,35 @@
 
 import argparse
 from contextlib import closing
+from contextlib import contextmanager
 from datetime import datetime
+from datetime import timedelta
 import functools
 import hashlib
+from itertools import chain
+from itertools import groupby
 import json
+import multiprocessing
 import requests
-import urllib2
+from requests.adapters import HTTPAdapter
 import sys
+
+
+@contextmanager
+def MultiPool(processes):
+  """Manages a multiprocessing.Pool making sure to close the pool when done.
+  This will also call pool.terminate() when an exception is raised (and
+  re-raised the exception to the calling procedure can handle it).
+  """
+  try:
+    pool = multiprocessing.Pool(processes=processes)
+    yield pool
+    pool.close()
+  except:
+    pool.terminate()
+    raise
+  finally:
+    pool.join()
 
 
 @functools.total_ordering
@@ -133,9 +155,9 @@ def return_new_jobs(jobs_updates):
 def chunk_attempts(records):
   current_chunk = None
   for record in records:
-    if isinstance(record, PatchStart):
+    if record['fields']['action'] == 'patch_start':
       current_chunk = [record]
-    elif isinstance(record, PatchStop):
+    elif record['fields']['action'] == 'patch_stop':
       if current_chunk is not None:
         current_chunk.append(record)
         yield current_chunk
@@ -327,15 +349,59 @@ def send_to_restkin(url, spans):
   r = requests.post(url, data=json.dumps(spans), headers=headers)
   print r
 
-def process_patchset(issue, patchset, restkin_url):
+
+def get_action(project, action, count, begin, end):
+  s = requests.Session()
+  s.mount('https://chromium-cq-status.appspot.com',
+      HTTPAdapter(max_retries=5))
+  cursor = None
+  cont = True
+  items = []
+  while cont:
+    query_url = (
+        'https://chromium-cq-status.appspot.com/query/project=%s/'
+        'action=%s?count=%d&begin=%f&end=%f' % (
+          project, action, count, begin, end))
+    if cursor:
+      query_url += '&cursor=%s' % cursor
+
+    query = requests.get(query_url).json()
+    items.extend(query['results'])
+    cont = query['more']
+    cursor = query['cursor']
+    print 'Received %d items (action: %s, more: %s)' % (
+        len(query['results']), action, cont)
+  return items
+
+
+def days_past(current_date, days):
+  return ((current_date - timedelta(days=days)) -
+      datetime.utcfromtimestamp(0)).total_seconds()
+
+
+def get_events(spec):
+  events = []
+  events.extend(get_action(
+      spec[3], 'patch_start', spec[2], spec[0], spec[1]))
+  events.extend(get_action(
+      spec[3], 'patch_stop', spec[2], spec[0], spec[1]))
+  if spec[4]:
+    events.extend(get_action(
+      spec[3], spec[4], spec[2], spec[0], spec[1]))
+  return events
+
+
+def process_patchset(item):
+  issue = item['fields']['issue']
+  patchset = item['fields']['patchset']
   print 'processing patchset: %s/%s' % (issue, patchset)
+  start = datetime.utcnow()
   url_template = ('https://chromium-cq-status.appspot.com/'
                   'query/issue=%d/patchset=%d')
 
   url = url_template % (issue, patchset)
 
-  with closing(urllib2.urlopen(url)) as f:
-    items = json.load(f)
+  items = requests.get(url).json()
 
   sorted_records = sorted(filter(bool, map(constructor, items['results'])))
   spans = []
@@ -346,6 +412,11 @@ def process_patchset(issue, patchset, restkin_url):
         issue,
         patchset,
         attempt))
+  done = datetime.utcnow()
+  print '%s/%s took %.2fs' % (
+    issue,
+    patchset,
+    (done - start).total_seconds())
   return spans
 
 
@@ -354,28 +425,96 @@ def main():
   parser.add_argument('issue', type=int, nargs='?', help='rietveld issue')
   parser.add_argument(
       'patchset', type=int, nargs='?', help='patchset', default=1)
-  parser.add_argument('--restkin-url',
-                      default='http://localhost:6956/v1.0/restkin/trace',
-                      help='URL to send restkin data')
   parser.add_argument('--count',
-                      default=100,
+                      default=1000,
                       type=int,
-                      help='number of patch_stop events to process')
+                      help='number of patch_stop events to process at a time')
+  parser.add_argument('--days',
+                      default=30,
+                      type=int,
+                      help='number of days to go back for data')
+  parser.add_argument('--processes',
+                      default=8,
+                      type=int,
+                      help='number of threads to issue queries')
+  parser.add_argument('--project',
+                      default='chromium',
+                      help='project to get data for')
+  parser.add_argument('--action',
+                      help='which action to time')
+  parser.add_argument('--inverse',
+                      action='store_true',
+                      help='time this action to stop, instead of this to start')
+  parser.add_argument('--output',
+                      default='real_results.json',
+                      help='where to output')
   args = parser.parse_args()
 
   spans = []
   if args.issue:
     spans.append(process_patchset(args.issue, args.patchset, args.restkin_url))
   else:
-    query_url = ('http://chromium-cq-status.appspot.com/query/project=chromium/'
-                 'action=patch_stop?count=%d' % args.count)
-    for item in requests.get(query_url).json()['results']:
-      spans.append(process_patchset(item['fields']['issue'],
-                       item['fields']['patchset'],
-                       args.restkin_url))
-  with open('real_results.json', 'w') as f:
+    querynow = datetime.utcnow()
+    print 'UTC time is %s' % querynow.isoformat()
+
+    events = []
+    event_specs = [[
+      int(days_past(querynow, i+1)),
+      int(days_past(querynow, i)),
+      args.count,
+      args.project,
+      args.action] for i in range(args.days)]
+    with MultiPool(args.processes) as pool:
+      events.extend(chain.from_iterable(
+        pool.map_async(get_events, event_specs).get(9999999)))
+
+    all_events = sorted(events, key=lambda x: x['fields']['issue'])
+
+    attempts = []
+    for _, group in groupby(all_events, lambda x: x['fields']['issue']):
+      def patchset_keyfunc(item):
+        patchset_tag = next(x for x in item['tags'] if x.startswith('patchset'))
+        return int(patchset_tag.split('=')[1])
+      patchset_sorted = sorted(group, key=patchset_keyfunc)
+      for _, group in groupby(patchset_sorted, patchset_keyfunc):
+        sorted_patchset = sorted(group, key=lambda x: x['timestamp'])
+        for chunk in chunk_attempts(sorted_patchset):
+          chunk = list(chunk)
+          termination_action = 'patch_stop'
+          if args.action:
+            termination_action = args.action
+
+          try:
+            action = next(
+                x for x in chunk if x['fields']['action'] == termination_action)
+          except StopIteration:
+            continue
+
+          action_time = action['timestamp'] - chunk[0]['timestamp']
+
+          if args.inverse:
+            total_time = chunk[-1]['timestamp'] - chunk[0]['timestamp']
+            action_time = total_time - action_time
+
+          attempts.append([chunk[0]['timestamp'], action_time])
+    spans.append(sorted(attempts, key=lambda x: x[0]))
+    earliest = datetime.utcfromtimestamp(spans[0][0][0])
+    days_progress = (querynow - earliest).total_seconds() / (24.0 * 3600.0)
+    runtime = (datetime.utcnow() - querynow).total_seconds()
+    print (
+        'Retrieved %d issues, earliest is %s (%.2f days). %.2fs elapsed, '
+        '%.2fd/min' % (
+          len(attempts),
+          earliest.isoformat(),
+          days_progress,
+          runtime,
+          60.0 * days_progress / runtime,
+        )
+    )
+
+  with open(args.output, 'w') as f:
     json.dump(spans, f, indent=2)
-  print 'wrote %d records' % len(spans)
+  print 'wrote %d records' % len(spans[0])
   return 0
 
 
