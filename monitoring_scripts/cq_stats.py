@@ -594,7 +594,7 @@ def derive_stats(args, begin_date, init_stats=None):
   if args.seq or not args.thread_pool:
     iterable = map(get_patch_stats, patches)
   else:
-    pool = ThreadPool(min(args.thread_pool, len(patches)))
+    pool = ThreadPool(min(args.thread_pool, len(patches) or 1))
     iterable = pool.imap_unordered(get_patch_stats, patches)
   for patch_id, pstats in iterable:
     patch_stats[patch_id] = pstats
