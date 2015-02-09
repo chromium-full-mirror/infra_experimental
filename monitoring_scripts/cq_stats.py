@@ -650,7 +650,10 @@ def parse_failing_tryjobs(message):
   builders = []
   msg_ary = message.split('\n')
   for ln in msg_ary[1:]:
-    builder = ln.split()[0]
+    lines = ln.split()
+    if not len(lines):
+      continue
+    builder = lines[0]
     builders.append(builder)
   return builders
 
