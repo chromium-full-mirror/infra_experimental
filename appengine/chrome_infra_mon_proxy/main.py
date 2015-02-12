@@ -4,6 +4,7 @@
 
 import logging
 import os
+import random
 import urllib
 import urllib2
 import webapp2
@@ -16,30 +17,16 @@ from protorpc import remote
 from google.appengine.api import app_identity
 
 
-VM_MODULE = 'vm'
+VM_MODULES = ['vm1', 'vm2', 'vm3']
 
 
 def is_development_server():
   return os.environ['SERVER_SOFTWARE'].startswith('Development')
 
 
-class Metric(messages.Message):
-  # TODO(sergeyberezin): make it enum type.
-  metric_type = messages.StringField(1, required=True)
-  # TODO(sergeyberezin): check if union of types is needed.
-  value = messages.StringField(2)
-
-
-class Field(messages.Message):
-  field_name = messages.StringField(1, required=True)
-  # TODO(sergeyberezin): see if we need a union of types.
-  field_value = messages.StringField(2)
-
-
 # TODO(sergeyberezin): add a check for #fields <= 7.
 class Point(messages.Message):
-  metric = messages.MessageField(Metric, 1, required=True)
-  fields = messages.MessageField(Field, 2, repeated=True)
+  data = messages.StringField(1, required=True)
 
 
 @endpoints.api(
@@ -51,19 +38,19 @@ class Handler(remote.Service):
   @endpoints.method(Point, message_types.VoidMessage,
                     name='point.add')
   def add(self, request):
-    """Add an entry with a set of key:value tags."""
+    """Send a metric as a base64 serialized protobuf."""
     logging.info('Hit timeseries.add()')
     hostname = app_identity.get_default_version_hostname()
     # For local testing in dev server.
     if is_development_server():
       hostname = 'localhost:8081'
     else:
-      hostname = '%s.%s' % (VM_MODULE, hostname)
+      hostname = '%s.%s' % (
+          VM_MODULES[random.randint(0, len(VM_MODULES) - 1)], hostname)
     logging.info('hostname for VM module: %s', hostname)
     url = 'http://%s/vm' % hostname
     raw_data = {
-        'metric': {'type': request.metric.metric_type,
-                   'value': request.metric.value},
+        'data': request.data,
     }
     data = urllib.urlencode(raw_data)
     request = urllib2.Request(url, data)

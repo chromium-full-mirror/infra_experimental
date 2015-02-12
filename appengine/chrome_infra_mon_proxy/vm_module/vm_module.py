@@ -5,6 +5,7 @@
 import json
 import logging
 import os
+import urllib
 import urllib2
 import webapp2
 
@@ -32,14 +33,13 @@ class VMHandler(webapp2.RequestHandler):
     if not is_development_server() and requester_id != my_id:
       self.abort(403)
     logging.debug('Authenticated post request to a VM')
-    # TODO(sergeyberezin): this is just a quick IP test. Remove in production.
-    urllib2.urlopen('http://chrome-infra-mon-proxy.appspot.com').read()
 
     try:
-      packets = map(json.loads, self.request.get_all('p'))
-      for packet in packets:
-        if not isinstance(packet, dict):
-          raise ValueError('JSON dictionary expected.')
+      packets = self.request.POST.items()
+      # for packet in packets:
+        # logging.debug('Packet=%r', packet)
+        # if not isinstance(packet, dict):
+        #   raise ValueError('JSON dictionary expected.')
     except ValueError as e:
       logging.warning('Invalid packet: %s\n%s', e, traceback.format_exc())
       self.response.write('Invalid packet: %s' % e)
@@ -49,6 +49,8 @@ class VMHandler(webapp2.RequestHandler):
     for packet in packets:
       # TODO(sergeyberezin): call ts_mon library here.
       logging.debug('Got packet: %r', packet)
+    # TODO(sergeyberezin): this is just a quick IP test. Remove in production.
+    urllib2.urlopen('http://chrome-infra-mon-proxy.appspot.com').read()
 
 
 logging.basicConfig(level=logging.DEBUG)

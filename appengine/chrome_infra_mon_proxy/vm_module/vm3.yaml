@@ -2,7 +2,7 @@ application: chrome-infra-mon-proxy
 version: 1
 runtime: python27
 vm: true
-module: vm
+module: vm3
 api_version: 1
 threadsafe: true
 
@@ -15,7 +15,7 @@ resources:
   disk_size_gb: 10
 
 network:
-  instance_tag: managed-gae-vm
+  instance_tag: managed-gae-vm3
 
 handlers:
 - url: /.*
