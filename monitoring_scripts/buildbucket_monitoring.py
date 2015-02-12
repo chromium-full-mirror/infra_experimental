@@ -55,11 +55,12 @@ def validate_pending(pending, patchset, bucket_obj):
       exp_masters[_prefix_master(result['master'])] = True
 
   if not exp_jobs:
+    logging.info('Issue %d does not have experimental tryjobs.', pending['issue'])
     return
 
   logging.info('Issue %d has experimental tryjobs.', pending['issue'])
 
-  exp_buckets = exp_masters.keys
+  exp_buckets = exp_masters.keys()
 
   try:
     req = bucket_obj.search(
