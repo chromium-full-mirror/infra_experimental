@@ -29,6 +29,9 @@ DISCOVERY_URL = (
     '{api}/{apiVersion}/rest')
 BUILDSET_STR = 'patch/rietveld/codereview.chromium.org/%d/1'
 
+# UTC datetime corresponding to zero Unix timestamp.
+EPOCH = datetime.datetime.utcfromtimestamp(0)
+
 def str_to_datetime(text):
 	return datetime.datetime.strptime(text, '%Y-%m-%d')
 
@@ -51,7 +54,7 @@ def validate_pending(pending, patchset, bucket_obj):
   exp_masters = {}
   for result in patchset['try_job_results']:
     if result.get('category', '') == 'cq_experimental':
-      exp_jobs[(result['master'], result['builder'])] = True
+      exp_jobs[(result['master'], result['builder'])] = result['timestamp']
       exp_masters[_prefix_master(result['master'])] = True
 
   if not exp_jobs:
@@ -76,13 +79,17 @@ def validate_pending(pending, patchset, bucket_obj):
     parameters = json.loads(bucket_result['parameters_json'])
     if parameters['properties']['category'] != 'cq_experimental':
       continue
-    buiilder = parameters['builder_name']
+    builder = parameters['builder_name']
     master = parameters['properties']['master']
-    bucket_exp_jobs[(buiilder, master)] = True
+    bucket_exp_jobs[(master, builder)] = (EPOCH +
+        datetime.timedelta(microseconds=int(bucket_result['status_changed_ts'])))
 
   for key in exp_jobs:
     if not key in bucket_exp_jobs:
       logging.error('  %s missed tryjob for %s.', pending['issue'], (key,))
+    else:
+      logging.info('  %s timestamp for %s: Rietveld:%s; Bucket:%s.', pending['issue'], (key,),
+                    exp_jobs[key], bucket_exp_jobs[key])
 
 def parse_args():
   parser = argparse.ArgumentParser(description=sys.modules['__main__'].__doc__)
