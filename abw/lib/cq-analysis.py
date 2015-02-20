@@ -7,15 +7,20 @@ import sys
 
 def main():
   parser = argparse.ArgumentParser()
-  parser.add_argument('issue', type=int, nargs='?', help='rietveld issue')
-  parser.add_argument(
-      'patchset', type=int, nargs='?', help='patchset', default=1)
+  parser.add_argument('--issue', nargs='?', help='or issue:patchset')
+  parser.add_argument('--patchset', nargs='?', help='')
   args = parser.parse_args()
 
+  if args.issue and args.issue.find(':')>0:
+    args.issue, args.patchset = args.issue.split(':')
+
   cq_status = ChromiumCqStatus()
-  # data = cq_status.recent_list(count=3)
-  items = cq_status.recent_items(count=1)
-  #pprint(items[0])
+
+  if args.issue:
+    items = cq_status.get_cq_attempts_for_issue_patchset(args.issue, args.patchset)
+    for item in items: print (item)
+  else:
+    items = cq_status.recent_items(count=10)
 
 if __name__ == '__main__':
   sys.exit(main())

@@ -4,13 +4,18 @@
 
 # Crappy wrapper object around the CQ status endpoint
 
-from CachingGet import CachingGet
 import pprint
+import re
+
+from CachingGet import CachingGet
+from CqAttempt import CqAttempt
 
 class ChromiumCqStatus:
     base_url = 'https://chromium-cq-status.appspot.com/query'
-    caching_get = CachingGet(no_cache=True)
-    pprinter = pprint.PrettyPrinter(depth=3, indent=2)
+    caching_get = CachingGet() #no_cache=True)
+    pp1 = pprint.PrettyPrinter(depth=1, indent=2)
+    pp2 = pprint.PrettyPrinter(depth=2, indent=2)
+    pp3 = pprint.PrettyPrinter(depth=3, indent=2)
 
     def list_url_and_key_(self, project='chromium', count=100):
         url = ("%s/project=%s/action=patch_stop?count=%d" %
@@ -29,12 +34,27 @@ class ChromiumCqStatus:
         return data
 
     def pprint_item(self, item):
-        print ("--{ %s:%s }--" % (item[0]['fields']['issue'],
-                                  item[0]['fields']['patchset']))
+        cq_attempt = CqAttempt(item)
+        print (cq_attempt)
 
-        for frame in sorted(item, key=lambda x: x['fields']['timestamp']):
-            print " %.6f {%-23.23s}" % (frame['fields']['timestamp'],
-                                      frame['fields']['action'])
+    def get_cq_attempts_for_issue_patchset(self,issue,patchset):
+        """Returns list of CqAttempts made for issue:patchset"""
+        url, key = self.item_url_and_key_(issue,patchset)
+        all_frames = self.caching_get.get_json_results(url, key)
+        attempts = []
+        curr_attempt = []
+        for frame in sorted(all_frames,
+                            key=lambda x: x['fields']['timestamp']):
+            action = frame['fields']['action']
+            if (action != 'patch_start' and len(curr_attempt)==0): continue
+            curr_attempt += frame
+            if (action == 'patch_stop'):
+                print "asfafasdfs\n\n"
+                attempts += CqAttempt(frames = curr_attempt,
+                                      attempt_number = len(attempts))
+                curr_attempt = []
+
+        return attempts
 
     def recent_items(self,count=100):
         items = []
