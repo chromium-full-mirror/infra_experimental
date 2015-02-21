@@ -18,7 +18,7 @@ class AsciiHistogram:
 
     def stats(self):
         n = len(self.vals)
-        if (n == 0): return {}
+        if (n == 0): return {'n':0, 'mean':0, 'stddev':0, '90%ile':0}
         # mean = statistics.mean(self.vals)
         # stddev = statistics.stdev(self.vals)
         mean = 0
@@ -80,3 +80,6 @@ class AsciiHistogram:
         return ("%s n=% 5d, mean=% 5d, stddev=% 5d, 90%%ile=% 5d" %
                 (hist, stats['n'], stats['mean'],
                  stats['stddev'], stats['90%ile']))
+
+    def __str__(self):
+        return self.to_string()

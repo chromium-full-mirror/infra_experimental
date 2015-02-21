@@ -23,7 +23,7 @@ class ChromiumCqStatus:
         key = "__list:%d" % (count)
         return (url, key)
 
-    def item_url_and_key_(self,issue,patchset):
+    def patchset_url_and_key_(self,issue,patchset):
         url = "%s/issue=%s/patchset=%s" % (self.base_url, issue, patchset)
         key = "%s:%s" % (issue, patchset)
         return (url, key)
@@ -33,36 +33,41 @@ class ChromiumCqStatus:
         data = self.caching_get.get_json_results(url, key)
         return data
 
-    def pprint_item(self, item):
-        cq_attempt = CqAttempt(item)
-        print (cq_attempt)
-
-    def get_cq_attempts_for_issue_patchset(self,issue,patchset):
-        """Returns list of CqAttempts made for issue:patchset"""
-        url, key = self.item_url_and_key_(issue,patchset)
-        all_frames = self.caching_get.get_json_results(url, key)
+    def frames_into_attempts(self, frames):
         attempts = []
         curr_attempt = []
-        for frame in sorted(all_frames,
-                            key=lambda x: x['fields']['timestamp']):
+        for frame in sorted(frames, key=lambda x: x['fields']['timestamp']):
+            if (not frame['fields'].has_key('action')):
+                # self.pp2.pprint(frame['fields'])
+                continue
             action = frame['fields']['action']
             if (action != 'patch_start' and len(curr_attempt)==0): continue
-            curr_attempt += frame
+            curr_attempt.append(frame)
             if (action == 'patch_stop'):
-                print "asfafasdfs\n\n"
-                attempts += CqAttempt(frames = curr_attempt,
-                                      attempt_number = len(attempts))
+                attempts.append(CqAttempt(frames = curr_attempt,
+                                          attempt_number = len(attempts)))
                 curr_attempt = []
-
         return attempts
 
-    def recent_items(self,count=100):
-        items = []
+    def get_cq_attempts_for_patchset(self,issue,patchset):
+        """Returns list of CqAttempts made for issue:patchset"""
+        url, key = self.patchset_url_and_key_(issue,patchset)
+        return self.frames_into_attempts(
+            self.caching_get.get_json_results(url, key))
+
+    def recent_attempts(self,count=100):
+        attempts = []
         recents = self.recent_list(count=count)
         for result in recents:
-            url, key = self.item_url_and_key_(result['fields']['issue'],
-                                              result['fields']['patchset'])
-            item = self.caching_get.get_json_results(url, key)
-            items.append(item)
-            self.pprint_item(item)
-        return items
+            attempts.extend(self.get_cq_attempts_for_patchset(
+                result['fields']['issue'],
+                result['fields']['patchset']))
+        return attempts
+
+    def process_recent_attempts(self,callback,state,count=100):
+        recents = self.recent_list(count=count)
+        for result in recents:
+            for attempt in self.get_cq_attempts_for_patchset(
+                    result['fields']['issue'],
+                    result['fields']['patchset']):
+                callback(state,attempt)
