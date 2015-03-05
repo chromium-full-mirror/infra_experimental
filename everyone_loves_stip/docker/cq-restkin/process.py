@@ -12,6 +12,7 @@ import hashlib
 from itertools import chain
 from itertools import groupby
 import json
+import simplejson
 import multiprocessing
 import requests
 from requests.adapters import HTTPAdapter
@@ -365,7 +366,11 @@ def get_action(project, action, count, begin, end):
     if cursor:
       query_url += '&cursor=%s' % cursor
 
-    query = requests.get(query_url).json()
+    try:
+      query = requests.get(query_url).json()
+    except simplejson.scanner.JSONDecodeError as e:
+      print 'error querying url %s: %s' % (query_url, e)
+      raise
     items.extend(query['results'])
     cont = query['more']
     cursor = query['cursor']
@@ -385,6 +390,9 @@ def get_events(spec):
       spec[3], 'patch_start', spec[2], spec[0], spec[1]))
   events.extend(get_action(
       spec[3], 'patch_stop', spec[2], spec[0], spec[1]))
+  for include in spec[5]:
+    events.extend(get_action(
+      spec[3], include, spec[2], spec[0], spec[1]))
   if spec[4]:
     events.extend(get_action(
       spec[3], spec[4], spec[2], spec[0], spec[1]))
@@ -442,6 +450,8 @@ def main():
                       help='project to get data for')
   parser.add_argument('--action',
                       help='which action to time')
+  parser.add_argument('--includes',
+                      help='comma-sep list of actions to require')
   parser.add_argument('--inverse',
                       action='store_true',
                       help='time this action to stop, instead of this to start')
@@ -449,6 +459,10 @@ def main():
                       default='real_results.json',
                       help='where to output')
   args = parser.parse_args()
+
+  includes = []
+  if args.includes:
+    includes = args.includes.split(',')
 
   spans = []
   if args.issue:
@@ -463,7 +477,8 @@ def main():
       int(days_past(querynow, i)),
       args.count,
       args.project,
-      args.action] for i in range(args.days)]
+      args.action,
+      includes] for i in range(args.days)]
     with MultiPool(args.processes) as pool:
       events.extend(chain.from_iterable(
         pool.map_async(get_events, event_specs).get(9999999)))
@@ -480,6 +495,10 @@ def main():
         sorted_patchset = sorted(group, key=lambda x: x['timestamp'])
         for chunk in chunk_attempts(sorted_patchset):
           chunk = list(chunk)
+          chunk_actions = [x['fields']['action'] for x in chunk]
+          for include in includes:
+            if include not in chunk_actions:
+              continue
           termination_action = 'patch_stop'
           if args.action:
             termination_action = args.action
