@@ -19,7 +19,7 @@ masters = [
   # 'tryserver.chromium.win'
 ]
 
-url_template = 'https://chrome-infra-stats.appspot.com/_ah/api/stats/v1/steps/%s/overall__build__result__/%s'
+url_template = 'https://chrome-infra-stats.appspot.com/_ah/api/stats/v1/steps/%s/build__schedule__time__/%s'
 
 current_hour = datetime.utcnow().replace(
   minute=0, second=0, microsecond=0)
@@ -46,9 +46,17 @@ for chunk in url_chunks:
       r.json().get('step_records', [])
       for r in grequests.map(rs, size=10))))
 
+def datestring_to_ts(datestring):
+  # In case the string doesn't have fractional seconds.
+  try:
+    return datetime.strptime(
+      datestring, '%Y-%m-%dT%H:%M:%S.%f')
+  except ValueError:
+    return datetime.strptime(
+      datestring, '%Y-%m-%dT%H:%M:%S')
+
 cooked_results = list(sorted(({
-  'step_start': (datetime.strptime(
-    r['step_start'], '%Y-%m-%dT%H:%M:%S.%f') -
+  'step_start': (datestring_to_ts(r['step_start']) -
     datetime.utcfromtimestamp(0)).total_seconds(),
   'step_time': r['step_time'],
   'infra_failure': r['result'] == infra_error,
@@ -103,11 +111,14 @@ print 'max:', max(y)
 print 'failure_rate:', len(
   [r for r in cooked_results if r['infra_failure']]) / float(
   len(cooked_results))
-sns.distplot(y, ax=ax3)
+#sns.distplot(y, ax=ax3, kde=False)
+sns.distplot(y, ax=ax3, hist=False)
+#ax3.hist(y)
 ax3.axvline(numpy.percentile(y, 90))
 ax3.axvline(numpy.percentile(y, 99))
 ax3.set_title('overall pending time distribution')
 ax3.set_xlabel('seconds (90th and 99th percentile marked)')
+ax3.set_xlim(left=0, right=max(y))
 plt.tight_layout()
 plt.show()
 
