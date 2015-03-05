@@ -61,11 +61,14 @@ cooked_results = list(sorted(({
   'step_time': r['step_time'],
   'infra_failure': r['result'] == infra_error,
   'master': r['master'],
-} for r in results if r['step_time'] < 500000), key=lambda x: x['step_start']))
+} for r in results), key=lambda x: x['step_start']))
 
 def lock_to_time(ts, span):
   current_ts = (current_hour - datetime.utcfromtimestamp(0)).total_seconds()
   return current_ts - span * (1.0 + int((current_ts - ts) / span))
+
+def calc_failure_rate(data):
+  return len([r for r in data if r['infra_failure']]) / float(len(data))
 
 span = 3600
 cool_results = []
@@ -75,7 +78,7 @@ for k, g in itertools.groupby(
 
   g = list(g)
   times = [r['step_time'] for r in g]
-  failure_rate = len([r for r in g if r['infra_failure']]) / float(len(g))
+  failure_rate = calc_failure_rate(g)
   cool_results.append({
     'center': k + (span / 2),
     'p50': numpy.percentile(times, 50),
@@ -86,6 +89,9 @@ for k, g in itertools.groupby(
     'infra_failure_rate': failure_rate,
   })
 
+mdytime_formatter = mdates.DateFormatter('%Y-%m-%d %H:%M')
+mdy_formatter = mdates.DateFormatter('%Y-%m-%d')
+days = mdates.DayLocator()
 
 #ts = [r['step_start'] for r in cooked_results]
 #length = [r['step_time'] for r in cooked_results]
@@ -98,19 +104,23 @@ ax1.set_title('hourly 99th percentile pending time')
 ax1.set_xlabel('date (utc)')
 ax1.set_ylabel('seconds')
 ax1.set_xlim(left=min(x) - timedelta(hours=6), right=max(x) + timedelta(hours=6))
+ax1.fmt_xdata = mdytime_formatter
+ax1.xaxis.set_major_locator(days)
+ax1.xaxis.set_major_formatter(mdy_formatter)
 y = [r['infra_failure_rate'] * 100.0 for r in cool_results]
 ax2.scatter(x, y)
 ax2.set_title('hourly infrastructure failure rate')
 ax2.set_xlabel('date (utc)')
 ax2.set_ylabel('failure percentage')
 ax2.set_xlim(left=min(x) - timedelta(hours=6), right=max(x) + timedelta(hours=6))
+ax2.fmt_xdata = mdytime_formatter
+ax2.xaxis.set_major_locator(days)
+ax2.xaxis.set_major_formatter(mdy_formatter)
 y = [r['step_time'] for r in cooked_results]
 print '90:', numpy.percentile(y, 90)
 print '99:', numpy.percentile(y, 99)
 print 'max:', max(y)
-print 'failure_rate:', len(
-  [r for r in cooked_results if r['infra_failure']]) / float(
-  len(cooked_results))
+print 'failure_rate:', calc_failure_rate(cooked_results)
 #sns.distplot(y, ax=ax3, kde=False)
 sns.distplot(y, ax=ax3, hist=False)
 #ax3.hist(y)
