@@ -7,11 +7,13 @@ import itertools
 import json
 import matplotlib.pyplot as plt
 import numpy
+import requests
 import grequests
 import itertools
 import os
 import seaborn as sns
 import sys
+import simplejson
 
 # Shamelessly stolen from http://goo.gl/JJmg4m.
 def get_issue_latency(issue, reviewer):
@@ -113,20 +115,25 @@ def convert_request_to_url(req):
   return url
 
 
-def get_latencies(server, usernames, start_year=2008):
+def get_latencies(server, usernames, start_year=2008, concurrent=50):
   latencies = []
   request_queue = seed_request_queue(server, usernames, start_year)
+  session = requests.Session()
   wave_num = 0
   while request_queue:
     print 'request wave %d, %d requests in flight' % (
         wave_num, len(request_queue))
     urls = [convert_request_to_url(r) for r in request_queue]
-    rs = [grequests.get(url) for url in urls]
-    results = grequests.map(rs)
+    rs = [grequests.get(url, session=session) for url in urls]
+    results = grequests.map(rs, size=concurrent)
     old_request_queue = request_queue
     request_queue = []
     for req, res in zip(old_request_queue, results):
-      res_json = res.json()
+      try:
+        res_json = res.json()
+      except simplejson.scanner.JSONDecodeError as e:
+        print 'error decoding %s: %s' % (res.url, e)
+        print res.text
       for issue in res_json['results']:
         latency = get_issue_latency(issue, req.user)
         if latency:
@@ -297,6 +304,15 @@ def main():
   ticks = numpy.arange(0, stop + 24, 24)
   axes.set_yticks(ticks)
   plt.legend(loc='upper right', frameon=True)
+
+  usernames = args.usernames
+  if len(usernames) > 3:
+    usernames = usernames[0:3]
+    usernames.append('...')
+
+  plt.title('%s latencies for %s (http://goo.gl/IA8eO0)' % (
+    args.server,
+    ','.join(usernames)))
 
   plt.show()
   return 0
