@@ -7,10 +7,8 @@ import itertools
 import json
 import matplotlib.pyplot as plt
 import numpy
-import requests
 import grequests
 import itertools
-import simplejson
 import os
 import seaborn as sns
 import sys
@@ -33,7 +31,8 @@ def get_issue_latency(issue, reviewer):
       return None
     received |= reviewer in msg['recipients']
     if first_msg_from_owner and msg['sender'] == reviewer:
-      delta = dateutil.parser.parse(msg['date']) - dateutil.parser.parse(first_msg_from_owner['date'])
+      delta = dateutil.parser.parse(
+          msg['date']) - dateutil.parser.parse(first_msg_from_owner['date'])
       latency = delta.seconds + delta.days * 24 * 3600
       break
   return latency
