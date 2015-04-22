@@ -7,12 +7,11 @@ PROJECT="chrome-infra-loadtest"
 # Use a non-US zone to save the US quota.
 REGION="asia-east1"
 ZONE_ASIA="asia-east1-b"
-ZONE_US="us-central2-a"
+ZONE_US="us-central1-f"
 ZONE_EU="europe-west1-d"
-# LOADTEST_INSTANCES_ASIA=20
-# LOADTEST_INSTANCES_US=20
-# LOADTEST_INSTANCES_EU=10
-LOADTEST_INSTANCES_EU=1
+LOADTEST_INSTANCES_ASIA=15
+LOADTEST_INSTANCES_US=20
+LOADTEST_INSTANCES_EU=20
 
 function delete_instance {
     # delete_instance zone instance-name
@@ -50,29 +49,51 @@ function create_instance_eu {
     create_instance "$ZONE_EU" "loadtest-eu$1"
 }
 
+function down {
 # Destroy load test instances. Make sure you've listed them all.
-if false; then
-    for i in $(seq 1 $LOADTEST_INSTANCES_ASIA); do
-	delete_instance_asia "$i"
-    done
-    for i in $(seq 1 $LOADTEST_INSTANCES_US); do
-	delete_instance_us "$i"
-    done
-    for i in $(seq 1 $LOADTEST_INSTANCES_EU); do
-	delete_instance_eu "$i"
-    done
-fi
+    if [[ $LOADTEST_INSTANCES_ASIA != 0 ]]; then
+	for i in $(seq 1 $LOADTEST_INSTANCES_ASIA); do
+	    delete_instance_asia "$i"
+	done
+    fi
+    if [[ $LOADTEST_INSTANCES_US != 0 ]]; then
+	for i in $(seq 1 $LOADTEST_INSTANCES_US); do
+	    delete_instance_us "$i"
+	done
+    fi
+    if [[ $LOADTEST_INSTANCES_EU != 0 ]]; then
+	for i in $(seq 1 $LOADTEST_INSTANCES_EU); do
+	    delete_instance_eu "$i"
+	done
+    fi
+}
 
 # Spin up load test instances. Add as many as you need.
-if false; then
-    for i in $(seq 1 $LOADTEST_INSTANCES_ASIA); do
-	create_instance_asia "$i"
-    done
-    for i in $(seq 1 $LOADTEST_INSTANCES_US); do
-	create_instance_us "$i"
-    done
-    for i in $(seq 1 $LOADTEST_INSTANCES_EU); do
-	create_instance_eu "$i"
-    done
-fi
+function up {
+    if [[ $LOADTEST_INSTANCES_ASIA != 0 ]]; then
+	for i in $(seq 1 $LOADTEST_INSTANCES_ASIA); do
+	    create_instance_asia "$i"
+	done
+    fi
+    if [[ $LOADTEST_INSTANCES_US != 0 ]]; then
+	for i in $(seq 1 $LOADTEST_INSTANCES_US); do
+	    create_instance_us "$i"
+	done
+    fi
+    if [[ $LOADTEST_INSTANCES_EU != 0 ]]; then
+	for i in $(seq 1 $LOADTEST_INSTANCES_EU); do
+	    create_instance_eu "$i"
+	done
+    fi
+}
 
+case $1 in
+    up)
+	up
+	;;
+    down)
+	down
+	;;
+    *)
+	echo "Unknown command: $1. Use up or down."
+esac
