@@ -1,0 +1,6 @@
+version: v1beta2
+containers:
+  - name: loadtest-base-image
+    image: gcr.io/chrome_infra_mon_proxy/base_python27_df11be121945
+  - name: loadtest-image
+    image: gcr.io/chrome_infra_mon_proxy/loadtest_08bb1f6c6e43

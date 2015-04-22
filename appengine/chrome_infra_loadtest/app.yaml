@@ -1,0 +1,37 @@
+application: chrome-infra-loadtest
+runtime: python27
+api_version: 1
+module: default
+threadsafe: true
+
+handlers:
+- url: /admin/.*
+  secure: always
+  login: admin
+  script: main.app
+- url: /css
+  static_dir: css
+  secure: always
+- url: /.*
+  secure: always
+  script: main.app
+
+automatic_scaling:
+  min_idle_instances: 2
+  min_pending_latency: 50ms
+  max_pending_latency: 250ms
+
+libraries:
+- name: endpoints
+  version: 1.0
+- name: jinja2
+  version: latest
+- name: pycrypto
+  version: "2.6"
+- name: webapp2
+  version: "2.5.2"
+- name: webob
+  version: "1.2.3"
+
+includes:
+- components/auth

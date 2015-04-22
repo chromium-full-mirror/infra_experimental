@@ -1,0 +1,28 @@
+# Dockerfile extending the generic ubuntu image with load test code.
+
+### To upgrade the image, run:
+#   cd <directory of this Dockerfile_base>
+#   docker build - < Dockerfile_base    # Note the resulting image-hash.
+#   docker tag <image-hash> \
+#       gcr.io/chrome_infra_loadtest/base_loadtest_<image-hash>
+#   gcloud --project chrome-infra-loadtest preview docker push <new image tag>
+
+### To make the image available locally:
+# gcloud --project chrome-infra-loadtest preview docker pull <image tag>
+
+FROM ubuntu
+
+# Install dev tools to compile C-accelerated python modules.
+RUN apt-get -y update
+RUN apt-get -y upgrade
+RUN apt-get -y install build-essential
+RUN apt-get -y install python-dev
+RUN apt-get -y install python-pip
+
+RUN pip install --upgrade setuptools
+
+# Required by oauth2client.client.SignedJwtAssertionCredentials.
+RUN pip install --upgrade pycrypto
+
+RUN pip install --upgrade oauth2client
+RUN pip install --upgrade google-api-python-client
