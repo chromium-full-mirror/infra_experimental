@@ -202,8 +202,25 @@ class AdminDispatch(BaseHandler):
     commands[command](self).post()
 
 
-class TestHandler(auth.AuthenticatingHandler):
-  """A /dev/null endpoint to test the entire pipeline.
+class TestHandler(webapp2.RequestHandler):
+  """An open /dev/null endpoint to test the entire pipeline.
+
+  This endpoint can be used in place of the MonAcq official endpoint
+  for testing the proxy.
+  """
+  def get(self):
+    msg = 'Received GET request.'
+    self.response.headers['Content-Type'] = 'text/plain'
+    self.response.out.write(msg)
+    logging.debug('Received GET at /test')
+
+  def post(self):
+    logging.info('Received POST /test: %s',
+                  payload_stats(self.request.body))
+
+
+class TestAuthHandler(auth.AuthenticatingHandler):
+  """An authenticated /dev/null endpoint to test the entire pipeline.
 
   This endpoint can be used in place of the MonAcq official endpoint
   for testing the proxy.
@@ -216,11 +233,11 @@ class TestHandler(auth.AuthenticatingHandler):
     msg = 'Received GET request.'
     self.response.headers['Content-Type'] = 'text/plain'
     self.response.out.write(msg)
-    logging.debug('Received GET at /test')
+    logging.debug('Received GET at /test-auth')
 
   @require_group_membership('service-account-monitoring-proxy-test')
   def post(self):
-    logging.info('Received POST /test: %s',
+    logging.info('Received POST /test-auth: %s',
                   payload_stats(self.request.body))
 
 
@@ -232,20 +249,6 @@ class LoadTestHandler(webapp2.RequestHandler):
   """
   def get(self):
     data = LoadTestData.get_or_insert(CONFIG_DATA_KEY)
-    # if qps: # Only admins can set a qps value.
-    #   if not users.is_current_user_admin():
-    #     self.redirect(users.create_login_url(self.request.url))
-    #     return
-    #   qps = int(qps)
-    #   if qps < 0:
-    #     self.response.write('Error: cannot set QPS to negative value.')
-    #     return
-    #   data.qps = qps
-    #   payload_size = self.request.get('size')
-    #   if payload_size:
-    #     data.payload_size = int(payload_size)
-    #   data.put()
-    # # Return JSON either way.
     result_json = {
         'qps': data.qps,
         'payload_size': data.payload_size,
@@ -264,6 +267,7 @@ test_handlers = [
     (r'/', MainHandler),
     (r'/admin/(.*)', AdminDispatch),
     (r'/test', TestHandler),
+    (r'/test-auth', TestAuthHandler),
     (r'/loadtest.*', LoadTestHandler),
 ]
 
