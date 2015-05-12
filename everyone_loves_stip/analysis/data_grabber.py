@@ -14,9 +14,9 @@ import grequests
 sns.set(style="darkgrid", palette="Set2")
 
 masters = [
-  # 'tryserver.chromium.linux',
+  'tryserver.chromium.linux',
   'tryserver.chromium.mac',
-  # 'tryserver.chromium.win'
+  'tryserver.chromium.win'
 ]
 
 url_template = 'https://chrome-infra-stats.appspot.com/_ah/api/stats/v1/steps/%s/build__schedule__time__/%s'
