@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Testing Namespaces</h1>
+
+
+<p>This app is a test lab for evaluating Datastore namespaces as a
+secure separation of internal and external data. The idea is to see
+how easy it is to keep the internal data secure, and if it is easy to
+make programmatic mistakes resulting in data leaks (hint: it should be
+hard, and not possible with the obvious default behavior).
+
+<p>For the purposes of this app:
+<ul>
+<li>Only users at *@google.com can access and modify internal data,
+<li> any authenticated user can modify public data,
+<li> anyone can read public data.
+</ul>
+
+<ul>
+  <li><a href="/internal/">Internal data</a>
+  <li><a href="/public/">Public data</a>
+</ul>
+
+{% endblock %}

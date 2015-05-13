@@ -212,11 +212,15 @@ class TestHandler(webapp2.RequestHandler):
     msg = 'Received GET request.'
     self.response.headers['Content-Type'] = 'text/plain'
     self.response.out.write(msg)
-    logging.debug('Received GET at /test')
+    logging.info('Received GET at /test')
+    logging.debug('Headers:\n%s', '\n'.join(
+        '  %s: %s' % (k, v) for k, v in self.request.headers.items()))
 
   def post(self):
     logging.info('Received POST /test: %s',
                   payload_stats(self.request.body))
+    logging.debug('Headers:\n%s', '\n'.join(
+        '  %s: %s' % (k, v) for k, v in self.request.headers.items()))
 
 
 class TestAuthHandler(auth.AuthenticatingHandler):

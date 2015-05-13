@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Testing Namespaces: Internal Data</h1>
+
+<h2>Internal data entries</h2>
+{% for entry in data %}
+<div class="entry">{{ entry.text }}</div>
+{% endfor %}
+
+{% endblock %}
