@@ -17,7 +17,7 @@ class CqAttempt:
     pp2 = pprint.PrettyPrinter(depth=2, indent=2)
     pp3 = pprint.PrettyPrinter(depth=3, indent=2)
 
-    is_typical = False
+    is_typical = True
     not_typical_reason = ''
     is_happy = False
     not_happy_reason = ''
@@ -27,8 +27,10 @@ class CqAttempt:
         self.frames_ = sorted(frames, # Should already be sorted, but hey
                               key=lambda x: x['fields']['timestamp'])
         self.extract_times_()
-        if (not self.not_typical_reason):
-            self.is_typical, self.not_typical_reason = self.decide_is_typical_()
+        (istypical, reason) = self.decide_is_typical_()
+        if (istypical == False):
+            self.is_typical = False
+            self.not_typical_reason = reason
         self.is_happy, self.not_happy_reason = self.decide_is_happy_()
 
     def id(self):
@@ -40,7 +42,11 @@ class CqAttempt:
 
     def duration(self,start='patch_start', end='patch_stop'):
         """Integer seconds between two actions. (first instance of each)"""
-        return (self.action_times[end][0] - self.action_times[start][0]).seconds
+        return (self.action_times[end][0] -
+                self.action_times[start][0]).total_seconds()
+
+    def start_datetime(self):
+        return self.action_times['patch_start'][0]
 
     def parsetimefloat(self, cq_time_float):
         # These are epochs with fractional micros (do the micros survive ?)
@@ -62,6 +68,8 @@ class CqAttempt:
             if (not f.has_key('jobs')): continue
             for group in f['jobs']:
                 for job in f['jobs'][group]:
+                    # What if 'job' is a string, not a dict ?
+                    # if (not job.has_key('timestamp')): continue
                     tstamp = self.parsetimestr(job['timestamp'])
                     if (group == 'JOB_RUNNING'):
                         j[job['builder']]['start'] = tstamp
@@ -88,11 +96,13 @@ class CqAttempt:
                                key=lambda x: self.job_times[x]['duration']))
 
     def decide_is_typical_(self):
-        # We must have (precisely one) frame for each of these actions
+        # We must have a frame for each of these actions
         for action in ('patch_start', 'verifier_start', 'verifier_pass',
                        'patch_ready_to_commit', 'patch_committed'):
             if (not self.action_times.has_key(action)):
                 return (False, "no_%s" % (action))
+        # May not have multiple instances of these actions
+        for action in ('verifier_start', 'verifier_pass', 'patch_committed'):
             if (len(self.action_times[action])>1):
                 return (False, "multiple_%s" % (action))
         # We must not have frames with any of these actions
@@ -148,7 +158,7 @@ class CqAttempt:
         for frame in self.frames_:
             f = frame['fields']
             tstamp = self.parsetimefloat(f['timestamp'])
-            t_offset = (tstamp - start_t).seconds
+            t_offset = (tstamp - start_t).total_seconds()
             mystr += " %s +% 5ds {%-23.23s}" % (tstamp, t_offset, f['action'])
             if 'jobs' in f:
                 counts = {}
