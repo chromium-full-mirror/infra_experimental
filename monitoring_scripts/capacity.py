@@ -98,6 +98,8 @@ def get_args():
   parser.add_argument('--print-build-times', action='store_true',
                       help='Print cycle times for individual builds '
                       '(usually a very long list!).')
+  parser.add_argument('--print-build-times-hourly', action='store_true',
+                      help='Print average build cycle times by hour.')
   parser.add_argument('--print_daily', action='store_true',
                       help='Print pool estimates by day.')
   parser.add_argument('--clear', action='store_true',
@@ -235,6 +237,31 @@ def fetch_builds(session, points_by_day, from_date, to_date, master, builder):
     points_by_day[day]['builder'] = builder
 
   return points_by_day
+
+
+def print_build_times_hourly(points_by_day):
+  print '\t'.join(['builder', '#builds', 'start time', 'mean cycle time'])
+  # Deduplicate builds by build number.
+  builds = {}
+  builder = None
+  for day in sorted(points_by_day.keys()):
+    builder = points_by_day[day]['builder']  # Assume the same for all days.
+    for build in points_by_day[day].get('builds', []):
+      builds[str(build['number'])] = build
+  hourly_buckets = {}  # 'yyyy-mm-dd hh' -> builds.
+  for build in builds.itervalues():
+    build_start = datetime.datetime.fromtimestamp(build['times'][0])
+    build_duration_s = build['times'][1] - build['times'][0]
+    hour = build_start.strftime('%Y-%m-%d %H')
+    hourly_buckets.setdefault(hour, []).append(build)
+  for hour in sorted(hourly_buckets.keys()):
+    mean = 0.0
+    for build in hourly_buckets[hour]:
+      mean += build['times'][1] - build['times'][0]
+    num_builds = len(hourly_buckets[hour])
+    if num_builds:
+      mean = round(mean / num_builds, 1)
+    print '\t'.join([builder, str(num_builds), hour, str(mean)])
 
 
 def print_individual_build_runtimes(points_by_day):
@@ -428,6 +455,10 @@ def main():
         print_estimates(args, merged_daily_estimates[day])
 
   print_estimates(args, merged_estimates)
+
+  if args.print_build_times_hourly:
+    for builder in points_by_day:
+      print_build_times_hourly(points_by_day[builder])
 
   if args.print_build_times:
     for builder in points_by_day:
