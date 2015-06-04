@@ -6,10 +6,12 @@ import hashlib
 import json
 import logging
 import os
+import random
 import sys
 import webapp2
 
 from google.appengine.ext import ndb
+from google.appengine.api import taskqueue
 from google.appengine.api import users
 from webapp2_extras import jinja2
 
@@ -268,13 +270,36 @@ class MainHandler(BaseHandler):
 class CronHandler(webapp2.RequestHandler):
   """Execute minutely cron job: send 60 tasks, one per second."""
   def get(self):
+    for _ in xrange(60):
+      taskqueue.add(url='/task', queue_name='qps')
     logging.info('Cron task executed.')
     pass
 
 
 class TaskHandler(webapp2.RequestHandler):
   """Execute task job: send #qps requests. Intended to run every second."""
-  def get(self):
+  def post(self):
+    data = LoadTestData.get_by_id(CONFIG_DATA_KEY)
+    payload = ''.join(
+        chr(random.randint(0, 255)) for i in xrange(data.payload_size))
+    payload = 'blahblah'
+    headers = data.headers
+    headers.update({
+        'Content-Type': 'application/x-protobuf',
+        'content-length': str(data.payload_size),
+    })
+    service_account_key = auth.ServiceAccountKey(
+        client_email=data.credentials['client_email'],
+        private_key=data.credentials['private_key'],
+        private_key_id=data.credentials['private_key_id'])
+    for _ in xrange(data.qps):
+      response = net.request(
+          url=data.url,
+          method='POST',
+          payload=payload,
+          headers=data.headers,
+          scopes=data.scopes,
+          service_account_key=service_account_key)
     logging.info('Task queue task executed.')
     pass
 
