@@ -1,0 +1,5 @@
+dispatch:
+- url: "*.appspot.com/cron*"
+  module: backend
+- url: "*.appspot.com/task*"
+  module: backend

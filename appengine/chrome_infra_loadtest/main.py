@@ -282,7 +282,6 @@ class TaskHandler(webapp2.RequestHandler):
     data = LoadTestData.get_by_id(CONFIG_DATA_KEY)
     payload = ''.join(
         chr(random.randint(0, 255)) for i in xrange(data.payload_size))
-    payload = 'blahblah'
     headers = data.headers
     headers.update({
         'Content-Type': 'application/x-protobuf',
@@ -305,14 +304,18 @@ class TaskHandler(webapp2.RequestHandler):
 
 logging.basicConfig(level=logging.DEBUG)
 
-test_handlers = [
+default_handlers = [
     (r'/', MainHandler),
     (r'/admin/(.*)', AdminDispatch),
     (r'/test', TestHandler),
     (r'/test-auth', TestAuthHandler),
     (r'/loadtest.*', LoadTestHandler),
+]
+
+backend_handlers = [
     (r'/cron', CronHandler),
     (r'/task', TaskHandler),
 ]
 
-app = webapp2.WSGIApplication(test_handlers, debug=True)
+app = webapp2.WSGIApplication(default_handlers, debug=True)
+app_backend = webapp2.WSGIApplication(backend_handlers, debug=True)
