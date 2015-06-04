@@ -286,7 +286,6 @@ class TaskHandler(webapp2.RequestHandler):
     headers = data.headers
     headers.update({
         'Content-Type': 'application/x-protobuf',
-        'content-length': str(data.payload_size),
     })
     service_account_key = auth.ServiceAccountKey(
         client_email=data.credentials['client_email'],
