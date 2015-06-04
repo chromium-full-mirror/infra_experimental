@@ -17,6 +17,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(BASE_DIR, 'components', 'third_party'))
 
 from components import auth
+from components import net
 
 
 CONFIG_DATA_KEY = 'config_data_key'
@@ -47,7 +48,6 @@ class LoadTestData(ndb.Model):
   url = ndb.StringProperty()
   qps = ndb.IntegerProperty(default=0)
   payload_size = ndb.IntegerProperty(default=1024)
-#  instances = ndb.IntegerProperty(default=1)
   credentials = ndb.JsonProperty()
   scopes = ndb.StringProperty(repeated=True)
   headers = ndb.JsonProperty(default={})
@@ -265,6 +265,20 @@ class MainHandler(BaseHandler):
     self.render_response('main.html', title='Chrome Infra Loadtest')
 
 
+class CronHandler(webapp2.RequestHandler):
+  """Execute minutely cron job: send 60 tasks, one per second."""
+  def get(self):
+    logging.info('Cron task executed.')
+    pass
+
+
+class TaskHandler(webapp2.RequestHandler):
+  """Execute task job: send #qps requests. Intended to run every second."""
+  def get(self):
+    logging.info('Task queue task executed.')
+    pass
+
+
 logging.basicConfig(level=logging.DEBUG)
 
 test_handlers = [
@@ -273,6 +287,8 @@ test_handlers = [
     (r'/test', TestHandler),
     (r'/test-auth', TestAuthHandler),
     (r'/loadtest.*', LoadTestHandler),
+    (r'/cron', CronHandler),
+    (r'/task', TaskHandler),
 ]
 
 app = webapp2.WSGIApplication(test_handlers, debug=True)
