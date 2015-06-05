@@ -4,8 +4,8 @@ queue:
 # Intent: each task spawns |qps| number of requests.
 - name: qps
   target: default
-  rate: 1/s
-  bucket_size: 10
+  rate: 2/s
+  bucket_size: 5
   max_concurrent_requests: 500
   # Disable retries.
   retry_parameters:
