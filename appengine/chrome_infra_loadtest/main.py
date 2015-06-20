@@ -302,7 +302,9 @@ class TaskHandler(webapp2.RequestHandler):
       num_requests = math.floor(qps_10)
     else:
       num_requests = math.ceil(qps_10)
-    for _ in xrange(data.qps):
+    logging.debug('This task will send %s requests.', num_requests)
+    for request_num in xrange(num_requests):
+      logging.debug('Sending request #%s', request_num)
       response = net.request(
           url=data.url,
           method='POST',

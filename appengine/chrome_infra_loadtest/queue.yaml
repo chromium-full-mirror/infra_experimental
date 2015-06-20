@@ -5,7 +5,7 @@ queue:
 - name: qps
   target: default
   rate: 15/s
-  bucket_size: 5
+  bucket_size: 50
   max_concurrent_requests: 500
   # Disable retries.
   retry_parameters:
