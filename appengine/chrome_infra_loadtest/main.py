@@ -299,9 +299,9 @@ class TaskHandler(webapp2.RequestHandler):
     # Randomized fractional QPS.
     qps_10 = data.qps / 10.0
     if random.uniform(math.floor(qps_10), math.ceil(qps_10)) < qps_10:
-      num_requests = math.floor(qps_10)
+      num_requests = int(math.floor(qps_10))
     else:
-      num_requests = math.ceil(qps_10)
+      num_requests = int(math.ceil(qps_10))
     logging.debug('This task will send %s requests.', num_requests)
     for request_num in xrange(num_requests):
       logging.debug('Sending request #%s', request_num)
