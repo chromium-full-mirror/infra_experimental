@@ -5,6 +5,7 @@
 import hashlib
 import json
 import logging
+import math
 import os
 import random
 import sys
@@ -272,16 +273,17 @@ class MainHandler(BaseHandler):
 
 
 class CronHandler(webapp2.RequestHandler):
-  """Execute minutely cron job: send 60 tasks, one per second."""
+  """Execute minutely cron job: send 600 tasks, one per 1/10 second."""
   def get(self):
-    for _ in xrange(60):
+    data = LoadTestData.get_by_id(CONFIG_DATA_KEY)
+    for _ in xrange(600 if data.qps else 0):
       taskqueue.add(url='/task', queue_name='qps')
     logging.info('Cron task executed.')
     pass
 
 
 class TaskHandler(webapp2.RequestHandler):
-  """Execute task job: send #qps requests. Intended to run every second."""
+  """Execute task job: send #qps/10 requests. Intended to run 10x / second."""
   def post(self):
     data = LoadTestData.get_by_id(CONFIG_DATA_KEY)
     payload = ''.join(
@@ -294,6 +296,12 @@ class TaskHandler(webapp2.RequestHandler):
         client_email=data.credentials['client_email'],
         private_key=data.credentials['private_key'],
         private_key_id=data.credentials['private_key_id'])
+    # Randomized fractional QPS.
+    qps_10 = data.qps / 10.0
+    if random.uniform(math.floor(qps_10), math.ceil(qps_10)) < qps_10:
+      num_requests = math.floor(qps_10)
+    else:
+      num_requests = math.ceil(qps_10)
     for _ in xrange(data.qps):
       response = net.request(
           url=data.url,
