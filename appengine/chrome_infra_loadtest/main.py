@@ -303,15 +303,20 @@ class TaskHandler(webapp2.RequestHandler):
     else:
       num_requests = int(math.ceil(qps_10))
     logging.debug('This task will send %s requests.', num_requests)
+    futures = []
     for request_num in xrange(num_requests):
       logging.debug('Sending request #%s', request_num)
-      response = net.request(
+      futures.append(net.request_async(
           url=data.url,
           method='POST',
           payload=payload,
           headers=data.headers,
           scopes=data.scopes,
-          service_account_key=service_account_key)
+          service_account_key=service_account_key))
+    for n, future in enumerate(futures):
+      logging.debug('Waiting for request #%s', n)
+      future.get_result()
+      logging.debug('Request #%s completed', n)
     logging.info('Task queue task executed.')
     pass
 
