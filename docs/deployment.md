@@ -19,10 +19,10 @@ Buildbot waterfall. These services all have the same basic form:
 
 This strategy has a few ramifications for deployment:
 
-*  Deployment is via a source checkout
-*  The source checkout is updated to the latest version every 10
+* Deployment is via a source checkout
+* The source checkout is updated to the latest version every 10
     minutes
-*  Other data (such as credentials) must use a different deployment
+* Other data (such as credentials) must use a different deployment
     system
 
 In order to combat tip-of-tree breakages, these services do not run from

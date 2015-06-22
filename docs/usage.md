@@ -5,12 +5,12 @@ See [installation](installation.md) for more details.
 
 ## Top-level commands
 
-*  Launching `test.py test` runs all tests in the infra repository in
+* Launching `test.py test` runs all tests in the infra repository in
     parallel, including those in appengine applications. See
     [testing](testing.md) for details.
-*  `run.py` is used to run a command located inside the infra package.
+* `run.py` is used to run a command located inside the infra package.
     See next section for details.
-*  Regenerating this documentation from source is achieved with
+* Regenerating this documentation from source is achieved with
     `docgen.py`. (see [documenting](documenting.md) for more details)
 
 ## Invoking tools
@@ -19,10 +19,10 @@ Mixing modules and scripts in the same hierarchy can sometimes be a pain
 in Python, because it usually requires updating the Python path. The
 goal for infra.git is to be able to check out the repository and be able
 to run code right away, without setting up anything. The adopted
-solution is to use \_\_main\_\_.py files everywhere.
+solution is to use __main__.py files everywhere.
 
 Example: `python -m infra.services.lkgr_finder` will run the
-lkgr\_finder script.
+lkgr_finder script.
 
 To make things easier, a convenience script is located at root level.
 This will do the same thing: `run.py infra.services.lkgr_finder`. It

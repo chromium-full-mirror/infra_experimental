@@ -19,7 +19,7 @@ Just run:
 
 ### Adding a new dep
 
-Say we want to add a stock my\_pkg python package at version 1.2.3:
+Say we want to add a stock my_pkg python package at version 1.2.3:
 
 If it comes from a tarball:
 
@@ -64,7 +64,7 @@ to implement:
 
     def Build(source_path, wheelhouse_path)
 
-See custom builds\_ below for more detail.
+See custom builds_ below for more detail.
 
 ## `bootstrap.py` (a.k.a. "I just want a working infra repo!")
 
@@ -77,7 +77,7 @@ contained in `bootstrap/deps.pyl`. You must be online, or must already
 have the wheels for your system cached in `{repo_root}/.wheelcache`.
 
 If you already have an `ENV`, `bootstrap.py` will check the manifest in
-`ENV` to see if it matches deps.pyl\_ (i.e. the diff is zero). If it's
+`ENV` to see if it matches deps.pyl_ (i.e. the diff is zero). If it's
 not, then `ENV` will be re-created *from scratch*.
 
 `{repo_root}/run.py` will automatically use the environment `ENV`. It is
@@ -99,22 +99,22 @@ Note that the `package_name` key is the pip-reported name (the one set
 in `setup.py`). It may be different from the name used for import, and
 for the wheel.
 
-Values are:  
-*  version: The pip version of the module
-*  build: An integer representing which build of this version/hash. If you  
-    modify the \_way\_ that a requirement is built, but not the source
+Values are:
+* version: The pip version of the module
+* build: An integer representing which build of this version/hash. If you
+    modify the _way_ that a requirement is built, but not the source
     hash, you can bump the build number to get a new pinned dependency.
 
-And either:  
-*  `rev`: The revision or sha1 of the source for this module. The repo
+And either:
+* `rev`: The revision or sha1 of the source for this module. The repo
     is
     `git+https://chromium.googlesource.com/infra/third_party/{package_name}`
-*  `gs`: `{sha1}.{ext}` indicates file
+* `gs`: `{sha1}.{ext}` indicates file
     `gs://chrome-python-wheelhouse/sources/{sha1}.{ext}`. The sha1 will
     be checked against the content of the file.
 
-And optionally:  
-*  `implicit`: A boolean indicating that this dep should only be
+And optionally:
+* `implicit`: A boolean indicating that this dep should only be
     installed as a dependency of some other dep. For example, you want
     package A, which depends on package Z, but you don't really care
     about Z. You should mark Z as `implicit` to allow it to be pinned
@@ -125,10 +125,10 @@ And optionally:
 Some python modules don't have functional python repos (i.e. ones that
 pip can natively clone+build), and thus ship their source in tarballs.
 To ingest such a tarball into the infra google storage bucket, use
-ingest\_source.py /path/to/archive. This will print the value for the
+ingest_source.py /path/to/archive. This will print the value for the
 'gs' key for a deps.pyl entry.
 
-## build\_deps.py / rolling deps
+## build_deps.py / rolling deps
 
 Any time a new dependency/version is introduced into `deps.pyl`, you
 must run `build_deps.py`. If the dependency is a pure-Python dependency
@@ -155,7 +155,7 @@ Once a wheel is sucessfully built, it is uploaded to
 
 Only Googlers have access to that bucket. Make sure to run the following
 command to authenticate first:
-depot\_tools/third\_party/gsutil/gsutil config
+depot_tools/third_party/gsutil/gsutil config
 
 `build_deps.py` assumes that it can find `gsutil` on `PATH`, so go ahead
 and install it appropriately for whichever platform you're on.

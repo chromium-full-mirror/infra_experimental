@@ -8,7 +8,7 @@ arise. Edifying links can be found throughout.
 
 Users already comfortable with Endpoints (or just in need of
 plug-and-play example code) can skip to
-Conclusion: Use test\_case.EndpointsTestCase\_ or return to
+Conclusion: Use test_case.EndpointsTestCase_ or return to
 [testing](testing.md).
 
 ## Introduction: Setting up Test Cases Is Subtle Work
@@ -61,7 +61,7 @@ is an IP at which an App Engine instance can be run.
 
 If questions have arisen for you about any of the above, it may be
 beneficial to read on; if not, the punchline lies at
-Conclusion: Use test\_case.EndpointsTestCase\_.
+Conclusion: Use test_case.EndpointsTestCase_.
 
 ### Quirk the First: Webtest Will Ignore Your API Method's Specifications
 
@@ -92,7 +92,7 @@ reads the numeric data provided by the request and squares it (the most
 glorious of arithmetic operations).
 
 We include the pattern in `app.yaml` (assuming our Endpoints methods
-from above are in `something.py` and that an api\_server called "app" is
+from above are in `something.py` and that an api_server called "app" is
 defined therein):
 
     - url: /_ah/spi/.*
@@ -181,7 +181,7 @@ is raised, e.g.
       response = self.test_app.post_json(
           '/_ah/spi/SomeEndpoint.glorify', {'data': 109})
 
-## Conclusion: Use test\_case.EndpointsTestCase
+## Conclusion: Use test_case.EndpointsTestCase
 
 The previous section gestured toward a test module that addresses some
 of the shortcomings concerning Endpoints testing. In fact, much of the

@@ -8,9 +8,9 @@ future-proof.
 
 Offered features:
 
-*  log level can be changed from the command-line.
-*  too verbose modules can be blacklisted for easier debugging.
-*  ensures a consistent log format.
+* log level can be changed from the command-line.
+* too verbose modules can be blacklisted for easier debugging.
+* ensures a consistent log format.
 
 A typical log line looks like:
 
@@ -47,7 +47,7 @@ Logging messages should be done this way (other example in
     LOGGER.error('terrible error')
 
 Using `logging.getLogger` good practice in general (not restricted to
-using infra\_libs.logs) because it allows for module blacklisting and
+using infra_libs.logs) because it allows for module blacklisting and
 other goodness. It should be done at import time. See also the official
 [logging HOWTO](https://docs.python.org/2/howto/logging.html).
 `infra_libs.logs` also formats the output of the root logger, but using

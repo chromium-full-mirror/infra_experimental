@@ -1,15 +1,15 @@
-# Documenting in infra.git
+# Documenting
 
 Documentation in infra.git should cover these subjects:
 
-*  Introductory material, to help newcomers use and contribute to the
+* Introductory material, to help newcomers use and contribute to the
     codebase.
-*  Design documents, explaining decisions and overall structure. The
+* Design documents, explaining decisions and overall structure. The
     point of these docs is to give a high-level view of the organisation
     and inner working.
-*  Reference documentation, extracted from docstrings.
+* Reference documentation, extracted from docstrings.
 
-Note:  
+Note:
 We only cover Python right now, more to come for Go and Javascript. Feel
 free to nag pgervais@ and/or contribute.
 
@@ -106,9 +106,9 @@ by `docgen.py`.
 
 `docgen.py` then runs `sphinx-build`, which:
 
-*  reads files in `doc/source`
-*  extracts docstrings
-*  compiles html pages that are written in `doc/html`
+* reads files in `doc/source`
+* extracts docstrings
+* compiles html pages that are written in `doc/html`
 
 The main entry point is and should remain `doc/html/index.html`.
 
