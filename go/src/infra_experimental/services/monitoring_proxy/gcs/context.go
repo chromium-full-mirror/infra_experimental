@@ -156,7 +156,7 @@ func (f *ContextFlags) createSdkClient(ctx context.Context, scopes []string) (
 		return nil, errors.New("Failed to create SDK config instance.")
 	}
 
-	return conf.Client(oauth2.NoContext), nil
+	return conf.Client(ctx), nil
 }
 
 // Returns an HTTP client authenticated using an OAuth2 token supplied by the
@@ -182,5 +182,5 @@ func (f *ContextFlags) createServiceAccountClient(ctx context.Context, scopes []
 		}), "gcs: Failed to create config from service account credentials JSON.")
 		return nil, errors.New("Failed to load 'auth_sa_json' config.")
 	}
-	return conf.Client(oauth2.NoContext), nil
+	return conf.Client(ctx), nil
 }
