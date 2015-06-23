@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import base64
 import hashlib
 import json
 import logging
@@ -9,12 +10,23 @@ import math
 import os
 import random
 import sys
+import threading
+import urlparse
 import webapp2
 
 from google.appengine.ext import ndb
+from google.appengine.ext import vendor
 from google.appengine.api import taskqueue
 from google.appengine.api import users
 from webapp2_extras import jinja2
+
+# Add any libraries installed in the 'lib' folder.
+vendor.add('lib')
+
+import apiclient
+import httplib2
+import oauth2client.client
+from apiclient.discovery import build
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(BASE_DIR, 'components', 'third_party'))
@@ -24,7 +36,6 @@ from components import net
 
 
 CONFIG_DATA_KEY = 'config_data_key'
-
 
 def is_development_server():
   return os.environ.get('SERVER_SOFTWARE', '').startswith('Development')
@@ -283,6 +294,67 @@ class CronHandler(webapp2.RequestHandler):
 
 
 class TaskHandler(webapp2.RequestHandler):
+  @staticmethod
+  def _post_endpoint(num_requests, data, payload, service_account_key):
+    futures = []
+    for request_num in xrange(num_requests):
+      futures.append(net.request_async(
+          url=data.url,
+          method='POST',
+          payload=payload,
+          headers=data.headers,
+          scopes=data.scopes,
+          service_account_key=service_account_key))
+    for n, future in enumerate(futures):
+      future.get_result()
+      logging.debug('Request #%s completed', n)
+
+  @staticmethod
+  def _post_pubsub(num_requests, data, payload, service_account_key):
+    token = auth.get_access_token(data.scopes, service_account_key)[0]
+    http = httplib2.Http(timeout=2)
+    creds = oauth2client.client.AccessTokenCredentials(
+        token, 'monitoring-load-tester/1.0')
+    http = creds.authorize(http)
+    pubsub = apiclient.discovery.build('pubsub', 'v1beta2', http=http)
+
+    url = urlparse.urlparse(data.url)
+    project = url.netloc
+    topic = url.path.strip('/')
+
+    max_pubsub = 50
+    chunks = [max_pubsub] * (num_requests/max_pubsub)
+    if (num_requests % max_pubsub) > 0:
+      chunks.append(num_requests % max_pubsub)
+
+    def run_thread(count):
+      body = {
+        'messages': [
+          {'data': base64.b64encode(payload)},
+        ] * count,
+      }
+
+      try:
+        resp = pubsub.projects().topics().publish(
+            topic='projects/%s/topics/%s' % (project, topic),
+            body=body).execute()
+        logging.info("Published message IDs: %s", resp.get('messageIds'))
+      except Exception:
+        logging.exception("Exception in thread %s",
+            threading.current_thread().name)
+
+    threads = []
+    for request_num, chunk in enumerate(chunks):
+      thread = threading.Thread(
+          target=run_thread, args=(chunk,),
+          name='PubSub/%d' % (request_num,))
+      threads.append(thread)
+      thread.start()
+    for n, thread in enumerate(threads):
+      thread.join()
+      logging.debug('Request #%s completed', n)
+
+
   """Execute task job: send #qps/10 requests. Intended to run 10x / second."""
   def post(self):
     data = LoadTestData.get_by_id(CONFIG_DATA_KEY)
@@ -299,24 +371,16 @@ class TaskHandler(webapp2.RequestHandler):
     # Randomized fractional QPS.
     qps_10 = data.qps / 10.0
     if random.uniform(math.floor(qps_10), math.ceil(qps_10)) < qps_10:
-      num_requests = int(math.floor(qps_10))
-    else:
       num_requests = int(math.ceil(qps_10))
+    else:
+      num_requests = int(math.floor(qps_10))
     logging.debug('This task will send %s requests.', num_requests)
-    futures = []
-    for request_num in xrange(num_requests):
-      futures.append(net.request_async(
-          url=data.url,
-          method='POST',
-          payload=payload,
-          headers=data.headers,
-          scopes=data.scopes,
-          service_account_key=service_account_key))
-    for n, future in enumerate(futures):
-      future.get_result()
-      logging.debug('Request #%s completed', n)
+
+    if data.url.startswith('pubsub://'):
+      self._post_pubsub(num_requests, data, payload, service_account_key)
+    else:
+      self._post_endpoint(num_requests, data, payload_service_account_key)
     logging.info('Task queue task executed.')
-    pass
 
 
 logging.basicConfig(level=logging.DEBUG)
