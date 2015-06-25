@@ -7,6 +7,7 @@ package main
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"flag"
 	"fmt"
 	"net/http"
@@ -105,6 +106,16 @@ func (c *loggerConfig) use(ctx context.Context) (context.Context, func(), error)
 	} else {
 		// Not using cloud logging.
 		return gologger.Use(ctx), func() {}, nil
+	}
+
+	if c.projectName == "" {
+		return nil, nil, errors.New("logging: You must supply a project name")
+	}
+	if c.resourceType == "" {
+		return nil, nil, errors.New("logging: You must supply a resource type")
+	}
+	if c.logsID == "" {
+		return nil, nil, errors.New("logging: You must supply a logs ID")
 	}
 
 	// Generate a unique session ID via cyrpto.
