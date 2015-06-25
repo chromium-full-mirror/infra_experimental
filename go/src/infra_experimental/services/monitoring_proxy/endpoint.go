@@ -112,7 +112,7 @@ func (e *endpointClient) send(ctx context.Context, data []byte) error {
 			"body":          string(bodyData),
 		}.Debugf(ctx, "Received HTTP response from endpoint.")
 
-		if resp.StatusCode == http.StatusOK {
+		if resp.StatusCode == http.StatusOK && resp.StatusCode < http.StatusMultipleChoices {
 			log.Debugf(ctx, "Message pushed successfully.")
 			return nil
 		}
