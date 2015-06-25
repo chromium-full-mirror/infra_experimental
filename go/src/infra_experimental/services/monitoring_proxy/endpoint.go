@@ -106,7 +106,7 @@ func (e *endpointClient) send(data []byte) error {
 			return nil
 		}
 
-		err = fmt.Errorf("http: server error (%s)", resp.StatusCode)
+		err = fmt.Errorf("http: server error (%d)", resp.StatusCode)
 		if resp.StatusCode >= http.StatusInternalServerError {
 			err = luciErrors.Transient{Err: err}
 		}

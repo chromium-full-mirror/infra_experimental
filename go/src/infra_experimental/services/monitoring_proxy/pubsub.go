@@ -125,7 +125,7 @@ func (p *pubsubClient) setupSubscription() error {
 	}
 
 	if !p.create {
-		return errors.New("pubsub: subscription doesn't exist, not configured to create.")
+		return errors.New("pubsub: subscription doesn't exist, not configured to create")
 	}
 
 	// Create the subscription if it doesn't exist.

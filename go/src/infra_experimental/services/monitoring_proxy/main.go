@@ -7,6 +7,7 @@ package main
 import (
 	"errors"
 	"flag"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -17,7 +18,6 @@ import (
 	"github.com/luci/luci-go/common/clock"
 	luciErrors "github.com/luci/luci-go/common/errors"
 	log "github.com/luci/luci-go/common/logging"
-	"github.com/luci/luci-go/common/logging/gologger"
 	"github.com/luci/luci-go/common/parallel"
 	"github.com/luci/luci-go/common/retry"
 	"golang.org/x/net/context"
@@ -217,18 +217,26 @@ func mainImpl(args []string) int {
 	}
 
 	ctx := context.Background()
-
-	loggingConfig := log.Config{Level: log.Debug}
+	loggerConfig := newLoggerConfig() // Internal logging config (cloud logging).
+	logConfig := log.Config{Level: log.Debug}
 	config := &config{}
 
 	fs := flag.CommandLine
 	config.addFlags(fs)
-	loggingConfig.AddFlags(fs)
+	loggerConfig.addFlags(fs)
+	logConfig.AddFlags(fs)
 	fs.Parse(args)
 
+	// Setup local logging configuration.
+	ctx, logFlushFunc, err := loggerConfig.use(ctx)
+	if err != nil {
+		fmt.Println("ERROR: Failed to setup logging:", err)
+		return 2
+	}
+	defer logFlushFunc()
+
 	// HACK: Fix this once LUCI logging CL lands.
-	ctx = gologger.Use(ctx)
-	ctx = loggingConfig.Set(ctx)
+	ctx = logConfig.Set(ctx)
 	ctx = log.SetLevel(ctx, log.Debug)
 
 	app, err := newApplication(ctx, config)
