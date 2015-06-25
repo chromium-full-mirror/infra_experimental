@@ -5,11 +5,8 @@
 package main
 
 import (
-	"bytes"
 	"errors"
 	"flag"
-	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/signal"
@@ -17,9 +14,6 @@ import (
 	"sync"
 	"time"
 
-	"infra_experimental/services/monitoring_proxy/gcs"
-
-	"github.com/luci/luci-go/client/internal/flags/nestedflagset"
 	"github.com/luci/luci-go/common/clock"
 	luciErrors "github.com/luci/luci-go/common/errors"
 	log "github.com/luci/luci-go/common/logging"
@@ -27,157 +21,87 @@ import (
 	"github.com/luci/luci-go/common/parallel"
 	"github.com/luci/luci-go/common/retry"
 	"golang.org/x/net/context"
-	"google.golang.org/cloud"
-	"google.golang.org/cloud/compute/metadata"
 	"google.golang.org/cloud/pubsub"
 )
 
 const (
-	// The maximum number of items that can be pulled from a subscription at once.
-	maxSubscriptionPullSize = 100
-
 	// noMessageDelay is the amount of time to sleep after receiving no messages.
 	noMessageDelay = 1 * time.Second
 
 	// protobufContentType is MIME type for a protobuf header.
 	protobufContentType = "application/x-protobuf"
 
-	// monitoringEndpoint is the URL of the monitoring endpoint.
-	monitoringEndpoint = "https://www.googleapis.com/acquisitions/v1_mon_shared/storage"
-
-	// monitoringEndpointUserAgent is the user agent string that should be
-	// supplied to acquisitions endpoint requests.
-	monitoringEndpointUserAgent = "Google-Acquisitions-Storage/1.1/python"
-
 	// EMail Scope.
 	userInfoEmailScope = "https://www.googleapis.com/auth/userinfo.email"
 )
 
-var (
-	// OAuth2 scopes to generate.
-	pubsubScopes = []string{
-		pubsub.ScopePubSub,
-		userInfoEmailScope,
-	}
-
-	endpointScopes = []string{
-		userInfoEmailScope,
-		"https://www.googleapis.com/auth/acquisitionsstorage",
-	}
-)
-
 type config struct {
-	monitoringEndpoint string // The URL of the monitoring endpoint.
-	project            string // The PubSub project name.
-	topic              string // The PubSub topic name.
-	subscription       string // The PubSub subscription name.
-	batchSize          int    // The number of elements to pull from a subscription per batch.
-
-	pubsubAuth              gcs.ContextFlags
-	endpointAuth            gcs.ContextFlags
-	endpointMetadataAccount string
+	pubsub   pubsubConfig
+	endpoint endpointConfig
 
 	numWorkers int // Number of subscription worker goroutines.
 }
 
-// validate tests the configuration for basic completeness.
-func (c *config) validate() error {
-	if c.monitoringEndpoint == "" {
-		return errors.New("main: you must supply a monitoring endpoint")
-	}
-	if c.project == "" {
-		return errors.New("main: you must supply a project")
-	}
-	if c.subscription == "" {
-		return errors.New("main: you must supply a subscription")
-	}
-	if c.batchSize <= 0 {
-		return errors.New("main: batch size must be at least 1")
-	} else if c.batchSize > maxSubscriptionPullSize {
-		return fmt.Errorf("main: batch size cannot exceed %d", maxSubscriptionPullSize)
-	}
-	return nil
-}
-
+// addFlags adds configuration flags to the supplied FlagSet.
 func (c *config) addFlags(fs *flag.FlagSet) {
-	fs.StringVar(&c.monitoringEndpoint, "monitoring_endpoint", monitoringEndpoint,
-		"The URL of the monitoring endpoint.")
-	fs.StringVar(&c.project, "pubsub_project", "", "The name of the Pub/Sub project.")
-	fs.StringVar(&c.subscription, "pubsub_subscription", "", "The name of the Pub/Sub subscription.")
-	fs.StringVar(&c.topic, "pubsub_topic", "",
-		"The name of the Pub/Sub topic. Needed if subscription must be created.")
-	fs.IntVar(&c.batchSize, "pubsub_batch_size", maxSubscriptionPullSize,
-		"The Pub/Sub batch size.")
+	c.pubsub.addFlags(fs)
+	c.endpoint.addFlags(fs)
+
 	fs.IntVar(&c.numWorkers, "workers", 1, "The number of subscription worker goroutines.")
-
-	pubsubAuth := nestedflagset.FlagSet{}
-	c.pubsubAuth.AddFlags(&pubsubAuth.F)
-	fs.Var(&pubsubAuth, "pubsub_auth", "Pub/Sub Authentication parameters.")
-
-	endpointAuth := nestedflagset.FlagSet{}
-	c.endpointAuth.AddFlags(&endpointAuth.F)
-	fs.Var(&endpointAuth, "endpoint_auth", "Endpoint authentication parameters.")
-	fs.StringVar(&c.endpointMetadataAccount, "endpoint_metadata_auth", "",
-		"Configure endpoint authentication using GCE-stored metadata. If supplied, this "+
-			"parameter is the name of the account (can use 'default'), and preempts the "+
-			"-endpoint_auth flag.")
 }
 
 // application represents the main application state.
 type application struct {
-	*config
+	config *config
 
-	endpointClient *http.Client
+	pubsub   *pubsubClient
+	endpoint *endpointClient
 
 	shutdownOnce sync.Once
 	shutdownC    chan struct{} // When closed, signals application to shut down.
 }
 
-func newApplication(c *config) *application {
-	return &application{
-		config:    c,
-		shutdownC: make(chan struct{}),
-	}
-}
+// newApplication instanties a new application instance and its associated
+// client instances.
+func newApplication(ctx context.Context, c *config) (*application, error) {
+	// Setup common context parameters.
+	ctx, cancelFunc := context.WithCancel(ctx)
+	ctx = retry.WithTransientOnly(retry.Use(ctx, exponentialBackoff))
 
-func (a *application) run(ctx context.Context) error {
-	// The configuration must validate.
-	if err := a.validate(); err != nil {
-		return err
-	}
-
-	// Configure Pub/Sub Authentication context.
-	pubsubClient, err := a.pubsubAuth.CreateClient(ctx, pubsubScopes...)
+	// Configure Pub/Sub object.
+	pubsubClient, err := newPubSubClient(ctx, &c.pubsub)
 	if err != nil {
-		log.Errorf(log.SetError(ctx, err), "Failed to configure Pub/Sub client.")
-		return errors.New("main: failed to configure Pub/Sub client")
+		return nil, errors.New("main: failed to configure Pub/Sub client")
+	}
+
+	endpointClient, err := newEndpointClient(ctx, &c.endpoint)
+	if err != nil {
+		return nil, errors.New("main: failed to configure endpoint client")
 	}
 
 	// Create Endpoint client.
-	a.endpointClient, err = a.getEndpointClient(ctx)
-	if err != nil {
-		return errors.New("main: failed to configure endpoint client")
+	app := application{
+		config:    c,
+		pubsub:    pubsubClient,
+		endpoint:  endpointClient,
+		shutdownC: make(chan struct{}),
 	}
 
-	// Use Pub/Sub context as the primary context.
-	ctx = cloud.WithContext(ctx, a.project, pubsubClient)
-
-	// Test subscription availability.
-	ctx, cancelFunc := context.WithCancel(ctx)
+	// Monitor our shutdown singal. Cancel our context if it is closed.
 	go func() {
-		<-a.shutdownC
+		<-app.shutdownC
 
 		log.Infof(ctx, "Shutdown signal received; cancelling context.")
 		cancelFunc()
 	}()
-	ctx = retry.WithTransientOnly(retry.Use(ctx, exponentialBackoff))
 
-	if err := a.setupPubSub(ctx); err != nil {
-		return err
-	}
+	return &app, nil
+}
 
+// run executes the application.
+func (a *application) run(ctx context.Context) error {
 	wg := sync.WaitGroup{}
-	for i := 0; i < a.numWorkers; i++ {
+	for i := 0; i < a.config.numWorkers; i++ {
 		i := i
 		wg.Add(1)
 		go func(id int) {
@@ -191,12 +115,14 @@ func (a *application) run(ctx context.Context) error {
 	return nil
 }
 
+// shutdown signals the application to terminate.
 func (a *application) shutdown() {
 	a.shutdownOnce.Do(func() {
 		close(a.shutdownC)
 	})
 }
 
+// isShutdown tests if the application has received a shutdown signal.
 func (a *application) isShutdown() bool {
 	select {
 	case <-a.shutdownC:
@@ -206,126 +132,44 @@ func (a *application) isShutdown() bool {
 	}
 }
 
-func (a *application) setupPubSub(ctx context.Context) error {
-	exists := false
-	log.Fields{
-		"subscription": a.topic,
-	}.Infof(ctx, "Checking for subscription existence.")
-	if err := retryCall(ctx, "SubExists()", func() (err error) {
-		exists, err = pubsub.SubExists(ctx, a.subscription)
-		return
-	}); err != nil {
-		log.Warningf(log.SetError(ctx, err),
-			"Failed to test for subscription; assuming it doesn't exist.")
-	}
-
-	// Create the subscription if it doesn't exist.
-	if !exists {
-		if a.topic == "" {
-			log.Errorf(ctx, "Cannot create subscription; no topic was specified.")
-			return errors.New("main: cannot create subscription")
-		}
-
-		// Test if the topic exists...
-		exists = false
-		log.Fields{
-			"topic": a.topic,
-		}.Infof(ctx, "Checking for topic existence.")
-		if err := retryCall(ctx, "TopicExists()", func() (err error) {
-			exists, err = pubsub.TopicExists(ctx, a.topic)
-			return
-		}); err != nil {
-			log.Warningf(log.SetError(ctx, err),
-				"Failed to test for topic; assuming it doesn't exist.")
-		}
-
-		if !exists {
-			log.Fields{
-				"topic": a.topic,
-			}.Infof(ctx, "Creating topic.")
-			if err := retryCall(ctx, "CreateTopic()", func() error {
-				return pubsub.CreateTopic(ctx, a.topic)
-			}); err != nil {
-				log.Warningf(log.SetError(ctx, err),
-					"Failed to create topic.")
-				return errors.New("main: cannot create topic")
-			}
-		}
-
-		log.Fields{
-			"topic":        a.topic,
-			"subscription": a.subscription,
-		}.Infof(ctx, "Creating pull subscription for topic.")
-		if err := retryCall(ctx, "CreateSub()", func() error {
-			return pubsub.CreateSub(ctx, a.subscription, a.topic, 0, "")
-		}); err != nil {
-			log.Warningf(log.SetError(ctx, err),
-				"Failed to test for subscription; assuming it doesn't exist.")
-			return errors.New("main: failed to create subscription")
-		}
-	}
-
-	return nil
-}
-
-// Continuously processes data in the configured subscription.
+// process runs in its own goroutine and continuously processes data in the
+// configured subscription.
 func (a *application) process(ctx context.Context) {
 	for !a.isShutdown() {
-		var msgs []*pubsub.Message
-		if err := retryCall(ctx, "Pull()", func() (err error) {
-			msgs, err = pubsub.Pull(ctx, a.subscription, a.batchSize)
-			return
-		}); err != nil {
-			log.Errorf(log.SetError(ctx, err), "process: Failed to Pull() round of messages.")
-			continue
-		}
-
-		if len(msgs) == 0 {
-			log.Fields{
-				"delay": noMessageDelay,
-			}.Infof(ctx, "Received no messages; sleeping for next round.")
-
-			select {
-			case <-clock.After(ctx, noMessageDelay):
-				break
-			case <-a.shutdownC:
-				break
-			}
-			continue
-		}
-
-		// Process messages.
-		func() {
+		err := a.pubsub.pullMessages(func(msgs []*pubsub.Message) bool {
 			log.Fields{
 				"count": len(msgs),
 			}.Infof(ctx, "Pull()ed messages from subscription.")
 
-			messageIds := make([]string, len(msgs))
-			for idx, msg := range msgs {
-				messageIds[idx] = msg.AckID
-			}
-
-			// Acknowledge after processing.
-			defer func() {
-				log.Fields{
-					"count": len(messageIds),
-				}.Infof(ctx, "ACK()ing messages.")
-				if err := retryCall(ctx, "Ack()", func() error {
-					return pubsub.Ack(ctx, a.subscription, messageIds...)
-				}); err != nil {
-					log.Errorf(log.SetError(ctx, err), "Failed to ACK messages.")
-				}
-			}()
-
 			if err := a.proxyMessages(ctx, msgs); err != nil {
-				log.Errorf(log.SetError(ctx, err), "Failed to proxy messages.")
+				log.Errorf(log.SetError(ctx, err), "Error sending messages to proxy.")
 			}
-		}()
+			return false
+		})
+		if err == errNoMessages {
+			log.Fields{
+				"delay": noMessageDelay,
+			}.Infof(ctx, "Received no messages; sleeping for next round.")
+			a.sleepWithInterrupt(ctx, noMessageDelay)
+		} else if err != nil {
+			log.Errorf(log.SetError(ctx, err), "process: Failed to Pull() round of messages.")
+		}
 	}
 }
 
+// sleepWithInterrupt attempts to sleep for the specified duration, aborting
+// early if the application is shutdown, returning true.
+func (a *application) sleepWithInterrupt(ctx context.Context, amount time.Duration) bool {
+	select {
+	case <-clock.After(ctx, noMessageDelay):
+		return false
+	case <-a.shutdownC:
+		return true
+	}
+}
+
+// proxyMessages forwards a set of pubsub messages to the endpoint proxy.
 func (a *application) proxyMessages(ctx context.Context, msgs []*pubsub.Message) error {
-	ctx = log.SetField(ctx, "endpoint", a.monitoringEndpoint)
 	log.Fields{
 		"size": len(msgs),
 	}.Debugf(ctx, "Sending messages to Proxy.")
@@ -334,30 +178,18 @@ func (a *application) proxyMessages(ctx context.Context, msgs []*pubsub.Message)
 	err := parallel.FanOutIn(func(c chan<- func() error) {
 		for _, msg := range msgs {
 			c <- func() error {
-				log.Fields{
-					"url":  a.monitoringEndpoint,
-					"size": len(msg.Data),
-				}.Debugf(ctx, "Sending data to monitoring endpoint.")
-
-				req, err := http.NewRequest("POST", a.monitoringEndpoint, bytes.NewReader(msg.Data))
-				if err != nil {
-					log.Errorf(log.SetError(ctx, err), "Failed to create HTTP request.")
-					return err
-				}
-				req.Header.Add("content-type", protobufContentType)
-				req.Header.Add("user-agent", monitoringEndpointUserAgent)
+				msg := msg
+				ctx := log.SetFields(ctx, log.Fields{
+					"size":      len(msg.Data),
+					"messageID": msg.ID,
+				})
+				log.Debugf(ctx, "Sending data to monitoring endpoint.")
 
 				// Execute the request.
-				resp, err := a.endpointClient.Do(req)
-				if err != nil {
-					log.Errorf(log.SetError(ctx, err), "Failed to proxy message.")
+				if err := a.endpoint.send(msg.Data); err != nil {
+					log.Errorf(log.SetError(ctx, err), "Failed to push message to proxy.")
 					return err
 				}
-				defer resp.Body.Close()
-
-				// Read the full response body. This will enable us to re-use the
-				// connection.
-				ioutil.ReadAll(resp.Body)
 				return nil
 			}
 		}
@@ -371,64 +203,8 @@ func (a *application) proxyMessages(ctx context.Context, msgs []*pubsub.Message)
 	return err
 }
 
-func (a *application) getEndpointClient(ctx context.Context) (*http.Client, error) {
-	if a.endpointMetadataAccount != "" {
-		if !metadata.OnGCE() {
-			return nil, errors.New("main: not on GCE")
-		}
-		return nil, errors.New("main: metadata config not implemented")
-	}
-
-	endpointClient, err := a.endpointAuth.CreateClient(ctx, endpointScopes...)
-	if err != nil {
-		log.Errorf(log.SetError(ctx, err), "Failed to configure endpoint client.")
-		return nil, errors.New("main: failed to configure endpoint client")
-	}
-	return endpointClient, nil
-}
-
-func retryCall(ctx context.Context, title string, f func() error) error {
-	log.Debugf(ctx, "Executing retriable call %s.", title)
-	if err := retry.Retry(ctx, func() error {
-		return maybeTransient(f())
-	}, func(err error, delay time.Duration) {
-		log.Fields{
-			log.ErrorKey: err,
-			"delay":      delay,
-		}.Warningf(ctx, "process: Failed to %s, retrying.", title)
-	}); err != nil {
-		log.Errorf(log.SetError(ctx, err), "Failed to %s.", title)
-		return err
-	}
-	return nil
-}
-
-func maybeTransient(err error) error {
-	switch err {
-	case nil:
-		return nil
-
-	case context.Canceled:
-		return err
-
-	default:
-		return luciErrors.Transient{Err: err}
-	}
-}
-
-// exponentialBackoff is a retry.Factory that returns exponential backoff
-// settings.
-func exponentialBackoff(context.Context) retry.Iterator {
-	return &retry.ExponentialBackoff{
-		Limited: retry.Limited{
-			Delay:   200 * time.Millisecond,
-			Retries: 4,
-		},
-		Multiplier: 2,
-	}
-}
-
-func mainImpl() int {
+// mainImpl is the main execution function.
+func mainImpl(args []string) int {
 	// Use all of teh corez.
 	if os.Getenv("GOMAXPROCS") == "" {
 		runtime.GOMAXPROCS(runtime.NumCPU())
@@ -448,14 +224,18 @@ func mainImpl() int {
 	fs := flag.CommandLine
 	config.addFlags(fs)
 	loggingConfig.AddFlags(fs)
-	fs.Parse(os.Args[1:])
+	fs.Parse(args)
 
 	// HACK: Fix this once LUCI logging CL lands.
 	ctx = gologger.Use(ctx)
 	ctx = loggingConfig.Set(ctx)
 	ctx = log.SetLevel(ctx, log.Debug)
 
-	app := newApplication(config)
+	app, err := newApplication(ctx, config)
+	if err != nil {
+		log.Errorf(log.SetError(ctx, err), "Failed to setup application.")
+		return 1
+	}
 
 	// Set up interrupt handler.
 	signalC := make(chan os.Signal, 1)
@@ -490,5 +270,5 @@ func mainImpl() int {
 }
 
 func main() {
-	os.Exit(mainImpl())
+	os.Exit(mainImpl(os.Args[1:]))
 }
