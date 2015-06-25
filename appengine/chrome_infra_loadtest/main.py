@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 import base64
+import time
 import hashlib
 import json
 import logging
@@ -358,8 +359,13 @@ class TaskHandler(webapp2.RequestHandler):
   """Execute task job: send #qps/10 requests. Intended to run 10x / second."""
   def post(self):
     data = LoadTestData.get_by_id(CONFIG_DATA_KEY)
+    # Send the same data for the entire minute.
+    random_state = random.getstate()
+    random.seed(int(math.floor(time.time())) / 60)
     payload = ''.join(
         chr(random.randint(0, 255)) for i in xrange(data.payload_size))
+    random.setstate(random_state)
+
     headers = data.headers
     headers.update({
         'Content-Type': 'application/x-protobuf',
@@ -375,11 +381,12 @@ class TaskHandler(webapp2.RequestHandler):
     else:
       num_requests = int(math.floor(qps_10))
     logging.debug('This task will send %s requests.', num_requests)
+    logging.debug('Payload: %s', payload_stats(payload))
 
     if data.url.startswith('pubsub://'):
       self._post_pubsub(num_requests, data, payload, service_account_key)
     else:
-      self._post_endpoint(num_requests, data, payload_service_account_key)
+      self._post_endpoint(num_requests, data, payload, service_account_key)
     logging.info('Task queue task executed.')
 
 
