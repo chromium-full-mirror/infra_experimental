@@ -9,10 +9,10 @@
 FROM ubuntu
 
 RUN apt-get -y install ca-certificates
+RUN apt-get -y install curl
+RUN mkdir /creds
 
-ADD loadtest_creds.json /
 ADD monitoring_proxy /
 ADD monitoring_proxy.sh /
-ADD pubsub_creds.json /
 
-CMD /monitoring_proxy.sh
+CMD /monitoring_proxy.sh /monitoring_proxy /creds

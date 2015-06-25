@@ -3,8 +3,7 @@ kind: Pod
 spec:
   containers:
     - name: monitoring-proxy-go-image
-      image: gcr.io/chrome_infra_mon_proxy_dev/monitoring_proxy_go_0c0e705ef1e3
-      command: ['/monitoring_proxy.sh']
+      image: gcr.io/chrome_infra_mon_proxy_dev/monitoring_proxy_go_b2cb47bad05f
       imagePullPolicy: Always
   restartPolicy: Always
   dnsPolicy: Default
