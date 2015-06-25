@@ -95,7 +95,7 @@ func (c *loggerConfig) addFlags(fs *flag.FlagSet) {
 // the logger.
 func (c *loggerConfig) use(ctx context.Context) (context.Context, func(), error) {
 	var client *http.Client
-	if metadata.OnGCE() {
+	if metadata.OnGCE() && c.gceAccount != "" {
 		ts := google.ComputeTokenSource(c.gceAccount)
 		client = oauth2.NewClient(ctx, ts)
 	} else if c.serviceAccountJSONPath != "" {
@@ -149,7 +149,7 @@ func (c *loggerConfig) use(ctx context.Context) (context.Context, func(), error)
 	}
 
 	go func() {
-		close(clog.finishedC)
+		defer close(clog.finishedC)
 		clog.process()
 	}()
 
@@ -172,6 +172,7 @@ func (c *loggerConfig) preloadFromGCEMetadata() {
 	}
 
 	c.serviceName = cloudLoggingGCEService
+	get(metadata.ProjectID, &c.projectName)
 	get(metadata.InstanceName, &c.resourceType)
 	get(metadata.InstanceID, &c.resourceID)
 	get(metadata.Zone, &c.zone)
@@ -218,14 +219,19 @@ func (l *cloudLogging) process() {
 		// Pull up to our entry capacity.
 		entries[0] = e
 		count := 1
-	NoMoreEntries:
 		for count < len(entries) {
+			found := false
 			select {
 			case moreE := <-l.logC:
 				entries[count] = moreE
 				count++
+				found = true
 			default:
-				break NoMoreEntries
+				break
+			}
+
+			if !found {
+				break
 			}
 		}
 
