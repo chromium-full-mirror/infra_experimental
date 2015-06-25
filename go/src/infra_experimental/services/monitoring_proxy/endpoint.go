@@ -24,6 +24,9 @@ const (
 	// monitoringEndpointUserAgent is the user agent string that should be
 	// supplied to acquisitions endpoint requests.
 	monitoringEndpointUserAgent = "Google-Acquisitions-Storage/1.1/python"
+
+	// protobufContentType is MIME type for a protobuf header.
+	protobufContentType = "application/x-protobuf"
 )
 
 var (
@@ -78,12 +81,13 @@ func newEndpointClient(ctx context.Context, config *endpointConfig) (*endpointCl
 }
 
 // send pushes the supplied binary blob to the endpoint proxy.
-func (e *endpointClient) send(data []byte) error {
-	return retryCall(e.ctx, "endpoint.send", func() error {
-		var err error
+func (e *endpointClient) send(ctx context.Context, data []byte) error {
+	ctx = log.SetField(ctx, "endpointURL", e.url)
+	return retryCall(ctx, "endpoint.send", func() error {
+		log.Debugf(ctx, "Pushing message to endpoint.")
 		req, err := http.NewRequest("POST", e.url, bytes.NewReader(data))
 		if err != nil {
-			log.Errorf(log.SetError(e.ctx, err), "Failed to create HTTP request.")
+			log.Errorf(log.SetError(ctx, err), "Failed to create HTTP request.")
 			return err
 		}
 		req.Header.Add("content-type", protobufContentType)
@@ -92,17 +96,24 @@ func (e *endpointClient) send(data []byte) error {
 		resp, err := e.client.Do(req)
 		if err != nil {
 			// Treat a client error as transient.
-			log.Warningf(log.SetError(e.ctx, err), "Failed proxy client request.")
+			log.Warningf(log.SetError(ctx, err), "Failed proxy client request.")
 			return luciErrors.Transient{Err: err}
 		}
 		defer resp.Body.Close()
 
 		// Read the full response body. This will enable us to re-use the
 		// connection.
-		ioutil.ReadAll(resp.Body)
+		bodyData, _ := ioutil.ReadAll(resp.Body)
+		log.Fields{
+			"status":        resp.Status,
+			"statusCode":    resp.StatusCode,
+			"headers":       resp.Header,
+			"contentLength": resp.ContentLength,
+			"body":          string(bodyData),
+		}.Debugf(ctx, "Received HTTP response from endpoint.")
 
-		if resp.StatusCode >= http.StatusOK {
-			log.Debugf(e.ctx, "Message pushed successfully.")
+		if resp.StatusCode == http.StatusOK {
+			log.Debugf(ctx, "Message pushed successfully.")
 			return nil
 		}
 
@@ -115,7 +126,7 @@ func (e *endpointClient) send(data []byte) error {
 			log.ErrorKey: err,
 			"status":     resp.Status,
 			"statusCode": resp.StatusCode,
-		}.Warningf(e.ctx, "Proxy error.")
+		}.Warningf(ctx, "Proxy error.")
 		return err
 	})
 }

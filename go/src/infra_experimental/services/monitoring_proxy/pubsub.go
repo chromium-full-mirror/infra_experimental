@@ -220,7 +220,6 @@ func (p *pubsubClient) ackMessages(messages []*pubsub.Message) error {
 	ctx := log.SetFields(p.ctx, log.Fields{
 		"count": len(messageIds),
 	})
-	log.Infof(ctx, "ACK()ing messages.")
 	err := retryCall(ctx, "Ack()", func() error {
 		return p.wrapTransient(pubsub.Ack(ctx, p.subscription, messageIds...))
 	})

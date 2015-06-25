@@ -28,9 +28,6 @@ const (
 	// noMessageDelay is the amount of time to sleep after receiving no messages.
 	noMessageDelay = 1 * time.Second
 
-	// protobufContentType is MIME type for a protobuf header.
-	protobufContentType = "application/x-protobuf"
-
 	// EMail Scope.
 	userInfoEmailScope = "https://www.googleapis.com/auth/userinfo.email"
 )
@@ -149,7 +146,7 @@ func (a *application) process(ctx context.Context) {
 		if err == errNoMessages {
 			log.Fields{
 				"delay": noMessageDelay,
-			}.Infof(ctx, "Received no messages; sleeping for next round.")
+			}.Debugf(ctx, "Received no messages; sleeping for next round.")
 			a.sleepWithInterrupt(ctx, noMessageDelay)
 		} else if err != nil {
 			log.Errorf(log.SetError(ctx, err), "process: Failed to Pull() round of messages.")
@@ -186,7 +183,7 @@ func (a *application) proxyMessages(ctx context.Context, msgs []*pubsub.Message)
 				log.Debugf(ctx, "Sending data to monitoring endpoint.")
 
 				// Execute the request.
-				if err := a.endpoint.send(msg.Data); err != nil {
+				if err := a.endpoint.send(ctx, msg.Data); err != nil {
 					log.Errorf(log.SetError(ctx, err), "Failed to push message to proxy.")
 					return err
 				}
@@ -195,6 +192,10 @@ func (a *application) proxyMessages(ctx context.Context, msgs []*pubsub.Message)
 		}
 	})
 
+	log.Fields{
+		"errorStatus": err,
+		"count":       len(msgs),
+	}.Infof(ctx, "Sent messages to endpoint.")
 	if e, ok := err.(luciErrors.MultiError); ok {
 		if len(e) == 0 {
 			return nil
