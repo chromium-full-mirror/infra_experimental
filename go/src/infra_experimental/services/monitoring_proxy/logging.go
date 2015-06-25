@@ -11,6 +11,7 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/luci/luci-go/common/clock"
@@ -283,10 +284,15 @@ func (l *cloudLogging) buildLogEntry(e *logEntry, streamIndex, logIndex int64) *
 		Zone:        l.zone,
 	}
 
+	text := fmt.Sprintf(e.fmt, e.args...)
+	if len(e.fields) > 0 {
+		text = strings.Join([]string{text, e.fields.FieldString(true)}, " ")
+	}
+
 	return &cloudlog.LogEntry{
 		InsertId:    l.generateInsertID(streamIndex, logIndex),
 		Metadata:    &md,
-		TextPayload: fmt.Sprintf(e.fmt, e.args...),
+		TextPayload: text,
 	}
 }
 
