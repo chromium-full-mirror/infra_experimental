@@ -9,7 +9,8 @@ final endpoint.
 Build the container:
 --------------------
 
- `cd go
+```bash
+  cd go
   ./install-deps.sh # Need to run only once, to init .verdor dir.
   source env.sh     # Will go away once moved to infra(_internal).
 
@@ -19,15 +20,18 @@ Build the container:
   cp <credentials for final endpoint> loadtest_creds.json
   cp <credentials for PubSub project> pubsub_creds.json
 
-  docker build .  # Note the resulting image hash.`
+  docker build .  # Note the resulting image hash.
+```
 
 Push the container image to Google Container Repository:
 --------------------------------------------------------
 
- `docker tag <image-hash> \
+```bash
+  docker tag <image-hash> \
       gcr.io/chrome_infra_mon_proxy/monitoring_proxy_go_<image-hash>
   gcloud --project chrome-infra-mon-proxy docker push \
-      gcr.io/chrome_infra_mon_proxy/monitoring_proxy_go_<image-hash>`
+      gcr.io/chrome_infra_mon_proxy/monitoring_proxy_go_<image-hash>
+```
 
 Deploy the new container, or revert the previously deployed change:
 -------------------------------------------------------------------
