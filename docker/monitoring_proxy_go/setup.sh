@@ -1,6 +1,9 @@
 #!/bin/bash
 
 PROJECT="chrome-infra-mon-proxy-dev"
+# PROJECT="chrome-infra-mon-proxy"
+MANIFEST="monitoring_proxy_go_containers.yaml"
+# MANIFEST="monitoring_proxy_go_containers_prod.yaml"
 REGION="us-central1"
 INSTANCE_TYPE="n1-standard-1"
 
@@ -13,7 +16,7 @@ function create_instance {
     # create_instance instance-name zone-name ip-name
     # NOTE: ip-name is currently unused. Add --address $3 in production version.
     echo "Creating $1"
-    gcloud compute -q --project "$PROJECT" instances create $1 --project "$PROJECT" --machine-type $INSTANCE_TYPE --zone $2 --image container-vm --network default --metadata-from-file google-container-manifest=monitoring_proxy_go_containers.yaml
+    gcloud compute -q --project "$PROJECT" instances create $1 --project "$PROJECT" --machine-type $INSTANCE_TYPE --zone $2 --image container-vm --network default --address $3 --metadata-from-file google-container-manifest="$MANIFEST"
 }
 
 function respin_proxy1 {

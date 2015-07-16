@@ -2,6 +2,7 @@
 
 DOCKER_LOG='docker_build.log'
 PROJECT=chrome-infra-mon-proxy-dev
+# PROJECT=chrome-infra-mon-proxy
 
 rm -f $DOCKER_LOG
 
