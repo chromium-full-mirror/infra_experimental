@@ -1,4 +1,4 @@
-# Master Map
+# Mastermap
 
 [go/chrome-infra-mastermap](http://go/chrome-infra-mastermap)
 
