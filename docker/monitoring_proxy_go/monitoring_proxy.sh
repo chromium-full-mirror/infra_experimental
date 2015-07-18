@@ -6,7 +6,7 @@ _help() {
   echo -e "Usage: $0 <monitoring-proxy-path> <credentials-dir>"
   echo -e ""
   echo -e "  monitoring-proxy-path\tThe path to the monitoring proxy binary."
-  echo -e "  credentials-dri\tThe path to the credentials storage directory."
+  echo -e "  credentials-dir\tThe path to the credentials storage directory."
 }
 
 MONITORING_PROXY=$1; shift
@@ -113,7 +113,7 @@ _load_metadata_check E_AUTH_JSON "monitoring_proxy_endpoint_auth_json"
 
 _load_metadata_check PS_PROJECT "monitoring_proxy_pubsub_project"
 _load_metadata_check PS_SUBSCRIPTION "monitoring_proxy_pubsub_subscription"
-_load_metadata_check PS_AUTH_JSON "monitoring_proxy_pubsub_auth_json"
+# _load_metadata_check PS_AUTH_JSON "monitoring_proxy_pubsub_auth_json"
 _load_metadata PS_BATCH_SIZE "monitoring_proxy_pubsub_batch_size"
 
 _load_metadata WORKERS "monitoring_proxy_workers"
@@ -123,21 +123,21 @@ _load_metadata LOG_LEVEL "monitoring_proxy_log_level"
 E_AUTH_PATH="${CREDENTIALS_DIR}/endpoint_service_account.json"
 _write_credentials "${E_AUTH_PATH}" "${E_AUTH_JSON}"
 
-PS_AUTH_PATH="${CREDENTIALS_DIR}/pubsub_service_account.json"
-_write_credentials "${PS_AUTH_PATH}" "${PS_AUTH_JSON}"
+# PS_AUTH_PATH="${CREDENTIALS_DIR}/pubsub_service_account.json"
+# _write_credentials "${PS_AUTH_PATH}" "${PS_AUTH_JSON}"
 
 # Compose command line.
 ARGS=(
-  "-endpoint_url" "${E_URL}"
-  "-endpoint_auth_path" "${E_AUTH_PATH}"
+  "-endpoint-url" "${E_URL}"
+  "-endpoint-service-account-json" "${E_AUTH_PATH}"
 
-  "-pubsub_auth_path" "${PS_AUTH_PATH}"
-  "-pubsub_project" "${PS_PROJECT}"
-  "-pubsub_subscription" "${PS_SUBSCRIPTION}"
+#  "-pubsub_auth_path" "${PS_AUTH_PATH}"
+  "-pubsub-project" "${PS_PROJECT}"
+  "-pubsub-subscription" "${PS_SUBSCRIPTION}"
   )
 
 if [ ! -z "${PS_BATCH_SIZE}" ]; then
-  ARGS+=("-pubsub_batch_size" "${PS_BATCH_SIZE}")
+  ARGS+=("-pubsub-batch-size" "${PS_BATCH_SIZE}")
 fi
 if [ ! -z "${WORKERS}" ]; then
   ARGS+=("-workers" "${WORKERS}")

@@ -1,9 +1,11 @@
 version: v1
 kind: Pod
+metadata:
+  name: monitoring-proxy
 spec:
   containers:
     - name: monitoring-proxy-go-image
-      image: gcr.io/chrome_infra_mon_proxy_dev/monitoring_proxy_go_770f5ae9b678
+      image: gcr.io/chrome_infra_mon_proxy_dev/monitoring_proxy_go_7490b966497d
       imagePullPolicy: Always
   restartPolicy: Always
   dnsPolicy: Default

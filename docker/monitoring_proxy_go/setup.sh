@@ -6,6 +6,7 @@ MANIFEST="monitoring_proxy_go_containers.yaml"
 # MANIFEST="monitoring_proxy_go_containers_prod.yaml"
 REGION="us-central1"
 INSTANCE_TYPE="n1-standard-1"
+SCOPES="cloud-platform,storage-ro,https://www.googleapis.com/auth/userinfo.email,https://www.googleapis.com/auth/pubsub"
 
 function delete_instance {
     # delete_instance instance-name zone-name
@@ -14,9 +15,8 @@ function delete_instance {
 }
 function create_instance {
     # create_instance instance-name zone-name ip-name
-    # NOTE: ip-name is currently unused. Add --address $3 in production version.
     echo "Creating $1"
-    gcloud compute -q --project "$PROJECT" instances create $1 --project "$PROJECT" --machine-type $INSTANCE_TYPE --zone $2 --image container-vm --network default --address $3 --metadata-from-file google-container-manifest="$MANIFEST"
+    gcloud compute -q --project "$PROJECT" instances create $1 --project "$PROJECT" --machine-type $INSTANCE_TYPE --zone $2 --image container-vm --network default --address $3 --metadata-from-file google-container-manifest="$MANIFEST" --scopes "$SCOPES"
 }
 
 function respin_proxy1 {
