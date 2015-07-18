@@ -317,7 +317,7 @@ class TaskHandler(webapp2.RequestHandler):
     creds = oauth2client.client.AccessTokenCredentials(
         token, 'monitoring-load-tester/1.0')
     http = creds.authorize(http)
-    pubsub = apiclient.discovery.build('pubsub', 'v1beta2', http=http)
+    pubsub = apiclient.discovery.build('pubsub', 'v1', http=http)
 
     url = urlparse.urlparse(data.url)
     project = url.netloc
