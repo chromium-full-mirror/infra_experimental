@@ -113,9 +113,9 @@ _load_metadata_check E_AUTH_JSON "monitoring_proxy_endpoint_auth_json"
 
 _load_metadata_check PS_PROJECT "monitoring_proxy_pubsub_project"
 _load_metadata_check PS_SUBSCRIPTION "monitoring_proxy_pubsub_subscription"
-# _load_metadata_check PS_AUTH_JSON "monitoring_proxy_pubsub_auth_json"
 _load_metadata PS_BATCH_SIZE "monitoring_proxy_pubsub_batch_size"
 
+_load_metadata CLOUD_AUTH_JSON "monitoring_proxy_cloud_auth_json"
 _load_metadata WORKERS "monitoring_proxy_workers"
 _load_metadata LOG_LEVEL "monitoring_proxy_log_level"
 
@@ -123,15 +123,16 @@ _load_metadata LOG_LEVEL "monitoring_proxy_log_level"
 E_AUTH_PATH="${CREDENTIALS_DIR}/endpoint_service_account.json"
 _write_credentials "${E_AUTH_PATH}" "${E_AUTH_JSON}"
 
-# PS_AUTH_PATH="${CREDENTIALS_DIR}/pubsub_service_account.json"
-# _write_credentials "${PS_AUTH_PATH}" "${PS_AUTH_JSON}"
+if [ ! -z "${CLOUD_AUTH_JSON}" ]; then
+  CLOUD_AUTH_PATH="${CREDENTIALS_DIR}/cloud_service_account.json"
+  _write_credentials "${CLOUD_AUTH_PATH}" "${CLOUD_AUTH_JSON}"
+fi
 
 # Compose command line.
 ARGS=(
   "-endpoint-url" "${E_URL}"
   "-endpoint-service-account-json" "${E_AUTH_PATH}"
 
-#  "-pubsub_auth_path" "${PS_AUTH_PATH}"
   "-pubsub-project" "${PS_PROJECT}"
   "-pubsub-subscription" "${PS_SUBSCRIPTION}"
   )
@@ -144,6 +145,9 @@ if [ ! -z "${WORKERS}" ]; then
 fi
 if [ ! -z "${LOG_LEVEL}" ]; then
   ARGS+=("-log_level" "${LOG_LEVEL}")
+fi
+if [ ! -z "${CLOUD_AUTH_PATH}" ]; then
+  ARGS+=("-proxy-service-account-json" "${CLOUD_AUTH_PATH}")
 fi
 
 echo "INFO: Running command line args: ${MONITORING_PROXY} ${ARGS[*]}"

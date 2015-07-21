@@ -5,7 +5,7 @@ metadata:
 spec:
   containers:
     - name: monitoring-proxy-go-image
-      image: gcr.io/chrome_infra_mon_proxy_dev/monitoring_proxy_go_7490b966497d
+      image: gcr.io/chrome_infra_mon_proxy_dev/monitoring_proxy_go_a30d0f53b516
       imagePullPolicy: Always
   restartPolicy: Always
   dnsPolicy: Default

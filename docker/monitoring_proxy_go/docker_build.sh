@@ -5,6 +5,7 @@ PROJECT=chrome-infra-mon-proxy-dev
 # PROJECT=chrome-infra-mon-proxy
 
 rm -f $DOCKER_LOG
+chmod u+x monitoring_proxy
 
 if docker build . | tee -a $DOCKER_LOG; then
   image_hash=`grep 'Successfully built' $DOCKER_LOG | awk '{print $3;}'`
