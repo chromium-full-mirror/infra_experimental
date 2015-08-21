@@ -1,2 +1,3 @@
 #!/bin/bash
-python -c "import requests; exec requests.get('https://$SWARMING_HOSTNAME/bootstrap').text"
+curl -sSLOJ https://$SWARMING_HOSTNAME/bot_code
+python swarming_bot.zip start_bot
