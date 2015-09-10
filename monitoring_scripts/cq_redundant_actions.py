@@ -212,6 +212,10 @@ def fetch_attempts(patch_id):
   return patch_id, attempts
 
 
+def has_action(record, action):
+  return record['fields'].get('action') == action
+
+
 def main():
   args = parse_args()
   logging.basicConfig(level=args.verbose)
@@ -231,11 +235,15 @@ def main():
   num_attempts = 0
   for patch_id, attempts in iterable:
     num_attempts += len(attempts)
-    for attempt in attempts:
-      stops = [r for r in attempt if r['fields'].get('action') == 'patch_stop']
+    for n, attempt in enumerate(attempts, start=1):
+      stops = [r for r in attempt if has_action(r, 'patch_stop')]
       if len(stops) != 1:
-        logging.error('Patchset has %d patch_stop events: %s',
-                      len(stops), patch_url(patch_id))
+        logging.error('Attempt %d has %d patch_stop events: %s',
+                      n, len(stops), patch_url(patch_id))
+      failed = [r for r in attempt if has_action(r, 'patch_failed')]
+      if len(failed) > 1:
+        logging.error('Attempt %d has %d patch_failed events: %s',
+                      n, len(failed), patch_url(patch_id))
       # starts = [r for r in attempt
       #           if r['fields'].get('action') == 'patch_start']
       # if len(starts) != 1:
