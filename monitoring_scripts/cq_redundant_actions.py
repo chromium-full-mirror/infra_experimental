@@ -244,6 +244,12 @@ def main():
       if len(failed) > 1:
         logging.error('Attempt %d has %d patch_failed events: %s',
                       n, len(failed), patch_url(patch_id))
+      for record in failed:
+        fail_type = record['fields'].get('reason', {}).get('fail_type')
+        if not fail_type:
+          logging.error(
+              'Attempt %d has patch_failed event without fail_type: %s',
+              n, patch_url(patch_id))
       # starts = [r for r in attempt
       #           if r['fields'].get('action') == 'patch_start']
       # if len(starts) != 1:
