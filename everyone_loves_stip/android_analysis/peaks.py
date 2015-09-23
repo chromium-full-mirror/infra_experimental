@@ -24,6 +24,9 @@ def get_args():
       help='The project to scan.')
   parser.add_argument('--days', default=7 * 4, type=int,
       help='How many days to scan.')
+  parser.add_argument('--chunk_count', default=1000, type=int,
+      help='How many items to grab per query. Reduce if you start seeing '
+           'errors.')
   parser.add_argument('--window', default=60, type=int,
       help='Peak window width.')
   parser.add_argument('-v', '--verbose', action='store_true',
@@ -65,7 +68,8 @@ def main():
     logging.info('Getting patch_starts from chromium-cq-status.')
     with requests.Session() as session:
       patch_start_events = libchromiumcqstatus.get_action_time_range(
-          args.project, 'patch_start', args.start, args.end, session)
+          args.project, 'patch_start', args.start, args.end, session,
+          chunk_count=args.chunk_count)
       patch_starts = [x['fields']['timestamp'] for x in patch_start_events]
     logging.info('Writing patch_starts to %s', args.raw_starts)
     with open(args.raw_starts, 'w') as f:
@@ -81,8 +85,6 @@ def main():
     hour_bins.append((hour_str, len(list(group))))
 
   hour_bins.sort(key=lambda x: x[0])
-
-  print hour_bins
 
   with open(args.output, 'w') as f:
     json.dump(hour_bins, f)

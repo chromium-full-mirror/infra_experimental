@@ -34,9 +34,11 @@ def events(path, session, chunk_count=20, extra_params=None):
       yield result
 
 
-def get_action_time_range(project, action, start_ts, end_ts, session):
+def get_action_time_range(project, action, start_ts, end_ts, session,
+    chunk_count=20):
   path = 'query/project=%s/action=%s' % (project, action)
-  return events(path, session, extra_params={'begin': start_ts, 'end': end_ts})
+  return events(path, session, extra_params={'begin': start_ts, 'end': end_ts},
+      chunk_count=chunk_count)
 
 def get_action_count(project, action, count, session):
   return itertools.islice(
