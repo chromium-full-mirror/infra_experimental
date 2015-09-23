@@ -77,7 +77,8 @@ def main():
 
   hour_bins = []
   for hour, group in itertools.groupby(
-      patch_starts, lambda x: (int(x) / (args.window * 60)) * (args.window * 60)):
+      patch_starts, lambda x: (
+        int(float(x)) / (args.window * 60)) * (args.window * 60)):
     hour_str = datetime.datetime.utcfromtimestamp(hour).isoformat()
     if '.' not in hour_str:
       hour_str += '.0'
