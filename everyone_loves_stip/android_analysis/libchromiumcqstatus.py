@@ -14,11 +14,14 @@ def url_constructor(scheme, host, path, params):
   return urlparse.urlunsplit([scheme, host, path, query, None])
 
 
-def events(path, session, chunk_count=20):
+def events(path, session, chunk_count=20, extra_params=None):
+  """Creates a generator that will get all messages for a query."""
   cursor = None
   res = {'more': True}
   while res.get('more'):
     params = {'count': chunk_count}
+    if extra_params:
+      params.update(extra_params)
     if cursor:
       params['cursor'] = cursor
     query = url_constructor('https', CHROMIUM_CQ_STATUS_HOST, path, params)
@@ -30,6 +33,10 @@ def events(path, session, chunk_count=20):
     for result in res['results']:
       yield result
 
+
+def get_action_time_range(project, action, start_ts, end_ts, session):
+  path = 'query/project=%s/action=%s' % (project, action)
+  return events(path, session, extra_params={'begin': start_ts, 'end': end_ts})
 
 def get_action_count(project, action, count, session):
   return itertools.islice(
@@ -61,64 +68,3 @@ def convert_to_tryjob_endings(updates):
     for builder, builds in builders.iteritems():
       filtered_finish_times[master][builder] = max(builds.itervalues())
   return filtered_finish_times
-
-project = 'chromium'
-master = 'tryserver.chromium.linux'
-builder = 'linux_android_rel_ng'
-count = 1000
-
-logging.getLogger().setLevel(logging.DEBUG)
-    
-
-with requests.Session() as session:
-  args = [(project, 'verifier_pass', count, session),
-          (project, 'verifier_fail', count, session)]
-
-  dataz = itertools.chain.from_iterable(itertools.starmap(
-    get_action_count, args))
-
-  issue_patchset_attempts = collections.defaultdict(
-      lambda: collections.defaultdict(
-        lambda: collections.defaultdict(
-          lambda: [])))
-
-  for data in dataz:
-    issue = data['fields']['issue']
-    patchset = data['fields']['patchset']
-    attempt = data['fields']['attempt_start_ts']
-    issue_patchset_attempts[issue][patchset][attempt].append(data)
-
-  run_data = []
-
-  for issue, patchsets in issue_patchset_attempts.iteritems():
-    for patchset, attempts in patchsets.iteritems():
-      for attempt, data in attempts.iteritems():
-        action = 'verifier_jobs_update'
-        tryjob_updates = list(get_action_i_p_a(action, issue, patchset, attempt, session))
-        run_data.append((issue, patchset, attempt, convert_to_tryjob_endings(tryjob_updates)))
-
-points = []
-for issue, patchset, attempt_ts, run in run_data:
-  if builder not in run[master]:
-    continue
-
-  mx = -1
-  second_mx = -1
-  for builders in run.itervalues():
-    for end in builders.itervalues():
-      if end > mx:
-        mx = end
-      elif end > second_mx:
-        second_mx = end
-
-  if second_mx == -1:
-    continue
-
-  # append time of day
-  if mx == run[master][builder]:
-    points.append((issue, patchset, attempt_ts, mx - second_mx))
-  else:
-    points.append((issue, patchset, attempt_ts, 0))
-
-with open('cool.json', 'w') as f:
-  json.dump(points, f)
