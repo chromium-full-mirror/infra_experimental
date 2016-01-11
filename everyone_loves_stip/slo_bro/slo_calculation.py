@@ -26,7 +26,7 @@ def last_sunday():
 
 
 HourSpan = collections.namedtuple('HourSpan', [
-  'start_hr',  # 0 - 23.
+  'start_hr',  # 0 - 23 inclusive.
   'start_tz',  # 'America/Los_Angeles' or 'Europe/Berlin'.
   'end_hr',
   'end_tz',
@@ -55,7 +55,6 @@ def slo_one_week(start_sunday, slo_spec):
   return ranges
 
 
-
 def get_builders():
   cq_config = base64.b64decode(
       requests.get(
@@ -75,6 +74,101 @@ def get_builders():
   return builders
 
 
+def execute_percentile_query(
+    bigquery_service, project_id, table, builders, dates):
+  QUERY = """
+    SELECT builder, UTC_USEC_TO_DAY(build_sched_msec * 1000) as day,
+        ROW_NUMBER() OVER (
+            PARTITION BY builder, day ORDER BY
+            total_execution_minutes) as pre_percentile,
+        quantiles(total_duration_s, 101) / 60.0 as total_execution_minutes
+    FROM (
+
+      SELECT builder, build_sched_msec, total_duration_s
+      FROM {{ table }}
+      WHERE
+          (
+          {% for date in dates %}
+            (build_sched_msec > {{ date[0] }} AND
+              build_sched_msec < {{ date[1] }})
+            {% if not loop.last %}
+            OR
+            {% endif %}
+          {% endfor %}
+          ) 
+          AND LEFT(master, LENGTH('master.tryserver.')) = 'master.tryserver.'
+          AND (
+            {% for builder in builders %}
+              builder = '{{ builder }}'
+              {% if not loop.last %}
+              OR
+              {% endif %}
+            {% endfor %}
+          ))
+      GROUP BY builder, day
+  """
+
+  try:
+      query_request = bigquery_service.jobs()
+      query_data = {
+          'query': Environment().from_string(QUERY).render(
+            dates=dates,
+            builders=builders,
+            table=table)
+      }
+
+      print query_data['query']
+
+      query_response = query_request.query(
+          projectId=project_id,
+          body=query_data).execute()
+
+      results = collections.defaultdict(lambda: collections.defaultdict(dict))
+      fields = [
+          field['name'] for field in query_response['schema']['fields']]
+      for row in query_response['rows']:
+        row_dict = {}
+        for field, f in zip(fields, row['f']):
+          row_dict[field] = f['v']
+
+        percentile = int(row_dict['pre_percentile']) - 1  # 1-based in BQ.
+        execution_time = float(row_dict['total_execution_minutes'])
+        results[
+            row_dict['builder']][
+                row_dict['day']][
+                  percentile] = execution_time
+
+      return results
+
+  except HttpError as err:
+      print('Error: {}'.format(err.content))
+      raise err
+
+
+def verify_slo_spec(slo_spec):
+  assert len(slo_spec) == 7
+
+
+def verify_slo_bounds(slo_bounds):
+  for percentile in slo_bounds:
+    assert percentile >= 0
+    assert percentile <= 100
+
+
+def identify_violations(timing_data, slo_bounds):
+  violations = collections.defaultdict(lambda: collections.defaultdict(dict))
+  for buildername, builder_days in timing_data.iteritems():
+    for day, builder_percentiles in builder_days.iteritems():
+      strdate = datetime.datetime.utcfromtimestamp(
+          float(day) / 1000000.0).strftime('%Y-%m-%d')
+      for percentile, bound in slo_bounds.iteritems():
+        if builder_percentiles[percentile] > bound:
+          violations[strdate][buildername][percentile] = {
+              'slo': bound,
+              'actual': builder_percentiles[percentile]
+          }
+  return violations
+
 
 def main(project_id, table):
     slo_spec = [
@@ -87,69 +181,33 @@ def main(project_id, table):
         None,  # Saturday.
     ]
 
+    slo_bounds = {
+        50: 45.0,  # Percentile: minutes.
+        90: 90.0,
+        100: 120.0,
+    }
+
+    verify_slo_spec(slo_spec)
+    verify_slo_bounds(slo_bounds)
+
     builders = get_builders()
+    dates = slo_one_week(last_sunday() - datetime.timedelta(days=7), slo_spec)
 
     # Grab the application's default credentials from the environment.
     credentials = GoogleCredentials.get_application_default()
     # Construct the service object for interacting with the BigQuery API.
-    dates = slo_one_week(last_sunday() - datetime.timedelta(days=7), slo_spec)
     bigquery_service = build('bigquery', 'v2', credentials=credentials)
 
-    QUERY = """
-      SELECT builder,
-          ROW_NUMBER() OVER (
-              PARTITION BY builder ORDER BY
-              total_execution_minutes) as pre_percentile,
-          quantiles(total_duration_s, 101) / 60.0 as total_execution_minutes
-      FROM (
+    percentiles = execute_percentile_query(
+        bigquery_service, project_id, table, builders, dates)
 
-        SELECT builder, total_duration_s
-        FROM {{ table }}
-        WHERE
-            (
-            {% for date in dates %}
-              (build_sched_msec > {{ date[0] }} AND
-                build_sched_msec < {{ date[1] }})
-              {% if not loop.last %}
-              OR
-              {% endif %}
-            {% endfor %}
-            ) 
-            AND LEFT(master, LENGTH('master.tryserver.')) = 'master.tryserver.'
-            AND (
-              {% for builder in builders %}
-                builder = '{{ builder }}'
-                {% if not loop.last %}
-                OR
-                {% endif %}
-              {% endfor %}
-            ))
-        GROUP BY builder
-    """
+    violations = identify_violations(percentiles, slo_bounds)
 
-    try:
-        query_request = bigquery_service.jobs()
-        query_data = {
-            'query': Environment().from_string(QUERY).render(
-              dates=dates,
-              builders=builders,
-              table=table)
-        }
-
-        print query_data['query']
-
-        query_response = query_request.query(
-            projectId=project_id,
-            body=query_data).execute()
-
-        print('Query Results:')
-        for row in query_response['rows']:
-            print row
-            #print('\t'.join(field['v'] for field in row['f']))
-
-    except HttpError as err:
-        print('Error: {}'.format(err.content))
-        raise err
+    for day, daily_violations in violations.iteritems():
+      print 'for %s:' % day
+      for builder, builder_violations in daily_violations.iteritems():
+        for percentile, violation in builder_violations.iteritems():
+          print builder, percentile, violation
 
 
 if __name__ == '__main__':
