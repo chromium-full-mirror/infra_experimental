@@ -3,7 +3,8 @@ import base64
 import collections
 import datetime
 import pytz
-import requests
+import random
+import json
 
 from jinja2 import Environment
 
@@ -13,6 +14,13 @@ from oauth2client.client import GoogleCredentials
 
 import cq_pb2
 from google.protobuf import text_format
+
+from google.appengine.api import urlfetch
+from google.appengine.api import app_identity
+
+import models
+
+GAE_APP_ID = app_identity.get_application_id()
 
 
 def last_sunday():
@@ -57,10 +65,10 @@ def slo_one_week(start_sunday, slo_spec):
 
 def get_builders():
   cq_config = base64.b64decode(
-      requests.get(
+      json.loads(urlfetch.fetch(
         'https://luci-config.appspot.com/_ah/api/config/v1/config_sets/'
         'projects%2Fchromium%2Frefs%2Fheads%2Fmaster/config/cq.cfg'
-      ).json()['content'])
+      ).content)['content'])
 
   config = cq_pb2.Config()
   text_format.Merge(cq_config, config)
@@ -74,23 +82,41 @@ def get_builders():
   return builders
 
 
+def fields_to_dicts(query_response):
+  fields = [
+      field['name'] for field in query_response['schema']['fields']]
+  rows = []
+  for row in query_response['rows']:
+    row_dict = {}
+    for field, f in zip(fields, row['f']):
+      row_dict[field] = f['v']
+    rows.append(row_dict)
+  return rows
+
+
 def execute_percentile_query(
-    bigquery_service, project_id, table, builders, dates):
+    bigquery_service, table, builders, dates):
   QUERY = """
-    SELECT builder, UTC_USEC_TO_DAY(build_sched_msec * 1000) as day,
+    SELECT builder, 
+        CASE
+        {% for date in dates %}
+          WHEN build_sched_msec >= {{ '%f' % date[0] }}
+                AND build_sched_msec < {{ '%f' % date[1] }}
+          THEN {{ loop.index - 1}}
+        {% endfor %}
+        END as day_index,
         ROW_NUMBER() OVER (
-            PARTITION BY builder, day ORDER BY
+            PARTITION BY builder, day_index ORDER BY
             total_execution_minutes) as pre_percentile,
         quantiles(total_duration_s, 101) / 60.0 as total_execution_minutes
     FROM (
-
       SELECT builder, build_sched_msec, total_duration_s
       FROM {{ table }}
       WHERE
           (
           {% for date in dates %}
-            (build_sched_msec > {{ date[0] }} AND
-              build_sched_msec < {{ date[1] }})
+            (build_sched_msec >= {{ '%f' % date[0] }} AND
+              build_sched_msec < {{ '%f' % date[1] }})
             {% if not loop.last %}
             OR
             {% endif %}
@@ -105,7 +131,7 @@ def execute_percentile_query(
               {% endif %}
             {% endfor %}
           ))
-      GROUP BY builder, day
+      GROUP BY builder, day_index
   """
 
   try:
@@ -117,31 +143,26 @@ def execute_percentile_query(
             table=table)
       }
 
-      print query_data['query']
+      # print query_data['query']
 
       query_response = query_request.query(
-          projectId=project_id,
+          projectId=GAE_APP_ID,
           body=query_data).execute()
 
       results = collections.defaultdict(lambda: collections.defaultdict(dict))
-      fields = [
-          field['name'] for field in query_response['schema']['fields']]
-      for row in query_response['rows']:
-        row_dict = {}
-        for field, f in zip(fields, row['f']):
-          row_dict[field] = f['v']
-
+      rows = fields_to_dicts(query_response)
+      for row_dict in rows:
         percentile = int(row_dict['pre_percentile']) - 1  # 1-based in BQ.
         execution_time = float(row_dict['total_execution_minutes'])
         results[
             row_dict['builder']][
-                row_dict['day']][
+                int(row_dict['day_index'])][
                   percentile] = execution_time
 
       return results
 
   except HttpError as err:
-      print('Error: {}'.format(err.content))
+      # print('Error: {}'.format(err.content))
       raise err
 
 
@@ -154,23 +175,137 @@ def verify_slo_bounds(slo_bounds):
     assert percentile >= 0
     assert percentile <= 100
 
-
-def identify_violations(timing_data, slo_bounds):
-  violations = collections.defaultdict(lambda: collections.defaultdict(dict))
+def identify_violations(timing_data, slo_bounds, dates):
+  violation_list = []
   for buildername, builder_days in timing_data.iteritems():
-    for day, builder_percentiles in builder_days.iteritems():
-      strdate = datetime.datetime.utcfromtimestamp(
-          float(day) / 1000000.0).strftime('%Y-%m-%d')
+    for day_index, builder_percentiles in builder_days.iteritems():
+      start, end = dates[day_index]
       for percentile, bound in slo_bounds.iteritems():
-        if builder_percentiles[percentile] > bound:
-          violations[strdate][buildername][percentile] = {
-              'slo': bound,
-              'actual': builder_percentiles[percentile]
-          }
-  return violations
+        # Reduce to ints to eliminate subsecond inaccuracies.
+        if int(builder_percentiles[percentile]) > int(bound):
+          violation_list.append({
+            'builder': buildername,
+            'start': start,
+            'end': end,
+            'percentile': percentile,
+            'slo': bound * 60.0,
+            'actual': builder_percentiles[percentile] * 60.0,
+          })
+  return violation_list
 
 
-def main(project_id, table):
+def get_violation_links(
+    bigquery_service, table, violations, dates):
+  QUERY = """
+    SELECT master, builder, build_number, 
+    CASE
+    {% for violation in violations %}
+      WHEN  builder = '{{ violation['builder'] }}'
+            AND build_sched_msec >= {{ '%f' % violation['start'] }}
+            AND build_sched_msec < {{ '%f' % violation['end'] }}
+            AND total_duration_s >= {{ '%f' % violation['slo'] }}
+            {% if violation['percentile'] != 100 %}
+            AND total_duration_s < {{ '%f' % violation['actual'] }}
+            {% endif %}
+      THEN {{ loop.index - 1}}
+    {% endfor %}
+    END as violation_index,
+    build_sched_msec
+    FROM {{ table }}
+    WHERE
+      {% for violation in violations %}
+        (
+            builder = '{{ violation['builder'] }}'
+            AND build_sched_msec >= {{ '%f' % violation['start'] }}
+            AND build_sched_msec < {{ '%f' % violation['end'] }}
+            AND total_duration_s >= {{ '%f' % violation['slo'] }}
+            {% if violation['percentile'] != 100 %}
+            AND total_duration_s < {{ '%f' % violation['actual'] }}
+            {% endif %}
+        )
+        {% if not loop.last %}
+        OR
+        {% endif %}
+      {% endfor %}
+  """ 
+  try:
+      query_request = bigquery_service.jobs()
+      query_data = {
+          'query': Environment().from_string(QUERY).render(
+            violations=violations,
+            table=table)
+      }
+
+      # print query_data['query']
+
+      query_response = query_request.query(
+          projectId=GAE_APP_ID,
+          body=query_data).execute()
+      results = [[] for _ in range(len(violations))]
+      for row_dict in fields_to_dicts(query_response):
+        # Remove 'master.'
+        row_dict['master'] = row_dict['master'][len('master.'):]
+        template = ('https://build.chromium.org/p/'
+            '%(master)s/builders/%(builder)s/builds/%(build_number)s')
+        idx = int(row_dict['violation_index'])
+        results[idx].append(template % row_dict)
+      return results
+
+
+  except HttpError as err:
+      # print('Error: {}'.format(err.content))
+      raise err
+
+
+def collate_violations(violations, violation_links):
+  collated_violations = collections.defaultdict(
+      lambda: collections.defaultdict(
+        lambda: collections.defaultdict(list)))
+  for violation, links in zip(violations, violation_links):
+    strdate = datetime.datetime.utcfromtimestamp(
+        violation['start'] / 1000.0).strftime('%Y-%m-%d')
+
+    collated_violations[
+        strdate][
+            violation['builder']][
+                violation['percentile']] = {
+                  'slo': violation['slo'],
+                  'actual': violation['actual'],
+                  'builds': sorted(links),
+                }
+
+  return collated_violations
+
+
+def slo_score(slo_bounds, builders, collated_violations, dates):
+    daily_scores = []
+    daily_slo_num = len(slo_bounds) * len(builders)
+    for strdate, daily_violations in collated_violations.iteritems():
+      num_violations = sum(
+          len(percentiles) for percentiles in daily_violations.itervalues())
+      daily_scores.append({
+          'date': strdate,
+          'percentage': 100.0 * (
+            daily_slo_num - num_violations) / float(daily_slo_num),
+          'met': daily_slo_num - num_violations,
+          'total': daily_slo_num,
+      })
+
+    total_slo_num = len(dates) * daily_slo_num
+    total_violations = sum(
+        sum(len(percentiles) for percentiles in daily_violations.itervalues())
+        for daily_violations in collated_violations.itervalues())
+
+    return daily_scores, {
+        'percentage': 100.0 * (
+          total_slo_num - total_violations) / float(total_slo_num),
+        'met': total_slo_num - total_violations,
+        'total': total_slo_num,
+    }
+
+def main():
+    table = models.BigQueryTable.get_or_insert('table_name').table
+    print table
     slo_spec = [
         None,  # Sunday.
         HourSpan(10, 'Europe/Berlin', 18, 'America/Los_Angeles'),
@@ -193,30 +328,24 @@ def main(project_id, table):
     builders = get_builders()
     dates = slo_one_week(last_sunday() - datetime.timedelta(days=7), slo_spec)
 
+    week_of = datetime.datetime.utcfromtimestamp(
+        dates[0][0] / 1000.0).strftime('%Y-%m-%d')
+
     # Grab the application's default credentials from the environment.
     credentials = GoogleCredentials.get_application_default()
     # Construct the service object for interacting with the BigQuery API.
     bigquery_service = build('bigquery', 'v2', credentials=credentials)
 
     percentiles = execute_percentile_query(
-        bigquery_service, project_id, table, builders, dates)
+        bigquery_service, table, builders, dates)
 
-    violations = identify_violations(percentiles, slo_bounds)
+    violations = identify_violations(percentiles, slo_bounds, dates)
 
-    for day, daily_violations in violations.iteritems():
-      print 'for %s:' % day
-      for builder, builder_violations in daily_violations.iteritems():
-        for percentile, violation in builder_violations.iteritems():
-          print builder, percentile, violation
+    violation_links = get_violation_links(bigquery_service, table, violations, dates)
 
+    collated_violations = collate_violations(violations, violation_links)
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(
-        description=__doc__,
-        formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('project_id', help='Your Google Cloud Project ID.')
-    parser.add_argument('table', help='Build data table.')
+    daily_scores, total_score = slo_score(
+        slo_bounds, builders, collated_violations, dates)
 
-    args = parser.parse_args()
-
-    main(args.project_id, args.table)
+    return week_of, collated_violations, daily_scores, total_score
