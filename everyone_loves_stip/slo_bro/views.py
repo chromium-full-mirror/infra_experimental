@@ -64,7 +64,8 @@ class MainPage(BaseHandler):
         'title': 'slo-bro',
         'violations': report.violations,
         'week_of': report.week_of,
-        'daily_scores': report.daily_scores,
+        'daily_scores': sorted(report.daily_scores, key=lambda x: x['date']),
         'total_score': report.total_score,
+        'sorted': sorted,
     }
     self.render_response('violations.html', **context)

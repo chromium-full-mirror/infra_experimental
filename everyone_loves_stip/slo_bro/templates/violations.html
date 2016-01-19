@@ -7,6 +7,7 @@
           <h3> welcome to slo-bro! </h3>
           week of {{ week_of }} total score: {{ '%.1f' % total_score['percentage'] }}% ({{ total_score['met'] }}
           / {{ total_score['total'] }})
+          <p> out-of-spec builds for each day (by builder):</p>
           <p>
           {% for daily_score in daily_scores %}
           <p>
@@ -16,7 +17,7 @@
             </summary>
             {% for builder, violations in violations[daily_score['date']].iteritems() %}
             <details style="margin-left: 3em"><summary>{{ builder }}</summary>
-              {% for percentile, violation in violations.iteritems() %}
+              {% for percentile, violation in sorted(violations.iteritems()) %}
               <details style="margin-left: 3em"><summary>{{ percentile }}th: {{
                 '%.1fm' % (violation['actual'] / 60.0) }} (should be {{ '%.1fm' % (violation['slo'] / 60.0) }})</summary>
                 <ul>
