@@ -10,4 +10,17 @@ from google.appengine.ext import ndb
 
 
 class BigQueryTable(ndb.Model):
-  table = ndb.StringProperty()
+  table = ndb.StringProperty(default='')
+
+
+class Report(ndb.Model):
+  generated = ndb.DateTimeProperty(auto_now_add=True)
+  violations = ndb.JsonProperty()
+  week_of = ndb.StringProperty()
+  daily_scores = ndb.JsonProperty()
+  total_score = ndb.JsonProperty()
+
+
+class LatestReport(ndb.Model):
+  generated = ndb.DateTimeProperty(auto_now=True)
+  latest = ndb.KeyProperty()

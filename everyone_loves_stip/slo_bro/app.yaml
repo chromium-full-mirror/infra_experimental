@@ -17,6 +17,11 @@ handlers:
   script: app.app
   secure: always
 
+- url: /admin/.*
+  script: app.app
+  secure: always
+  login: admin
+
 inbound_services:
 - warmup
 

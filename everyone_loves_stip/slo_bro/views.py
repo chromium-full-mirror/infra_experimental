@@ -5,9 +5,11 @@
 import logging
 import os
 
+from google.appengine.ext import ndb
 import webapp2
 from webapp2_extras import jinja2
 
+import models
 import slo_calculation
 
 class BaseHandler(webapp2.RequestHandler):
@@ -41,14 +43,28 @@ class StartPage(BaseHandler):
     self.render_response('main.html', **context)
 
 
-class MainPage(BaseHandler):
+class GenerateReport(BaseHandler):
   def get(self):
     week_of, violations, daily_scores, total_score = slo_calculation.main()
+    new_report = models.Report(
+        week_of=week_of,
+        violations=violations,
+        daily_scores=daily_scores,
+        total_score=total_score)
+    new_report.put()
+
+    new_report.key = ndb.Key('Report', 'latest')
+    new_report.put()
+
+
+class MainPage(BaseHandler):
+  def get(self):
+    report = ndb.Key('Report', 'latest').get()
     context = {
         'title': 'slo-bro',
-        'violations': violations,
-        'week_of': week_of,
-        'daily_scores': daily_scores,
-        'total_score': total_score,
+        'violations': report.violations,
+        'week_of': report.week_of,
+        'daily_scores': report.daily_scores,
+        'total_score': report.total_score,
     }
     self.render_response('violations.html', **context)

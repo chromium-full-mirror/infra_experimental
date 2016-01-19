@@ -1,0 +1,5 @@
+cron:
+- description: generate new weekly report
+  url: /admin/generate_report
+  schedule: every monday 09:00
+  timezone: America/Los_Angeles

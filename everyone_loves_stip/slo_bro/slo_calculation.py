@@ -28,7 +28,7 @@ def last_sunday():
    while last_sunday.weekday() != 6:  # Sunday is 6.
      last_sunday -= datetime.timedelta(days=1)
    last_sunday = last_sunday.replace(
-       hour=0, minute=0, second=0, microsecond=0)  
+       hour=0, minute=0, second=0, microsecond=0)
 
    return last_sunday
 

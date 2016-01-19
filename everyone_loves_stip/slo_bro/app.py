@@ -8,6 +8,6 @@ import views
 
 app = webapp2.WSGIApplication([
     ('/_ah/warmup', views.StartPage),
-    (r'/(\w+)(/.*)?', views.MainPage),
+    ('/admin/generate_report', views.GenerateReport),
     ('/', views.MainPage),
 ])
