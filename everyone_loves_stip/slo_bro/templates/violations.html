@@ -6,14 +6,14 @@
         <div class="col-md-10">
           <h3> welcome to slo-bro! </h3>
           week of {{ week_of }} total score: {{ '%.1f' % total_score['percentage'] }}% ({{ total_score['met'] }}
-          / {{ total_score['total'] }})
+          / {{ total_score['total'] }} SLOs met)
           <p> out-of-spec builds for each day (by builder):</p>
           <p>
           {% for daily_score in daily_scores %}
           <p>
           <details><summary>{{ daily_score['date'] }} : {{ '%.1f' %
             daily_score['percentage'] }}% ({{ daily_score['met'] }}
-          / {{ daily_score['total'] }})
+          / {{ daily_score['total'] }} SLOs met)
             </summary>
             {% for builder, violations in violations[daily_score['date']].iteritems() %}
             <details style="margin-left: 3em"><summary>{{ builder }}</summary>
