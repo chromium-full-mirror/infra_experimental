@@ -7,12 +7,25 @@ var uncoveredLines = null;
 var coveredLines = null;
 
 var newCodeMarker = 'newcode';
-var bucket = 'https://storage.googleapis.com/chromium-v8'
+var bucket = 'https://storage.googleapis.com/chromium-v8';
 
+var match = document.URL.match(/.*\/(\d+)\/diff2?\/(?:\d+:)?(\d+)\/(.*)/);
+
+// Rietveld issue and patchset number.
+var issue = match[1];
+var patchset = match[2];
 
 // The file name that's diffed.
-var file = document.URL.match(/.*\/\d+\/diff2?\/\d+:?\d*\/(.*)/)[1]
+var file = match[3];
 
+// Pretty string to refer to in log files.
+var loggingDataStr = file + ', issue ' + issue + ', patchset ' + patchset
+
+// URL to coverage data.
+// TODO(machenbach): Support multiple ports/platforms. Currently hardcoded to
+// linux64.
+var coverageDataURL = (bucket + '/tryserver/sanitizer_coverage/' + issue +
+                       '/' + patchset + '/linux64/data.json');
 
 /**
  * Adds a SPAN with coverage data to a line. Expects a node representing the
@@ -75,19 +88,17 @@ function addCoverageFileData() {
 
 
 var xhr = new XMLHttpRequest();
-// TODO(machenbach): Switch from experimental data to actual coverage data per
-// issue/patchset.
-xhr.open('GET', bucket + '/experimental/coverage/cover.json', true);
+xhr.open('GET', coverageDataURL, true);
 xhr.onload = function (e) {
   if (xhr.readyState === 4) {
     if (xhr.status === 200) {
       // TODO(machenbach): Save each file in a separate json data file.
       var coverage = JSON.parse(xhr.responseText)['files'][file];
       if (!coverage) {
-        console.log('No coverage data for ' + file);
+        console.log('No coverage data for ' + loggingDataStr);
         return;
       }
-      console.log('Found coverage data for ' + file);
+      console.log('Found coverage data for ' + loggingDataStr);
 
       coveredLines = new Set([]);
       uncoveredLines = new Set([]);
@@ -103,12 +114,14 @@ xhr.onload = function (e) {
       addCoverageFileData();
     } else {
       console.log(xhr.statusText);
+      console.log('No coverage data for ' + loggingDataStr);
     }
   }
 };
 
 xhr.onerror = function (e) {
   console.log(xhr.statusText);
+  console.log('No coverage data for ' + loggingDataStr);
 };
 xhr.send(null);
 
