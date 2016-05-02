@@ -21,8 +21,18 @@
               <details style="margin-left: 3em"><summary>{{ percentile }}th: {{
                 '%.1fm' % (violation['actual'] / 60.0) }} (should be {{ '%.1fm' % (violation['slo'] / 60.0) }})</summary>
                 <ul>
-                  {% for build_url in violation['builds'] %}
-                  <li><a href="{{ build_url }}">{{ build_url }}</a></li>
+                  {% for build in violation['builds'] %}
+                  <li><a href="{{ build['build_url'] }}">
+                      {{ build['build_url'] }}
+                    </a>
+                      {% if build.get('queue') and build.get('execution') %}
+                      (q: {{
+                      build['queue']|round|int
+                      }}s) (e: {{
+                      build['execution']|round|int
+                      }}s)
+                      {% endif %}
+                  </li>
                   {% endfor %}
                 </ul>
               </details>

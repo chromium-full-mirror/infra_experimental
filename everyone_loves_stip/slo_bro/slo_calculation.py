@@ -2,6 +2,7 @@ import argparse
 import base64
 import collections
 import datetime
+import logging
 import pytz
 import random
 import json
@@ -143,7 +144,7 @@ def execute_percentile_query(
             table=table)
       }
 
-      # print query_data['query']
+      logging.info(query_data['query'])
 
       query_response = query_request.query(
           projectId=GAE_APP_ID,
@@ -197,7 +198,7 @@ def identify_violations(timing_data, slo_bounds, dates):
 def get_violation_links(
     bigquery_service, table, violations, dates):
   QUERY = """
-    SELECT master, builder, build_number, 
+    SELECT master, builder, build_number, queue_duration_s, execution_duration_s,
     CASE
     {% for violation in violations %}
       WHEN  builder = '{{ violation['builder'] }}'
@@ -236,7 +237,7 @@ def get_violation_links(
             table=table)
       }
 
-      # print query_data['query']
+      logging.info(query_data['query'])
 
       query_response = query_request.query(
           projectId=GAE_APP_ID,
@@ -248,7 +249,10 @@ def get_violation_links(
         template = ('https://build.chromium.org/p/'
             '%(master)s/builders/%(builder)s/builds/%(build_number)s')
         idx = int(row_dict['violation_index'])
-        results[idx].append(template % row_dict)
+        results[idx].append({
+            'build_url': template % row_dict,
+            'queue': float(row_dict['queue_duration_s']),
+            'execution': float(row_dict['execution_duration_s'])})
       return results
 
 
