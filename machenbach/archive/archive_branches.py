@@ -41,6 +41,7 @@ def git(*args, **kwargs):
 def synthesize(refs):
   commits = []
   for ref in refs:
+    ref = ref if ref == 'FETCH_HEAD' else 'refs/remotes/origin/' + ref
     commits.append(git('rev-parse', ref))
 
   name = git('config', 'user.name')
@@ -74,6 +75,9 @@ assert refs, 'Provide at least one ref'
 for ref in refs:
   assert re.match(r'\d*\.\d*\.\d*', ref)
 
+# Print what we're doning.
+print 'archive_branches.py ' + ' '.join(sys.argv[1:])
+
 # Merge into ignore/foo.
 git('fetch', 'origin', 'refs/heads/ignore/foo')
 merge = synthesize(['FETCH_HEAD'] + refs)
@@ -81,7 +85,9 @@ git('push', 'origin', '%s:refs/heads/ignore/foo' % merge)
 
 # Delete refs.
 del_specs = (
-    ['push', 'origin', '--force'] +
-    [':refs/heads/%s' % ref for ref in refs]
+    ['push', 'origin'] +
+    [':refs/heads/%s' % ref for ref in refs] +
+    [':refs/pending/heads/%s' % ref for ref in refs] +
+    [':refs/pending-tags/heads/%s' % ref for ref in refs]
 )
 git(*del_specs)
