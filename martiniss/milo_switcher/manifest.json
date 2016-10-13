@@ -1,0 +1,32 @@
+{
+  "manifest_version": 2,
+  "name": "Milo UI Switcher",
+  "description": "Easily switch between buildbot and Milo",
+  "version": "0.0.4",
+  "background": {
+    "scripts": [
+      "background.js"
+    ]
+  },
+  "icons": {
+    "512": "app_icon_512.png"
+  },
+  "page_action": {
+    "default_icon": {
+      "19": "icon_19.png",
+      "38": "icon_38.png"
+    },
+    "default_title": "Toggle Milo UI"
+  },
+  "permissions": [
+    "activeTab",
+    "cookies",
+    "declarativeContent",
+    "storage",
+    "webRequest",
+    "webRequestBlocking",
+    "*://build.chromium.org/*",
+    "*://luci-milo.appspot.com/*"
+  ],
+  "content_security_policy": "script-src 'self' https://www.google-analytics.com; object-src 'self'"
+}
