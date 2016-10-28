@@ -87,6 +87,9 @@ chrome.runtime.onInstalled.addListener(function() {
             new chrome.declarativeContent.PageStateMatcher({
               pageUrl: { hostEquals: 'luci-milo.appspot.com' },
             }),
+            new chrome.declarativeContent.PageStateMatcher({
+              pageUrl: { hostEquals: 'uberchromegw.corp.google.com' },
+            }),
           ],
           // And shows the extension's page action.
           actions: [ new chrome.declarativeContent.ShowPageAction() ]
@@ -112,7 +115,8 @@ chrome.runtime.onInstalled.addListener(function() {
 var WEB_REQUEST_FILTER_URLS = {
   urls: [
     "*://build.chromium.org/*",
-    "*://luci-milo.appspot.com/*"
+    "*://luci-milo.appspot.com/*",
+    "*://uberchromegw.corp.google.com/i/*"
   ]
 };
 
@@ -135,7 +139,7 @@ const MILO_URL = 'https://luci-milo.appspot.com/';
 const LOGIN_URL = MILO_URL + "auth/openid/login";
 
 function redirectToBB(url) {
-  if (url.hostname == "build.chromium.org") {
+  if (url.hostname == "build.chromium.org" || url.hostname == "uberchromegw.corp.google.com") {
     return url.toString();
   }
 
@@ -175,10 +179,12 @@ function redirectToMilo(url) {
   }
 
   let pathname = "";
-  if (bySlash.length == 4 && bySlash[0] == "p" && bySlash[2] == "builders") {
-    pathname = bySlash[1] + "/" + bySlash[3];
-  } else if (bySlash.length == 6 && bySlash[0] == "p" && bySlash[2] == "builders" && bySlash[4] == "builds") {
-    pathname = bySlash[1] + "/" + bySlash[3] + "/" + bySlash[5];
+  if (bySlash.length >= 4 && (bySlash[0] == "p" || bySlash[0] == "i")) {
+    if (bySlash.length == 4 && bySlash[2] == "builders") {
+      pathname = bySlash[1] + "/" + bySlash[3];
+    } else if (bySlash.length == 6 &&  bySlash[2] == "builders" && bySlash[4] == "builds") {
+      pathname = bySlash[1] + "/" + bySlash[3] + "/" + bySlash[5];
+    }
   } else {
     return url.toString();
   }
@@ -203,18 +209,20 @@ chrome.cookies.get(cookieID, function(cookie) {
 chrome.webRequest.onBeforeRequest.addListener(
   function(details) {
     if (details.type !== 'main_frame') { return {}; }
-    console.log("enabled", enabled);
 
-    var url;
-    if (enabled && details.url.hostname != "luci-milo.appspot.com") {
-      url = redirectToMilo(new URL(details.url));
+    var url = new URL(details.url);
+    let urlStr = '';
+    if (enabled) {
+      if (url.hostname != "luci-milo.appspot.com") {
+        urlStr = redirectToMilo(url);
+      }
     } else {
-      url = redirectToBB(new URL(details.url));
+      urlStr = redirectToBB(url);
     }
 
-    if (url != details.url) {
+    if (urlStr != details.url && urlStr != '') {
       return {
-        redirectUrl: url,
+        redirectUrl: urlStr,
       };
     }
 
@@ -227,7 +235,7 @@ chrome.webRequest.onBeforeRequest.addListener(
 chrome.pageAction.onClicked.addListener(function(tab) {
   chrome.cookies.get(cookieID, function(cookie) {
     if (cookie) {
-      // TODO: redirect to bb
+      // We are on milo; switch to buildbot.
       chrome.cookies.remove(cookieID);
       enabled = false;
       chrome.tabs.update(tab.id, {
@@ -238,6 +246,7 @@ chrome.pageAction.onClicked.addListener(function(tab) {
       chrome.tabs.reload(tab.id, {bypassCache: true});
       //ga('send', 'event', 'Page Action', 'Switch to Gerrit');
     } else {
+      // We are on buildbot; switch to milo.
       console.log("setting enabled true");
       enabled = true;
       let url = redirectToMilo(new URL(tab.url));

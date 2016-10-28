@@ -2,7 +2,7 @@
   "manifest_version": 2,
   "name": "Milo UI Switcher",
   "description": "Easily switch between buildbot and Milo",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "background": {
     "scripts": [
       "background.js"
@@ -26,7 +26,8 @@
     "webRequest",
     "webRequestBlocking",
     "*://build.chromium.org/*",
-    "*://luci-milo.appspot.com/*"
+    "*://luci-milo.appspot.com/*",
+    "*://uberchromegw.corp.google.com/i/*"
   ],
   "content_security_policy": "script-src 'self' https://www.google-analytics.com; object-src 'self'"
 }
