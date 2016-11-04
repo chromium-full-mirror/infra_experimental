@@ -14,8 +14,10 @@ import re
 sa_file = os.path.expanduser('~/.service-account-ccompute.json')
 scopes = ['https://www.googleapis.com/auth/userinfo.email']
 url_tmpl = 'https://1220-c4cc5b1-tainted-hinoka-dot-luci-milo.appspot.com/prpc/%s/%s'
-credentials = ServiceAccountCredentials.from_json_keyfile_name(
-    sa_file, scopes=scopes)
+credentials = None
+if os.path.exists(sa_file):
+  credentials = ServiceAccountCredentials.from_json_keyfile_name(
+      sa_file, scopes=scopes)
 
 
 HEADER = '\033[95m'
@@ -31,12 +33,13 @@ UNDERLINE = '\033[4m'
 def get(service, endpoint, **kwargs):
   url = url_tmpl % (service, endpoint)
   body = json.dumps(kwargs)
-  access_token = credentials.get_access_token()
   headers = {
     'Accept': 'application/json',
     'Content-Type': 'application/json',
-    'Authorization': 'Bearer %s' % access_token.access_token,
   }
+  if credentials:
+    access_token = credentials.get_access_token()
+    headers['Authorization'] = 'Bearer %s' % access_token.access_token
   r = urllib2.Request(url, body, headers)
   u = urllib2.urlopen(r, timeout=60)
   u.read(4)  # Remove the jsonp header
@@ -91,7 +94,9 @@ def get_devices(device_db):
 
 masters = ['chromium.linux', 'chromium.android']
 def main(args):
-  devices = get_devices(args[0])
+  devices = {}
+  if args:
+    devices = get_devices(args[0])
   needs_work = 0
   done = 0
   free_device = 0
