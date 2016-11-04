@@ -184,6 +184,9 @@ function redirectToMilo(url) {
       pathname = bySlash[1] + "/" + bySlash[3];
     } else if (bySlash.length == 6 &&  bySlash[2] == "builders" && bySlash[4] == "builds") {
       pathname = bySlash[1] + "/" + bySlash[3] + "/" + bySlash[5];
+    } else {
+      // milo can't render this, just give up and go to BB
+      return url.toString();
     }
   } else {
     return url.toString();
