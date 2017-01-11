@@ -219,8 +219,6 @@ chrome.webRequest.onBeforeRequest.addListener(
       if (url.hostname != "luci-milo.appspot.com") {
         urlStr = redirectToMilo(url);
       }
-    } else {
-      urlStr = redirectToBB(url);
     }
 
     if (urlStr != details.url && urlStr != '') {
@@ -246,7 +244,6 @@ chrome.pageAction.onClicked.addListener(function(tab) {
       }, function(tab) {
         tabIDToReload = tab.id;
       });
-      chrome.tabs.reload(tab.id, {bypassCache: true});
       //ga('send', 'event', 'Page Action', 'Switch to Gerrit');
     } else {
       // We are on buildbot; switch to milo.
