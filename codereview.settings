@@ -1,3 +1,2 @@
 # This file is used by git cl to get repository specific information.
-CODE_REVIEW_SERVER: https://codereview.chromium.org
-PROJECT: infra_experimental
+GERRIT_HOST: True
