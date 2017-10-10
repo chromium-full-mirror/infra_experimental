@@ -72,8 +72,8 @@ function loadImage(path, width, height) {
 
 chrome.runtime.onInstalled.addListener(function() {
   var loadImages = Promise.all([
-    loadImage('icon_active_19.png', 19, 19),
-    loadImage('icon_active_38.png', 38, 38),
+    loadImage('icon_active_32.png', 32, 32),
+    loadImage('icon_active_192.png', 192, 192),
   ]);
 
   loadImages.then(function(imageDataArray) {
@@ -85,7 +85,7 @@ chrome.runtime.onInstalled.addListener(function() {
               pageUrl: { hostEquals: 'build.chromium.org' },
             }),
             new chrome.declarativeContent.PageStateMatcher({
-              pageUrl: { hostEquals: 'luci-milo.appspot.com' },
+              pageUrl: { hostEquals: 'ci.chromium.org' },
             }),
             new chrome.declarativeContent.PageStateMatcher({
               pageUrl: { hostEquals: 'uberchromegw.corp.google.com' },
@@ -97,13 +97,13 @@ chrome.runtime.onInstalled.addListener(function() {
         {
           conditions: [
             new chrome.declarativeContent.PageStateMatcher({
-              pageUrl: { hostEquals: 'luci-milo.appspot.com' },
+              pageUrl: { hostEquals: 'ci.chromium.org' },
             })
           ],
           actions: [ new chrome.declarativeContent.SetIcon({
             imageData: {
-              19: imageDataArray[0],
-              38: imageDataArray[1],
+              32: imageDataArray[0],
+              192: imageDataArray[1],
             }
           })]
         }
@@ -115,7 +115,7 @@ chrome.runtime.onInstalled.addListener(function() {
 var WEB_REQUEST_FILTER_URLS = {
   urls: [
     "*://build.chromium.org/*",
-    "*://luci-milo.appspot.com/*",
+    "*://ci.chromium.org/*",
     "*://uberchromegw.corp.google.com/i/*"
   ]
 };
@@ -135,7 +135,7 @@ chrome.webRequest.onCompleted.addListener(
 );
 
 const BUILDBOT_URL = 'https://build.chromium.org/';
-const MILO_URL = 'https://luci-milo.appspot.com/';
+const MILO_URL = 'https://ci.chromium.org/';
 const LOGIN_URL = MILO_URL + "auth/openid/login";
 
 function redirectToBB(url) {
@@ -167,7 +167,7 @@ function redirectToBB(url) {
 }
 
 function redirectToMilo(url) {
-  if (url.hostname == "luci-milo.appspot.com") {
+  if (url.hostname == "ci.chromium.org") {
     return url.toString();
   }
 
@@ -216,7 +216,7 @@ chrome.webRequest.onBeforeRequest.addListener(
     var url = new URL(details.url);
     let urlStr = '';
     if (enabled) {
-      if (url.hostname != "luci-milo.appspot.com") {
+      if (url.hostname != "ci.chromium.org") {
         urlStr = redirectToMilo(url);
       }
     }
