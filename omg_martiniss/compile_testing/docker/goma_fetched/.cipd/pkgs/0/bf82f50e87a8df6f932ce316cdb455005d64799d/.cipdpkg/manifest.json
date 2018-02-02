@@ -1,0 +1,16 @@
+{
+  "format_version": "1",
+  "package_name": "infra/tools/cipd/linux-amd64",
+  "version_file": ".versions/cipd.cipd_version",
+  "files": [
+    {
+      "name": "cipd",
+      "size": 11269242,
+      "executable": true
+    },
+    {
+      "name": ".versions/cipd.cipd_version",
+      "size": 113
+    }
+  ]
+}

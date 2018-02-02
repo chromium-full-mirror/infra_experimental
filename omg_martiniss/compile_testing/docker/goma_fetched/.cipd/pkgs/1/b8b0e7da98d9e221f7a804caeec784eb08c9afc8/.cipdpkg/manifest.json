@@ -1,0 +1,188 @@
+{
+  "format_version": "1",
+  "package_name": "infra_internal/goma/client/linux-amd64",
+  "install_mode": "copy",
+  "files": [
+    {
+      "name": ".vpython",
+      "size": 471
+    },
+    {
+      "name": "android/arm-eabi-g++",
+      "size": 0,
+      "symlink": "gomacc"
+    },
+    {
+      "name": "android/arm-eabi-gcc",
+      "size": 0,
+      "symlink": "gomacc"
+    },
+    {
+      "name": "android/arm-linux-androideabi-g++",
+      "size": 0,
+      "symlink": "gomacc"
+    },
+    {
+      "name": "android/arm-linux-androideabi-gcc",
+      "size": 0,
+      "symlink": "gomacc"
+    },
+    {
+      "name": "android/c++",
+      "size": 0,
+      "symlink": "gomacc"
+    },
+    {
+      "name": "android/cc",
+      "size": 0,
+      "symlink": "gomacc"
+    },
+    {
+      "name": "android/clang",
+      "size": 0,
+      "symlink": "gomacc"
+    },
+    {
+      "name": "android/clang++",
+      "size": 0,
+      "symlink": "gomacc"
+    },
+    {
+      "name": "android/compiler_proxy",
+      "size": 0,
+      "symlink": "../compiler_proxy"
+    },
+    {
+      "name": "android/g++",
+      "size": 0,
+      "symlink": "gomacc"
+    },
+    {
+      "name": "android/gcc",
+      "size": 0,
+      "symlink": "gomacc"
+    },
+    {
+      "name": "android/goma_auth.py",
+      "size": 0,
+      "symlink": "../goma_auth.py"
+    },
+    {
+      "name": "android/goma_ctl.py",
+      "size": 0,
+      "symlink": "../goma_ctl.py"
+    },
+    {
+      "name": "android/goma_fetch",
+      "size": 0,
+      "symlink": "../goma_fetch"
+    },
+    {
+      "name": "android/gomacc",
+      "size": 0,
+      "symlink": "../gomacc"
+    },
+    {
+      "name": "android/i686-android-linux-g++",
+      "size": 0,
+      "symlink": "gomacc"
+    },
+    {
+      "name": "android/i686-android-linux-gcc",
+      "size": 0,
+      "symlink": "gomacc"
+    },
+    {
+      "name": "android/i686-linux-g++",
+      "size": 0,
+      "symlink": "gomacc"
+    },
+    {
+      "name": "android/i686-linux-gcc",
+      "size": 0,
+      "symlink": "gomacc"
+    },
+    {
+      "name": "android/i686-unknown-linux-gnu-g++",
+      "size": 0,
+      "symlink": "gomacc"
+    },
+    {
+      "name": "android/i686-unknown-linux-gnu-gcc",
+      "size": 0,
+      "symlink": "gomacc"
+    },
+    {
+      "name": "android/i686-unknown-linux-gnu-i686-unknown-linux-gnu-g++",
+      "size": 0,
+      "symlink": "gomacc"
+    },
+    {
+      "name": "android/i686-unknown-linux-gnu-i686-unknown-linux-gnu-gcc",
+      "size": 0,
+      "symlink": "gomacc"
+    },
+    {
+      "name": "android/javac",
+      "size": 0,
+      "symlink": "gomacc"
+    },
+    {
+      "name": "android/sh-linux-gnu-g++",
+      "size": 0,
+      "symlink": "gomacc"
+    },
+    {
+      "name": "android/sh-linux-gnu-gcc",
+      "size": 0,
+      "symlink": "gomacc"
+    },
+    {
+      "name": "compiler_proxy",
+      "size": 59912573,
+      "executable": true
+    },
+    {
+      "name": "compiler_proxy.sym",
+      "size": 11319909
+    },
+    {
+      "name": "diagnose_goma_log.py",
+      "size": 24620,
+      "executable": true
+    },
+    {
+      "name": "goma_auth.py",
+      "size": 8967,
+      "executable": true
+    },
+    {
+      "name": "goma_ctl.py",
+      "size": 81850,
+      "executable": true
+    },
+    {
+      "name": "goma_fetch",
+      "size": 28373701,
+      "executable": true
+    },
+    {
+      "name": "gomacc",
+      "size": 17868492,
+      "executable": true
+    },
+    {
+      "name": "gomacc.sym",
+      "size": 3239177
+    },
+    {
+      "name": "report_env.sh",
+      "size": 1481,
+      "executable": true
+    },
+    {
+      "name": "sha256.json",
+      "size": 842
+    }
+  ]
+}

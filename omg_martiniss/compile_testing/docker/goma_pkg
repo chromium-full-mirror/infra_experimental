@@ -1,0 +1,7 @@
+$ServiceURL https://chrome-infra-packages.appspot.com/
+
+# This is the cipd client itself
+infra/tools/cipd/${os}-${arch}  latest
+
+@Subdir goma
+infra_internal/goma/client/linux-amd64 latest

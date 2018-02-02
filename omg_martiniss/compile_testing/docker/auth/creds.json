@@ -1,0 +1,21 @@
+{
+  "cache": [
+    {
+      "key": {
+        "key": "user/446450136466-2hr92jrq8e6i4tnsa56b52vacp7t3936.apps.googleusercontent.com",
+        "scopes": [
+          "https://www.googleapis.com/auth/userinfo.email"
+        ]
+      },
+      "token": {
+        "access_token": "ya29.Gls_BXc0XRpmFMJHPyQr_OPi3Q6KO8hm3sB0fkJKmcGYLiflwr_4M2DiWYJDTynjzB58dxX6b9s4oj492-JXkH8fLlOJAZhTyE3KkZ0ZjMTorXXxLdmVqQmV452Z",
+        "token_type": "Bearer",
+        "refresh_token": "1/xxvGTVuk8B_SESYut-3H7C7cskOkvnE1kkcKiF4DImr5ZSuuXZUHZLYvNPRs70gs",
+        "expiry": "2018-01-11T23:28:49.701937519Z"
+      },
+      "email": "martiniss@google.com",
+      "last_update": "2018-01-11T22:28:49.963950046Z"
+    }
+  ],
+  "last_update": "2018-01-11T22:28:49.963950046Z"
+}

@@ -1,0 +1,4 @@
+#!/bin/bash
+
+echo "yes" > tmp
+/chromium/src/build/install-build-deps.sh --syms --no-prompt < tmp
