@@ -1,4 +1,4 @@
-FROM ubuntu:trusty
+FROM ubuntu:xenial
 
 RUN apt-get update
 RUN apt-get install -y git byobu vim python lsb lsof sudo netcat rinetd
@@ -21,14 +21,19 @@ RUN chown -R compile /home/compile
 # Set up environment variables
 USER compile
 # Get depot tools
-RUN git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git $HOME/depot_tools
 ENV HOME /home/compile
+RUN git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git $HOME/depot_tools
 ENV PATH=$PATH:$HOME/depot_tools
 
 # Fetch chromium
 RUN mkdir -p $HOME/chromium
 WORKDIR $HOME/chromium
-RUN fetch --no-history chromium
+
+RUN fetch --no-history --nohooks android
+WORKDIR $HOME/chromium/src
+# Makes us pretend to be a bot so we don't have to accept a license
+ENV CHROME_HEADLESS 1
+RUN gclient runhooks
 
 USER root
 # copy some scripts to compile home dir
@@ -39,7 +44,7 @@ COPY goma_oauth /home/compile/.goma_oauth
 RUN chown -R compile /home/compile/.goma_oauth
 
 RUN echo "root ALL=(ALL) ALL" > /etc/sudoers
-RUN DEBIAN_FRONTEND=text /home/compile/chromium/src/build/install-build-deps.sh --syms --no-prompt --no-chromeos-fonts
+RUN DEBIAN_FRONTEND=text /home/compile/chromium/src/build/install-build-deps-android.sh --no-prompt
 USER compile
 
 ENV USER compile
@@ -54,8 +59,10 @@ WORKDIR /home/compile
 COPY compile.py /home/compile/compile.py
 RUN chown -R compile /home/compile/compile.py
 USER compile
+WORKDIR $HOME/chromium/src
 
-CMD python /home/compile/compile.py 150
+ENTRYPOINT ["/usr/bin/python", "/home/compile/compile.py"]
+CMD ["unittests"]
 
 EXPOSE 8080
 
