@@ -16,5 +16,5 @@ ZSH_THEME_GIT_PROMPT_SUFFIX="› %{$reset_color%}"
 MODE_INDICATOR="%{$fg_bold[magenta]%}<%{$reset_color%}%{$fg[magenta]%}<<%{$reset_color%}"
 
 # TODO use 265 colors
-#MODE_INDICATOR="$FX[bold]$FG[020]<$FX[no_bold]%{$fg[blue]%}<<%{$reset_color%}"
+MODE_INDICATOR="$FX[bold]$FG[020]<$FX[no_bold]%{$fg[blue]%}<<%{$reset_color%}"
 # TODO use two lines if git

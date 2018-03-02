@@ -4,8 +4,6 @@ set nocompatible
 " Vundle configuration "
 "======================"
 
-set tabstop=2
-
 filetype off
 set rtp+=~/.vim/bundle/Vundle.vim
 if isdirectory(expand('$HOME/.vim/bundle/Vundle.vim'))
@@ -17,7 +15,6 @@ if isdirectory(expand('$HOME/.vim/bundle/Vundle.vim'))
   Plugin 'easymotion/vim-easymotion'
   Plugin 'google/vim-colorscheme-primary'
   Plugin 'kien/ctrlp.vim'
-  Plugin 'majutsushi/tagbar'
   Plugin 'scrooloose/nerdcommenter'
   Plugin 'scrooloose/syntastic'
   Plugin 'tpope/vim-surround'
@@ -27,7 +24,7 @@ if isdirectory(expand('$HOME/.vim/bundle/Vundle.vim'))
   Plugin 'Valloric/MatchTagAlways'
   Plugin 'vim-scripts/netrw.vim'
   Plugin 'suan/vim-instant-markdown'
-  Plugin 'fatih/vim-go'
+  "Plugin 'fatih/vim-go'
   Plugin 'altercation/vim-colors-solarized'
   Plugin 'encody/nvim'
   " Provide many default snippets for a variety of snippets.
@@ -56,7 +53,9 @@ syntax on
 syntax enable
 au BufNewFile,BufRead *.pyl set filetype=python
 set t_Co=256
-colorscheme mustang
+
+set background=dark
+colorscheme solarized
 
 " Uncomment if you want to map ; to : to cut down on chording
 " nnoremap ; :
@@ -92,13 +91,19 @@ let mapleader=','
 Glug youcompleteme-google
 nnoremap <leader>d :YcmCompleter GoTo<CR>
 let g:ycm_filetype_blacklist = {'cpp': 1, 'c': 1}
+let g:go_disable_autoinstall = 1
+let g:go_gocode_bin = 'gocode'
+
+Glug codefmt gofmt_executable="goimports"
+Glug codefmt-google
+autocmd FileType go AutoFormatBuffer gofmt
 
 " Wrap autocmds inside an augroup to protect against reloading this script.
 " For more details, see:
 " http://learnvimscriptthehardway.stevelosh.com/chapters/14.html
 augroup autoformat
   autocmd BufRead,BufNewFile *.py set foldmethod=indent
-  autocmd BufRead,BufNewFile *.go set tabstop=4
+  autocmd BufRead,BufNewFile *.go set tabstop=2
   autocmd BufRead,BufNewFile *.cfg set syntax=python
 augroup END
 

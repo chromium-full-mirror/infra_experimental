@@ -5,6 +5,7 @@ export ZSH=/usr/local/google/home/martiniss/.oh-my-zsh
 # Look in ~/.oh-my-zsh/themes/
 # Optionally, if you set this to "random", it'll load a random theme each
 # time that oh-my-zsh is loaded.
+ZSH_THEME="evan"
 ZSH_THEME="martiniss"
 
 # Uncomment the following line to use case-sensitive completion.
@@ -114,7 +115,8 @@ bindkey -v
 export KEYTIMEOUT=1
 
 export GOMA_DIR=$HOME/goma
-export GOOGLE_APPLICATION_CREDENTIALS=~/keys/sheriff-o-matic-77c7f2d7e90b.json
+#export GOOGLE_APPLICATION_CREDENTIALS=~/keys/sheriff-o-matic.json
+export GOOGLE_APPLICATION_CREDENTIALS=~/keys/cq-analyzer.json
 
 eval `$HOME/src/infra/go/env.py`
 
@@ -124,3 +126,4 @@ function path_precmd {
 
 autoload -U add-zsh-hook
 add-zsh-hook precmd path_precmd
+source /etc/bash_completion.d/g4d
