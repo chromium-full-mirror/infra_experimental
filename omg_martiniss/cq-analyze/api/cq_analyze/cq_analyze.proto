@@ -1,0 +1,132 @@
+// Copyright 2018 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+syntax = "proto3";
+
+package cq_analyze;
+
+// The ChromeOps statuses service definition.
+service CQAnalyzeService {
+  rpc GetLimitingBuilders (GetLimitingBuildersRequest) returns (GetLimitingBuildersResponse) {}
+  rpc GetCLsForBuilder (GetCLsForBuilderRequest) returns (GetCLsForBuilderResponse) {}
+  rpc GetLongSteps (GetLongStepsRequest) returns (GetLongStepsResponse) {}
+  rpc GetBuilds (GetBuildsRequest) returns (GetBuildsResponse) {}
+  rpc GetKnownBuilders (GetKnownBuildersRequest) returns (GetKnownBuildersResponse) {}
+  rpc GetCLInfoForBuilder (GetCLInfoForBuilderRequest) returns (GetCLInfoForBuilderResponse) {}
+  rpc GetBuildInfo (GetBuildInfoRequest) returns (GetBuildInfoResponse) {}
+}
+
+message GetLimitingBuildersRequest {
+  // Stringly typed best type.
+  string start_date = 1;
+  string end_date = 2;
+}
+
+message GetLimitingBuildersResponse {
+  repeated LimitingBuilder builders = 1;
+}
+
+message LimitingBuilder {
+  string builder = 1;
+  int32 count = 2;
+  double avg_time = 3;
+  double ninety_time = 4;
+  double ninety_five_time = 5;
+}
+
+message GetCLsForBuilderRequest {
+  string builder = 1;
+  string start_date = 2;
+  string end_date = 3;
+}
+
+message GetCLsForBuilderResponse {
+  repeated LongBuild builds = 2;
+}
+
+message LongBuild {
+  string builder = 2;
+  // Should be ints but i'm lazy
+  string issue = 3;
+  string patchset = 4;
+  double attempt_start = 5;
+  double duration = 6;
+}
+
+message GetLongStepsRequest {
+  string builder = 1;
+  string start_date = 2;
+  string end_date = 3;
+}
+
+message GetLongStepsResponse {
+  repeated LongStep steps = 2;
+}
+
+message LongStep {
+  // Hackity hack hack
+  string name = 1;
+  // Duration in seconds
+  double duration_avg = 2;
+  double duration_90 = 3;
+}
+
+message GetBuildsRequest {
+  string builder = 1;
+  string start_date = 2;
+  string end_date = 3;
+}
+
+message GetBuildsResponse {
+  repeated Build builds = 2;
+}
+
+message GetKnownBuildersRequest {
+  string start_date = 2;
+  string end_date = 3;
+}
+
+message GetKnownBuildersResponse {
+  repeated string builders = 1;
+}
+
+message GetCLInfoForBuilderRequest {
+  string builder = 1;
+  string issue = 2;
+  string patchset = 3;
+}
+
+message GetCLInfoForBuilderResponse {
+  repeated Build builds = 1;
+}
+
+message Build {
+  int32 build_number = 1;
+  int32 build_sched = 2;
+  double duration = 3;
+  string master = 5;
+  int32 result = 6;
+}
+
+message GetBuildInfoRequest {
+  string builder = 1;
+  int64 build_num = 2;
+}
+
+message GetBuildInfoResponse {
+  repeated Step steps = 1;
+  double duration = 2;
+  string master = 3;
+}
+
+message Step {
+  // Hackity hack hack
+  string master = 1;
+  int32 number = 2;
+  string name = 3;
+  // Duration in seconds
+  double duration = 4;
+  int32 result = 5;
+}
+

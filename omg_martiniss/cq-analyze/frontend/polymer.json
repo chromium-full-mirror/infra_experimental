@@ -1,0 +1,22 @@
+{
+    "builds": [
+        {
+            "preset": "es6-bundled"
+        }
+    ],
+    "entrypoint": "templates/pages/home.html",
+    "extraDependencies": [
+        "bower_components/webcomponentsjs/webcomponents-lite.js"
+    ],
+    "lint": {
+        "rules": [
+            "polymer-2-hybrid"
+        ]
+    },
+    "shell": "elements/analyze-app.html",
+    "sources": [
+        "elements/*",
+        "static/*",
+        "bower.json"
+    ]
+}

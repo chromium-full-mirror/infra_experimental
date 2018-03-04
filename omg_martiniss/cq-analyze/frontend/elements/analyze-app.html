@@ -1,0 +1,203 @@
+<link rel="import" href="/bower_components/polymer/polymer.html">
+<link rel="import" href="/bower_components/app-layout/app-header/app-header.html">
+<link rel="import" href="/bower_components/app-layout/app-toolbar/app-toolbar.html">
+<link rel="import" href="/bower_components/app-route/app-route.html">
+<link rel="import" href="/bower_components/app-route/app-location.html">
+<link rel="import" href="/bower_components/iron-pages/iron-pages.html">
+<link rel="import" href="/bower_components/iron-location/iron-location.html">
+<link rel="import" href="/bower_components/iron-icons/iron-icons.html">
+<link rel="import" href="/bower_components/paper-button/paper-button.html">
+<link rel="import" href="/bower_components/paper-icon-button/paper-icon-button.html">
+<link rel="import" href="/bower_components/vaadin-date-picker/vaadin-date-picker.html">
+
+<link rel="import" href="/elements/cq-limiting-builders.html">
+<link rel="import" href="/elements/builder-analysis.html">
+<link rel="import" href="/elements/cl-analysis.html">
+<link rel="import" href="/elements/build-analysis.html">
+<link rel="import" href="/elements/common-mixin.html">
+
+<link rel="import" href="/bower_components/shared/chops-login.html">
+
+<dom-module id="analyze-app">
+  <template>
+    <style>
+      #app {
+        background-color: #f4f4f4;
+        font-family: 'Roboto', 'Noto', sans-serif;
+      }
+      app-header {
+        --app-header-shadow: {
+          box-shadow: inset 0px 5px 2px -3px rgba(0, 0, 0, 0.9);
+        };
+        background-color: #4285f4;
+        color: white;
+      }
+      last-updated-message {
+        padding-right: 1em;
+      }
+      .subtext {
+        font-size: .80em;
+      }
+      .table {
+        padding: 20px 0px;
+      }
+      #timespan-buttons {
+        display:flex;
+        align-items: flex-end;
+      }
+    </style>
+    <link rel="stylesheet" type="text/css" href="/static/main.css">
+
+    <!-- app-location binds to the app's URL -->
+    <app-location route="{{route}}" url-space-regex="^/app/"></app-location>
+    <iron-location query="{{queryParams}}"></iron-location>
+
+    <!-- this app-route manages the top-level routes -->
+    <app-route
+        route="{{route}}"
+        pattern="/app/:view"
+        data="{{routeData}}"
+        tail="{{subroute}}"></app-route>
+    <div id="app">
+      <app-header reveals>
+        <app-toolbar>
+          <div main-title>CQ Analyzer</div>
+          <chops-login
+                   login-url="[[loginUrl]]"
+                   logout-url="[[logoutUrl]]"
+                   user="[[user]]"></chops-login>
+        </app-toolbar>
+      </app-header>
+      <div class="content">
+          <span id="timespan-buttons">
+            <paper-icon-button icon="arrow-back" raised on-click="_prevTimespan">
+            </paper-icon-button>
+            <vaadin-date-picker label="Start" value="{{startDate}}" max="[[_latestGoodDate()]]"></vaadin-date-picker>
+            <vaadin-date-picker label="End" value="{{endDate}}" max="[[_latestGoodDate()]]"></vaadin-date-picker>
+            <paper-icon-button icon="arrow-forward" raised on-click="_nextTimespan">
+            </paper-icon-button>
+          </span>
+          <span>
+            [[timespanDays]] days in this timespan
+          </span>
+          <paper-button raised on-click="_setEndDateNow">Go to current week</paper-button>
+        </div>
+        <!-- iron-pages selects the view based on the active route -->
+        <iron-pages id="pages" selected="[[routeData.view]]" selected-attribute="active" attr-for-selected="name">
+          <cq-limiting-builders start-date="[[startDate]]" end-date="[[endDate]]" name="limiting" route="{{subroute}}"></cq-limiting-builders>
+          <builder-analysis
+              start-date="[[startDate]]"
+              end-date="[[endDate]]"
+              name="builders"
+              full-route="{{route}}"
+              sub-route="{{subroute}}"></builder-analysis>
+          <cl-analysis name="cl" route="{{subroute}}"></cl-analysis>
+          <build-analysis name="build" route="{{subroute}}"></build-analysis>
+        </iron-pages>
+      </div>
+    <div>
+  </template>
+  <script>
+    'use strict';
+    class AnalyzeApp extends Polymer.mixinBehaviors([CommonMixin], Polymer.Element) {
+      static get is() { return 'analyze-app'; }
+
+      ready() {
+        super.ready();
+        if (!this.routeData.view) {
+          this.set('route.path', '/app/limiting');
+        }
+
+        let params = this._decodeParams(this.queryParams);
+        let defaults = {
+          startDate:  params.startDate || moment().endOf('week').subtract(7, 'days').format('YYYY-MM-DD'),
+          endDate: params.endDate || moment().endOf('week').format('YYYY-MM-DD'),
+        };
+
+        this.setProperties(defaults);
+      }
+
+      _moveTimespan(dir) {
+        this.setProperties({
+          startDate: moment(this.startDate).add(dir*this.timespanDays, 'd').format('YYYY-MM-DD'),
+          endDate:  moment(this.endDate).add(dir*this.timespanDays, 'd').format('YYYY-MM-DD'),
+        });
+      }
+
+      _prevTimespan() {
+        this._moveTimespan(-1);
+      }
+
+      _nextTimespan() {
+        // Don't go into the future
+        if (moment(this.startDate).add(8, 'd').diff(moment()) > 0) {
+          return;
+        }
+        this._moveTimespan(1);
+      }
+
+      static get properties() {
+        return {
+          ajaxResponse: {
+            type: Object,
+          },
+          queryParams: {
+            type: Object,
+          },
+          route: {
+            type: String,
+          },
+          user: {
+            type: String,
+          },
+          loginUrl: {
+            type: String,
+          },
+          logoutUrl: {
+            type: String,
+          },
+          timespanDays: {
+            type: Number,
+            computed: '_computeTimespanDays(startDate, endDate)',
+          },
+          startDate: {
+            type: String,
+            observer: '_dateChanged',
+          },
+          endDate: {
+            type: String,
+            observer: '_dateChanged',
+          },
+        }
+      }
+
+      _dateChanged() {
+        let params = this._decodeParams(this.queryParams);
+        if (this.startDate != '') {
+          params['startDate'] = this.startDate;
+        }
+        if (this.endDate != '') {
+          params['endDate'] = this.endDate;
+        }
+        this.queryParams = this._encodeParams(params);
+      }
+
+      _computeTimespanDays(start, end) {
+        return moment.duration(moment(end).diff(moment(start))).days();
+      }
+
+      _latestGoodDate() {
+        return moment().endOf('week').format('YYYY-MM-DD');
+      }
+
+      _setEndDateNow() {
+        this.setProperties({
+          timespanDays: 7,
+          startDate:  moment(this._latestGoodDate()).subtract(7, 'd').format('YYYY-MM-DD'),
+          endDate:  this._latestGoodDate(),
+        });
+      }
+    }
+    customElements.define(AnalyzeApp.is, AnalyzeApp);
+  </script>
+</dom-module>

@@ -1,0 +1,136 @@
+<link rel="import" href="/bower_components/polymer/polymer.html">
+<link rel="import" href="/bower_components/iron-ajax/iron-ajax.html">
+<link rel="import" href="/bower_components/vaadin-grid/vaadin-grid.html">
+
+<link rel="import" href="/elements/common-mixin.html">
+
+
+<dom-module id="cq-limiting-builders">
+  <template>
+    <link rel="stylesheet" type="text/css" href="/static/main.css">
+
+    <iron-ajax
+      id="ajax"
+      url="/prpc/cq_analyze.CQAnalyzeService/GetLimitingBuilders"
+      method="POST"
+      content-type="application/json"
+      accept="json"
+      json-prefix=")]}'"
+      handle-as="json"
+      loading="{{ajaxLoading}}"
+      last-response="{{ajaxResponse}}"
+      ></iron-ajax>
+    <div id="app" class="content">
+      <div id="title-box">
+        <h2>
+          Limiting Builders
+        </h2>
+      </div>
+      <template is="dom-if" if="[[ajaxLoading]]">
+        <div id="spinner-wrapper">
+          <paper-spinner active></paper-spinner>
+        </div>
+      </template>
+      <template is="dom-if" if="[[_not(ajaxLoading)]]">
+        <vaadin-grid aria-label="Limiting builders" items="[[ajaxResponse.builders]]">
+
+          <vaadin-grid-column resizable>
+            <template class="header">
+              <vaadin-grid-sorter path="builder">Builder</vaadin-grid-sorter>
+            </template>
+            <template>
+              <a href$="[[_builderLink(item.builder)]]">
+                [[item.builder]]
+              </a>
+            </template>
+          </vaadin-grid-column>
+
+          <vaadin-grid-column flex-grow="0.4">
+            <template class="header">
+              <vaadin-grid-sorter path="count">
+                Count
+              </vaadin-grid-sorter>
+            </template>
+            <template>[[item.count]]</template>
+          </vaadin-grid-column>
+
+          <vaadin-grid-column flex-grow="0.5">
+            <template class="header">
+              <vaadin-grid-sorter path="avgTime">
+                Average CL Duration
+              </vaadin-grid-sorter>
+            </template>
+            <template>[[_duration(item.avgTime)]]</template>
+          </vaadin-grid-column>
+
+          <vaadin-grid-column flex-grow="0.5">
+            <template class="header">
+              <vaadin-grid-sorter path="ninetyTime">
+                90th percentile CL Duration
+              </vaadin-grid-sorter>
+            </template>
+            <template>[[_duration(item.ninetyTime)]]</template>
+          </vaadin-grid-column>
+
+          <vaadin-grid-column flex-grow="0.5">
+            <template class="header">
+              <vaadin-grid-sorter path="ninetyFiveTime">
+                95th percentile CL Duration
+              </vaadin-grid-sorter>
+            </template>
+            <template>[[_duration(item.ninetyFiveTime)]]</template>
+          </vaadin-grid-column>
+
+        </vaadin-grid>
+      </template>
+    </div>
+  </template>
+  <script>
+    'use strict';
+    class CQLimitingBuilders extends Polymer.mixinBehaviors([CommonMixin], Polymer.Element) {
+      static get is() { return 'cq-limiting-builders'; }
+
+      static get properties() {
+        return {
+          ajaxResponse: {
+            type: Object,
+          },
+          route: {
+            type: String,
+          },
+          active: {
+            type: Boolean,
+            observer: '_activeChanged',
+          },
+          startDate: {
+            type: String,
+            observer: '_activeChanged',
+          },
+          endDate: {
+            type: String,
+            observer: '_activeChanged',
+          },
+        }
+      }
+
+      _activeChanged() {
+        this._possiblyQuery(this.route, this.active);
+      }
+
+      _possiblyQuery(route, active) {
+        this._debounce(() => {
+          if (this.active && route.prefix.endsWith('limiting')) {
+            let body = {
+              startDate: this.startDate,
+              endDate: this.endDate,
+            };
+            this.ajaxResponse = {};
+            this.$.ajax.body = JSON.stringify(body);
+            this.$.ajax.generateRequest();
+          }
+        });
+      }
+    }
+    customElements.define(CQLimitingBuilders.is, CQLimitingBuilders);
+  </script>
+</dom-module>

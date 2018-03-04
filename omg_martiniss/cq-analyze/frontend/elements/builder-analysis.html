@@ -1,0 +1,290 @@
+<link rel="import" href="/bower_components/polymer/polymer.html">
+<link rel="import" href="/bower_components/iron-ajax/iron-ajax.html">
+<link rel="import" href="/bower_components/iron-label/iron-label.html">
+<link rel="import" href="/bower_components/iron-location/iron-query-params.html">
+<link rel="import" href="/bower_components/paper-input/paper-input.html">
+<link rel="import" href="/bower_components/paper-tabs/paper-tabs.html">
+<link rel="import" href="/bower_components/paper-tabs/paper-tab.html">
+<link rel="import" href="/bower_components/paper-toggle-button/paper-toggle-button.html">
+<link rel="import" href="/bower_components/paper-spinner/paper-spinner.html">
+<link rel="import" href="/bower_components/vaadin-grid/vaadin-grid.html">
+<link rel="import" href="/bower_components/vaadin-grid/vaadin-grid-sorter.html">
+
+<link rel="import" href="/elements/common-mixin.html">
+
+<script src="/bower_components/moment/min/moment.min.js"></script>
+
+
+<dom-module id="builder-analysis">
+  <template>
+    <link rel="stylesheet" type="text/css" href="/static/main.css">
+    <style>
+      #step-header {
+        display: flex;
+        align-items: center;
+      }
+    </style>
+
+    <iron-ajax
+      id="clAjax"
+      url="/prpc/cq_analyze.CQAnalyzeService/GetCLsForBuilder"
+      method="POST"
+      content-type="application/json"
+      accept="json"
+      json-prefix=")]}'"
+      handle-as="json"
+      loading="{{ajaxLoading}}"
+      last-response="{{clResponse}}"
+      ></iron-ajax>
+    <iron-ajax
+      id="buildAjax"
+      url="/prpc/cq_analyze.CQAnalyzeService/GetBuilds"
+      method="POST"
+      content-type="application/json"
+      accept="json"
+      json-prefix=")]}'"
+      handle-as="json"
+      loading="{{ajaxLoading}}"
+      last-response="{{buildResponse}}"
+      ></iron-ajax>
+    <iron-ajax
+      id="stepAjax"
+      url="/prpc/cq_analyze.CQAnalyzeService/GetLongSteps"
+      method="POST"
+      content-type="application/json"
+      accept="json"
+      json-prefix=")]}'"
+      handle-as="json"
+      loading="{{ajaxLoading}}"
+      last-response="{{stepResponse}}"
+      ></iron-ajax>
+    <div id="app" class="content">
+      <div id="title-box">
+        <h2 class="title">
+          <a href$="[[_limitingLink()]]">builders</a>/[[routeData.builder]]
+        </h2>
+      </div>
+      <paper-tabs selected="{{builderTab}}" attr-for-selected="name" align-bottom>
+        <paper-tab name="cls">CLs</paper-tab>
+        <paper-tab name="builds">Builds</paper-tab>
+        <paper-tab name="steps">Steps</paper-tab>
+      </paper-tabs>
+      <app-route
+          route="{{subRoute}}"
+          pattern="/:builder"
+          data="{{routeData}}"></app-route>
+      <iron-location query="{{queryParams}}"></iron-location>
+
+      <iron-pages selected="{{builderTab}}" attr-for-selected="name">
+        <div name="cls">
+          <template is="dom-if" if="[[ajaxLoading]]">
+            <div id="spinner-wrapper">
+              <paper-spinner active></paper-spinner>
+            </div>
+          </template>
+          <template is="dom-if" if="[[_not(ajaxLoading)]]">
+            <vaadin-grid aria-label="Longest builds" items="[[clResponse.builds]]">
+
+              <vaadin-grid-column>
+                <template class="header">
+                  <vaadin-grid-sorter path="issue">Gerrit Issue</vaadin-grid-sorter>
+
+                </template>
+                <template>
+                  <span>
+                    <a href$=[[_clLink(routeData.builder,item.issue,item.patchset)]]>
+                      [[item.issue]]/[[item.patchset]]</a> <a class="small-link" href$=[[_gerritLink(item.issue,item.patchset)]] target="_blank"> gerrit</a>
+                  </span>
+                </template>
+              </vaadin-grid-column>
+
+              <vaadin-grid-column>
+                <template class="header">
+                  <vaadin-grid-sorter path="duration">Duration</vaadin-grid-sorter>
+                </template>
+                <template>[[_duration(item.duration)]]</template>
+              </vaadin-grid-column>
+
+              <vaadin-grid-column>
+                <template class="header">
+                  <vaadin-grid-sorter path="attemptStart">Day scheduled</vaadin-grid-sorter>
+                </template>
+                <template>[[_ts(item.attemptStart)]]</template>
+              </vaadin-grid-column>
+
+            </vaadin-grid>
+          </template>
+        </div>
+        <div name="builds">
+          <template is="dom-if" if="[[ajaxLoading]]">
+            <div id="spinner-wrapper">
+              <paper-spinner active></paper-spinner>
+            </div>
+          </template>
+          <template is="dom-if" if="[[_not(ajaxLoading)]]">
+            <vaadin-grid aria-label="Longest builds" items="[[buildResponse.builds]]">
+              <vaadin-grid-column>
+                <template class="header">
+                  <vaadin-grid-sorter path="buildNumber">Build Number</vaadin-grid-sorter>
+                </template>
+                <template>
+                  <span>
+                    <a href$=[[_buildAnalyzeLink(routeData.builder,item.buildNumber)]]>
+                      [[item.buildNumber]]
+                    </a>
+                  <a class="small-link" href$=[[_bbBuildLink(master,builder,buildNum)]] target="_blank"> MILO</a>
+                  </span>
+                </template>
+              </vaadin-grid-column>
+
+              <vaadin-grid-column>
+                <template class="header">
+                  <vaadin-grid-sorter path="duration">Duration</vaadin-grid-sorter>
+                </template>
+                <template>[[_duration(item.duration)]]</template>
+              </vaadin-grid-column>
+
+              <vaadin-grid-column>
+                <template class="header">
+                  <vaadin-grid-sorter path="buildSched">Day scheduled</vaadin-grid-sorter>
+                </template>
+                <template>[[_ts(item.buildSched)]]</template>
+              </vaadin-grid-column>
+
+            </vaadin-grid>
+          </template>
+        </div>
+        <div name="steps">
+          <template is="dom-if" if="[[ajaxLoading]]">
+            <div id="spinner-wrapper">
+              <paper-spinner active></paper-spinner>
+            </div>
+          </template>
+          <template is="dom-if" if="[[_not(ajaxLoading)]]">
+            <vaadin-grid aria-label="Longest builds" items="[[stepResponse.steps]]">
+              <vaadin-grid-column>
+                <template class="header">
+                  <span id="step-header">
+                    <vaadin-grid-sorter path="name">Step name</vaadin-grid-sorter>
+                  </span>
+                </template>
+                <template>
+                  <span>
+                    [[item.name]]
+                  </span>
+                </template>
+              </vaadin-grid-column>
+
+              <vaadin-grid-column flex-grow="0.2">
+                <template class="header">
+                  <vaadin-grid-sorter path="durationAvg">Average duration</vaadin-grid-sorter>
+                </template>
+                <template>[[_duration(item.durationAvg)]]</template>
+              </vaadin-grid-column>
+
+              <vaadin-grid-column flex-grow="0.2">
+                <template class="header">
+                  <vaadin-grid-sorter path="duration90">90th percentile duration</vaadin-grid-sorter>
+                </template>
+                <template>[[_duration(item.duration90)]]</template>
+              </vaadin-grid-column>
+
+            </vaadin-grid>
+          </template>
+        </div>
+      </iron-pages>
+    </div>
+  </template>
+  <script>
+    'use strict';
+    class BuilderAnalysis extends Polymer.mixinBehaviors([CommonMixin], Polymer.Element) {
+      static get is() { return 'builder-analysis'; }
+
+      static get properties() {
+        return {
+          builderTab: {
+            type: String,
+            value: "cls",
+            observer: '_query',
+          },
+          fullRoute: {
+            type: Object,
+            notify: true,
+          },
+          subRoute: {
+            type: String,
+            observer: '_query',
+          },
+          name: {
+            type: String,
+          },
+          showCLs: {
+            type: Boolean,
+            value: true,
+            observer: '_query',
+          },
+          active: {
+            type: Boolean,
+            observer: '_activeChanged',
+          },
+          startDate: {
+            type: String,
+            observer: '_query',
+          },
+          endDate: {
+            type: String,
+            observer: '_query',
+          },
+          view: {
+            type: String,
+            value: "cls",
+          }
+        }
+      }
+      static get observers() {
+        return [ '_routeDataChanged(routeData.*)' ]
+      }
+
+      _activeChanged() {
+        if (this.active && this.view) {
+          //this.fullRoute.path = '/' + Array.from([this.routeData.builder, this.routeData.view]).join('/');
+        }
+        this._query();
+      }
+
+      _routeDataChanged(routeData) {
+        this._query();
+        this.view = routeData.base.view;
+      }
+
+      _query() {
+        this._debounce(() => {
+          if (this.active && this.subRoute.prefix.endsWith('builders')) {
+            let body = {
+              builder: this.routeData.builder,
+              startDate: this.startDate,
+              endDate: this.endDate,
+            };
+            this.buildResponse = {};
+            this.clResponse = {};
+            this.stepResponse = {};
+            let ironAjax = undefined;
+            if (this.builderTab == "cls") {
+              ironAjax = this.$.clAjax;
+            } else if (this.builderTab == "builds") {
+              ironAjax = this.$.buildAjax;
+            } else if (this.builderTab == "steps") {
+              ironAjax = this.$.stepAjax;
+            }
+
+            if (!!ironAjax) {
+              ironAjax.body = JSON.stringify(body);
+              ironAjax.generateRequest();
+            }
+          }
+        });
+      }
+    }
+    customElements.define(BuilderAnalysis.is, BuilderAnalysis);
+  </script>
+</dom-module>

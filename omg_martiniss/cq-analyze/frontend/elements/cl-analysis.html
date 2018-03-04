@@ -1,0 +1,200 @@
+<link rel="import" href="/bower_components/polymer/polymer.html">
+<link rel="import" href="/bower_components/iron-ajax/iron-ajax.html">
+<link rel="import" href="/bower_components/iron-label/iron-label.html">
+<link rel="import" href="/bower_components/paper-input/paper-input.html">
+<link rel="import" href="/bower_components/vaadin-grid/vaadin-grid.html">
+
+<link rel="import" href="/elements/common-mixin.html">
+
+<script src="/bower_components/moment/min/moment.min.js"></script>
+
+
+<dom-module id="cl-analysis">
+  <template>
+    <link rel="stylesheet" type="text/css" href="/static/main.css">
+
+    <iron-ajax
+      id="ajax"
+      url="/prpc/cq_analyze.CQAnalyzeService/GetCLInfoForBuilder"
+      method="POST"
+      content-type="application/json"
+      accept="json"
+      json-prefix=")]}'"
+      handle-as="json"
+      loading="{{ajaxLoading}}"
+      last-response="{{ajaxResponse}}"
+      ></iron-ajax>
+    <div id="app" class="content">
+      <div>
+        <div id="title-box">
+          <h2>
+            cl/<a href$="[[_builderLink(builder)]]">[[builder]]</a>/[[issue]]/[[patchset]]
+          </h2>
+          <h3>
+            <div class="small-link">
+              <a href$="[[_gerritLink(issue,patchset)]]" target="_blank">
+                gerrit
+              </a>
+            </div>
+            <div class="small-link">
+              <a href$="[[_cqStatusLink(issue,patchset)]]" target="_blank">
+                CQ status
+              </a>
+            </div>
+          </h3>
+        </div>
+        <h3>
+          <iron-label for="duration">
+            Total duration:
+          </iron-label>
+          <span id="duration">[[_totalDuration(ajaxResponse.builds)]]</span>
+        </h3>
+      </div>
+      <template is="dom-if" if="[[ajaxLoading]]">
+        <div id="spinner-wrapper">
+          <paper-spinner active></paper-spinner>
+        </div>
+      </template>
+      <template is="dom-if" if="[[_not(ajaxLoading)]]">
+        <vaadin-grid aria-label="Longest builds" items="[[ajaxResponse.builds]]">
+
+          <vaadin-grid-column>
+            <template class="header">
+              <vaadin-grid-sorter path="buildNumber">Build Number</vaadin-grid-sorter>
+            </template>
+            <template>
+              <span>
+                <a href$=[[_buildAnalyzeLink(builder,item.buildNumber)]]>
+                  [[item.buildNumber]]</a> <a class="small-link" href$=[[_bbBuildLink(master,builder,item.buildNumber)]] target="_blank"> MILO</a>
+              </span>
+            </template>
+          </vaadin-grid-column>
+
+          <vaadin-grid-column>
+            <template class="header">
+              <vaadin-grid-sorter path="duration">Duration</vaadin-grid-sorter>
+            </template>
+            <template>[[_duration(item.duration)]]</template>
+          </vaadin-grid-column>
+
+          <vaadin-grid-column>
+            <template class="header">
+              <vaadin-grid-sorter path="result">result</vaadin-grid-sorter>
+            </template>
+            <template>[[_textForBuildResult(item.result)]]</template>
+          </vaadin-grid-column>
+
+          <vaadin-grid-column>
+            <template class="header">
+              <vaadin-grid-sorter path="buildSched">Date scheduled</vaadin-grid-sorter>
+            </template>
+            <template>[[_ts(item.buildSched)]]</template>
+          </vaadin-grid-column>
+
+        </vaadin-grid>
+      </template>
+    </div>
+  </template>
+  <script>
+    'use strict';
+    class CLAnalysis extends Polymer.mixinBehaviors([CommonMixin], Polymer.Element) {
+      static get is() { return 'cl-analysis'; }
+
+      static get properties() {
+        return {
+          ajaxResponse: {
+            type: Object,
+          },
+          route: {
+            type: String,
+            observer: '_routeChanged',
+          },
+          builder: {
+            type: String,
+            computed: '_computeBuilder(route.*)',
+          },
+          master: {
+            type: String,
+            computed: '_computeMaster(ajaxResponse.*)',
+          },
+          issue: {
+            type: String,
+            computed: '_computeIssue(route.*)',
+          },
+          patchset: {
+            type: String,
+            computed: '_computePatchset(route.*)',
+          },
+          name: {
+            type: String,
+          },
+          active: {
+            type: Boolean,
+            observer: '_activeChanged',
+          },
+        }
+      }
+
+      _computeBuilder(route) {
+        if (route == undefined || !route.base.path) {
+          return '';
+        }
+        return route.base.path.split('/')[1];
+      }
+
+      _computeMaster(resp) {
+        resp = resp.base;
+        if (!resp || !resp.builds || resp.builds.length == 0) {
+          return '';
+        }
+        return resp.builds[0].master.slice('master.'.length);
+      }
+
+      _computeIssue(route) {
+        if (route == undefined || !route.base.path) {
+          return '';
+        }
+        return route.base.path.split('/')[3];
+      }
+
+      _computePatchset(route) {
+        if (route == undefined || !route.base.path) {
+          return '';
+        }
+        return route.base.path.split('/')[4];
+      }
+
+      _routeChanged() {
+        this._possiblyQuery(this.route, this.active);
+      }
+
+      _activeChanged() {
+        this._possiblyQuery(this.route, this.active);
+        if (!this.active) {
+          this.ajaxResponse = {};
+        }
+      }
+
+      _possiblyQuery(route, active) {
+        if (this.active && route.prefix.endsWith('cl')) {
+          let body = {
+            builder: this.builder,
+            issue: this.issue,
+            patchset: this.patchset,
+          };
+          this.$.ajax.body = JSON.stringify(body);
+          this.$.ajax.generateRequest();
+        }
+      }
+
+      _totalDuration(builds) {
+        if (!builds) {
+          return 0;
+        }
+        let time = builds.map((build) => build.duration).reduce((x, y) => x + y);
+        return this._duration(time);
+      }
+    }
+    customElements.define(CLAnalysis.is, CLAnalysis);
+  </script>
+</dom-module>

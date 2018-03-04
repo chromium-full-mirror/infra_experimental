@@ -1,0 +1,270 @@
+<link rel="import" href="/bower_components/polymer/polymer.html">
+<link rel="import" href="/bower_components/iron-ajax/iron-ajax.html">
+<link rel="import" href="/bower_components/iron-label/iron-label.html">
+<link rel="import" href="/bower_components/iron-icons/iron-icons.html">
+<link rel="import" href="/bower_components/paper-input/paper-input.html">
+<link rel="import" href="/bower_components/paper-icon-button/paper-icon-button.html">
+<link rel="import" href="/bower_components/paper-spinner/paper-spinner.html">
+<link rel="import" href="/bower_components/vaadin-grid/vaadin-grid.html">
+
+<script src="/bower_components/moment/min/moment.min.js"></script>
+
+
+<dom-module id="build-analysis">
+  <template>
+    <style>
+      p.small {
+        margin-top: 1em;
+        margin-bottom: 1em;
+      }
+      .name-container {
+        overflow: auto;
+      }
+      .vertical {
+        display: inline-flex;
+        flex-direction: column;
+      }
+      .durations {
+        margin-left: 0.5em;
+      }
+      #filtering {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+      }
+      .filter {
+        display: inline-flex;
+        margin-left: 2em;
+      }
+    </style>
+    <link rel="stylesheet" type="text/css" href="/static/main.css">
+
+    <iron-ajax
+      id="ajax"
+      url="/prpc/cq_analyze.CQAnalyzeService/GetBuildInfo"
+      method="POST"
+      content-type="application/json"
+      accept="json"
+      json-prefix=")]}'"
+      handle-as="json"
+      loading="{{ajaxLoading}}"
+      last-response="{{ajaxResponse}}"
+      ></iron-ajax>
+    <div id="app" class="content">
+      <div>
+        <div id="title-box">
+          <h2 class="title">
+            <a href$="[[_limitingLink()]]">builders</a>/<a href$="[[_builderLink(builder)]]">[[builder]]</a>/[[buildNum]]
+                  <a class="small-link" href$=[[_bbBuildLink(master,builder,buildNum)]] target="_blank"> MILO</a>
+          </h2>
+        </div>
+        <div id="filtering">
+          <span class="vertical">
+            <iron-label for="total">
+              Total duration:
+            </iron-label>
+            <iron-label for="filtered">
+              Filtered step duration:
+            </iron-label>
+          </span>
+          <span class="vertical durations">
+            <span id="total">
+              [[_duration(ajaxResponse.duration)]]
+            </span>
+            <span id="filtered">
+              [[_filteredStepDuration(steps)]]
+            </span>
+          </span>
+          <paper-input class="filter" label="Min Duration (minutes)" value="{{minDuration}}">
+              <paper-icon-button tabindex=-1 noink class="clear-icon" slot="suffix" on-click="_clearMin" icon="clear" alt="clear" title="clear">
+              </paper-icon-button>
+
+          </paper-input>
+          <paper-input class="filter" label="Step name Prefix" value="{{stepPrefix}}">
+              <paper-icon-button tabindex=-1 noink class="clear-icon" slot="suffix" on-click="_clearPrefix" icon="clear" alt="clear" title="clear">
+              </paper-icon-button>
+          </paper-input>
+        </div>
+      </div>
+      <template is="dom-if" if="[[ajaxLoading]]">
+        <div id="spinner-wrapper">
+          <paper-spinner active></paper-spinner>
+        </div>
+      </template>
+      <template is="dom-if" if="[[_not(ajaxLoading)]]">
+        <vaadin-grid aria-label="Longest builds" items="[[steps]]">
+
+          <vaadin-grid-column flex-grow="0.2">
+            <template class="header">
+              <vaadin-grid-sorter path="number">
+                Step #
+              </vaadin-grid-sorter>
+            </template>
+            <template> [[item.number]] </template>
+          </vaadin-grid-column>
+
+          <vaadin-grid-column width="20em">
+            <template class="header">
+              <vaadin-grid-sorter path="name">
+                Name
+              </vaadin-grid-sorter>
+            </template>
+            <template>
+              <span class="name-container">
+                [[item.name]]
+              </span>
+            </template>
+          </vaadin-grid-column>
+
+          <vaadin-grid-column>
+            <template class="header">
+              <vaadin-grid-sorter path="duration">
+                Duration
+              </vaadin-grid-sorter>
+            </template>
+            <template>[[_duration(item.duration)]]</template>
+          </vaadin-grid-column>
+
+          <vaadin-grid-column>
+            <template class="header">
+              <vaadin-grid-sorter path="result">
+                Result
+              </vaadin-grid-sorter>
+            </template>
+            <template>[[_textForStepResult(item.result)]]</template>
+          </vaadin-grid-column>
+
+        </vaadin-grid>
+      </template>
+    </div>
+  </template>
+  <script>
+    'use strict';
+    class BuildAnalysis extends Polymer.mixinBehaviors([CommonMixin], Polymer.Element) {
+      static get is() { return 'build-analysis'; }
+
+      static get properties() {
+        return {
+          ajaxResponse: {
+            type: Object,
+            observer: '_ajaxResponseChanged',
+          },
+          route: {
+            type: String,
+            observer: '_routeChanged',
+          },
+          builder: {
+            type: String,
+            computed: '_computeBuilder(route.*)',
+          },
+          master: {
+            type: String,
+            computed: '_computeMaster(ajaxResponse.*)',
+          },
+          buildNum: {
+            type: String,
+            computed: '_computeBuildNum(route.*)',
+          },
+          name: {
+            type: String,
+          },
+          minDuration: {
+            type: Number,
+            value: 20,
+          },
+          stepPrefix: {
+            type: String,
+            value: "",
+          },
+          steps: {
+            type: Array,
+            computed: '_computeSteps(ajaxResponse.*, minDuration, stepPrefix)',
+          },
+          active: {
+            type: Boolean,
+            observer: '_activeChanged',
+          },
+        }
+      }
+
+      _clearMin() {
+        this.minDuration = undefined;
+      }
+
+      _clearPrefix() {
+        this.stepPrefix = '';
+      }
+
+      _filteredStepDuration(steps) {
+        return this._duration(steps.map((step) => step.duration).reduce((x, y) => x + y, 0));
+      }
+
+      _ajaxResponseChanged() {
+        if (!this.ajaxResponse.steps) { return; }
+
+        let maxDuration = Math.max(
+          Math.max(...this.ajaxResponse.steps.map((itm) => itm.duration)), -1);
+        if (maxDuration < this.minDuration * 60) {
+          this.minDuration = Math.floor(maxDuration / 60);
+        }
+      }
+      _computeSteps(resp, minDuration, stepPrefix) {
+        resp = resp.base;
+        if (!resp || !resp.steps) {
+          return [];
+        }
+        return resp.steps.filter((itm) => {
+          if (itm.duration < minDuration * 60) {
+            return false;
+          }
+          return (stepPrefix != "" ? itm.name.startsWith(stepPrefix) : true);
+        });
+      }
+
+      _computeMaster(resp) {
+        resp = resp.base;
+        if (!resp || !resp.steps) {
+          return '';
+        }
+        return resp.master;
+      }
+
+      _computeBuilder(route) {
+        if (route == undefined || !route.base.path) {
+          return '';
+        }
+        return route.base.path.split('/')[1];
+      }
+
+      _computeBuildNum(route) {
+        if (route == undefined || !route.base.path) {
+          return '';
+        }
+        return route.base.path.split('/')[2];
+      }
+
+      _routeChanged() {
+        this._possiblyQuery(this.route, this.active);
+      }
+
+      _activeChanged() {
+        this._possiblyQuery(this.route, this.active);
+        if (!this.active) {
+          this.ajaxResponse = {};
+        }
+      }
+
+      _possiblyQuery(route, active) {
+        if (this.active && route.prefix.endsWith('build')) {
+          let body = {
+            builder: this.builder,
+            buildNum: Number(this.buildNum),
+          };
+          this.$.ajax.body = JSON.stringify(body);
+          this.$.ajax.generateRequest();
+        }
+      }
+    }
+    customElements.define(BuildAnalysis.is, BuildAnalysis);
+  </script>
+</dom-module>

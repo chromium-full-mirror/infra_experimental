@@ -1,0 +1,148 @@
+<link rel="import" href="/bower_components/polymer/polymer.html">
+<script>
+  CommonMixin = {
+      _bbBuildLink(master, builder, buildNumber) {
+        if (master && master.startsWith('master.')) {
+          master = master.slice('master.'.length);
+        }
+        return 'https://ci.chromium.org/buildbot/' + master + '/' + this.builder + '/' + buildNumber;
+      },
+
+      _qp() {
+        let u = new URL(window.location);
+        return u.searchParams;
+      },
+
+    _encodeParams: function(params) {
+      var encodedParams = [];
+      for (var key in params) {
+        var value = params[key];
+        if (value === '') {
+          encodedParams.push(encodeURIComponent(key));
+        } else if (value) {
+          encodedParams.push(
+              encodeURIComponent(key) +
+              '=' +
+              encodeURIComponent(value.toString())
+          );
+        }
+      }
+      return encodedParams.join('&');
+    },
+
+    _decodeParams: function(paramString) {
+      var params = {};
+      // Work around a bug in decodeURIComponent where + is not
+      // converted to spaces:
+      paramString = (paramString || '').replace(/\+/g, '%20');
+      var paramList = paramString.split('&');
+      for (var i = 0; i < paramList.length; i++) {
+        var param = paramList[i].split('=');
+        if (param[0]) {
+          params[decodeURIComponent(param[0])] =
+              decodeURIComponent(param[1] || '');
+        }
+      }
+      return params;
+    },
+
+      _setQPString(q) {
+        if (!q.startsWith('?')) {
+          q = '?' + q;
+        }
+        let u = new URL(window.location);
+        u.search = q;
+        window.location = u;
+      },
+
+      _newLink(path) {
+        let u = new URL(window.location);
+        u.pathname = path;
+        return u.href;
+      },
+
+      _limitingLink() {
+        return this._newLink("/app/limiting");
+      },
+
+      _builderLink(builder) {
+        return this._newLink("/app/builders/" + builder);
+      },
+
+      _buildAnalyzeLink(builder, buildNumber) {
+        return this._newLink("/app/build/" + builder + '/' + buildNumber);
+      },
+
+      _clLink(builder, issue, patchset) {
+        return this._newLink('/app/cl/' + builder + '/cl/' + issue + '/' + patchset);
+      },
+
+      _duration(val) {
+        let dur = moment.duration(val, 'seconds');
+        let s = "";
+        if (dur.hours() > 0) {
+          s += dur.hours() + 'h';
+        }
+        if (dur.minutes() > 0) {
+          if (s.length > 0) {
+             s += ' ';
+          }
+          s += dur.minutes() + 'm';
+        }
+        if (dur.seconds() > 0) {
+          if (s.length > 0) {
+             s += ' ';
+          }
+          s += dur.seconds() + 's';
+        }
+        if (dur.milliseconds() > 0 && s.length == 0) {
+          s = '<1s';
+        }
+        return s;
+      },
+
+      _not(v) { return !v; },
+
+      _ts(val) {
+        if (!val) { return ''; }
+        return moment(Number(val)).format('lll');
+      },
+
+
+      _gerritLink(issue, patchset) {
+        return 'https://chromium-review.googlesource.com/c/chromium/src/+/' + issue + '/' + patchset;
+      },
+
+      _cqStatusLink(issue, patchset) {
+        return 'https://chromium-cq-status.appspot.com/v2/patch-status/chromium-review.googlesource.com/' + issue + '/' + patchset
+      },
+
+      _momentToVad(date) {
+        return date.format('YYYY-MM-DD');
+      },
+
+      _textForBuildResult(result) {
+        return {
+          1: "Success",
+          2: "Failure",
+          3: "Infra Failure",
+        }[result];
+      },
+
+      _textForStepResult(result) {
+        // Not verified this is legit.
+        return {
+          1: "Success",
+          2: "Failure",
+          3: "Infra Failure",
+        }[result];
+      },
+
+      _debounce(callback) {
+        this._debouncer = Polymer.Debouncer.debounce(
+          this._debouncer, // initially undefined
+          Polymer.Async.microTask,
+          callback);
+      },
+  };
+</script>

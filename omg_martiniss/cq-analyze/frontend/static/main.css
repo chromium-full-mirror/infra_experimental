@@ -1,0 +1,49 @@
+.content {
+  padding: 30px;
+}
+.inline-link {
+  display: inline;
+}
+.title {
+  display: inline;
+}
+.small-link {
+  display: inline-block;
+  background: #c8c8c8;
+  border-radius: 16px;
+
+  /* pad the element a bit*/
+  padding: 1px 4px 1px 4px;
+  margin: 0 2px;
+
+  /* smaller text, no underline */
+  font-size: 0.8em;
+  text-decoration: none;
+}
+
+.clear-icon {
+  padding: 0px;
+  width: 14px;
+  height: 14px;
+}
+div#spinner-wrapper {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  margin-top: 10px;
+}
+div#spinner-wrapper > paper-spinner {
+  width: 100px;
+  height: 100px;
+  --paper-spinner-stroke-width: 10px;
+}
+#title-box {
+  display: flex;
+  align-items: center;
+}
+vaadin-grid-column {
+  text-align: center;
+}
+paper-tabs {
+  background-color: #4285f4;
+}
