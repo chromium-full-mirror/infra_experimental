@@ -17,71 +17,27 @@ import (
 	bigquery "google.golang.org/api/bigquery/v2"
 )
 
-func hardQueryPrefix(start, end time.Time) string {
-	return fmt.Sprintf(`
-WITH
-  CQA AS (
-    SELECT
-      *
-    FROM
-     `+"`plx.google.chrome_infra.cq_attempts.all`"+`
-    WHERE
-      attempt_start_msec > %[1]v
-      AND attempt_start_msec < %[2]v ),
-  CBA AS (
-    SELECT
-      *
-    FROM
-      plx.google.chrome_infra.completed_builds.all
-    WHERE
-      build_sched_msec > %[1]v
-      AND build_sched_msec < %[2]v ),
-  CSA AS (
-    SELECT
-      *
-    FROM
-      plx.google.chrome_infra.completed_steps.all
-    WHERE
-      build_sched_msec > %[1]v
-      AND build_sched_msec < %[2]v ),
-  unnested AS (
-    SELECT
-      A.attempt_start_msec,
-      A.patchset,
-      A.issue,
-      (A.click_to_patch_committed_sec > 0) AS committed,
-      id
-    FROM
-      CQA AS A
-    CROSS JOIN
-      UNNEST(A.contributing_bbucket_ids) AS id
-    WHERE
-      A.cq_name = 'chromium/chromium/src'),
-  builds_with_patch_url AS (
-    SELECT
-      master,
-      builder,
-      build_sched_msec,
-      execution_duration_s,
-      SPLIT(patch_url, "/") AS parts
-    FROM
-      CBA
-    WHERE
-      patch_url IS NOT NULL
-      AND LENGTH(patch_url) > 6
-      AND STRPOS(patch_url, "codereview") = 0 ),
-  chromium_tryjob_builds AS (
-    SELECT
-      A.master,
-      A.builder,
-      A.build_sched_msec,
-      A.execution_duration_s,
-      parts[OFFSET(7)] AS issue,
-      parts[OFFSET(8)] AS patchset
-    FROM
-      builds_with_patch_url AS A
-    WHERE
-      A.builder IN (
+var switchTime = time.Date(2018, time.March, 1, 0, 0, 0, 0, time.UTC)
+
+func buildDataQuery(start time.Time, end time.Time) string {
+	tableName := "`plx.google.chrome_infra.completed_builds.all`"
+	fieldName := "build_sched_msec"
+	startS := fmt.Sprintf("%d", start.Unix()*1000)
+	endS := fmt.Sprintf("%d", end.Unix()*1000)
+
+	if switchTime.Sub(end) > 0 {
+		tableName = "`cr-buildbucket.builds.completed_BETA`"
+		fieldName = "start_time"
+		startS = fmt.Sprintf("TIMESTAMP_MILLIS(%v)", startS)
+		endS = fmt.Sprintf("TIMESTAMP_MILLIS(%v)", endS)
+	}
+	return fmt.Sprintf(`%[1]v
+	WHERE
+    %[2]v > %[3]v
+    AND %[2]v < %[4]v`, tableName, fieldName, startS, endS)
+}
+
+var builderList = `(
         'android_arm64_dbg_recipe',
         'android_clang_dbg_recipe',
         'android_compile_dbg',
@@ -110,39 +66,74 @@ WITH
         'win7_chromium_rel_ng',
         'win_chromium_compile_dbg_ng',
         'win_chromium_rel_ng',
-        'win_clang')
+        'win_clang')`
+
+func buildsWithPatchQuery(end time.Time) string {
+	queryS := `
+  builds_with_patch_url AS (
+    SELECT
+      master,
+      builder,
+      build_sched_msec,
+      CAST(execution_duration_s AS INT64) AS execution_duration_s,
+      SPLIT(patch_url, "/") AS parts
+    FROM
+      CBA
+    WHERE
+      patch_url IS NOT NULL
+      AND LENGTH(patch_url) > 6
+      AND STRPOS(patch_url, "codereview") = 0 ),
+  chromium_tryjob_builds AS (
+    SELECT
+      A.master,
+      A.builder,
+      A.build_sched_msec,
+      A.execution_duration_s,
+      parts[OFFSET(7)] AS issue,
+      parts[OFFSET(8)] AS patchset
+    FROM
+      builds_with_patch_url AS A
+    WHERE
+      A.builder IN %v
       AND parts[OFFSET(4)] = "chromium"
       AND parts[OFFSET(5)] = "src"
       AND parts[OFFSET(6)] = "+" ),
-  total_time_per_builder AS (
-    SELECT
-      issue,
-      patchset,
-      master,
-      builder,
-      SUM(execution_duration_s) AS total_time
-    FROM
-      chromium_tryjob_builds
-    GROUP BY
-      issue,
-      patchset,
-      master,
-      builder ),
-  data AS (
-    SELECT
-      attempt_start_msec,
-      issue,
-      patchset,
-      click_to_result_sec / 60 AS CTR_min,
-      click_to_patch_committed_sec / 60 AS CTC_min,
-      first_start_msec,
-      fail_type
-    FROM
-      CQA
-    WHERE
-      cq_name = 'chromium/chromium/src'
-      AND (fail_type IS NULL
-        OR fail_type NOT IN (
+`
+	if switchTime.Sub(end) > 0 {
+		queryS = `
+  builds_with_patch_url AS (
+  SELECT
+    builder,
+    number,
+    start_time,
+    view_url,
+    TIMESTAMP_DIFF(end_time, start_time, SECOND) AS execution_duration_s,
+    gc
+  FROM
+    CBA
+  CROSS JOIN
+    UNNEST(input.gerrit_changes) AS gc),
+  chromium_tryjob_builds AS (
+  SELECT
+    builder.bucket AS master,
+    builder.builder,
+    start_time,
+    execution_duration_s,
+    gc.change AS issue,
+    gc.patchset AS patchset
+  FROM
+    builds_with_patch_url
+  WHERE
+    builder.builder IN %v),
+			`
+	}
+	return fmt.Sprintf(queryS, builderList)
+}
+
+func failTypeQuery(end time.Time) string {
+	if switchTime.Sub(end) > 0 {
+		return `
+		(
           8, /* MANUAL_CANCEL */
           5, /* MISSING_LGTM*/
           4, /* NOT_LGTM */
@@ -153,136 +144,155 @@ WITH
           10, /* OPEN_DEPENDENCY */
           6, /*NO_SIGNCLA */
           14, /*FAILED_COMMIT */
-          2 /*FAILED_JOBS */ )) ),
+          2 /*FAILED_JOBS */ ))`
+	}
+	return `
+      ( 'MANUAL_CANCEL',
+        'MISSING_LGTM',
+        'NOT_LGTM',
+        'FAILED_PRESUBMIT_BOT',
+        'FAILED_PRESUBMIT_BOT_INFRA',
+        'FAILED_REMOTE_REF_PRESUBMIT',
+        'COMMIT_FALSE',
+        'OPEN_DEPENDENCY',
+        'NO_SIGNCLA',
+        'FAILED_COMMIT',
+        'FAILED_JOBS' ))
+`
+}
+
+func hardQueryPrefix(start, end time.Time) string {
+	return fmt.Sprintf(`
+WITH
+  CQA AS (
+  SELECT
+    *
+  FROM
+    `+"`chrome-infra-events.aggregated.cq_attempts`"+`
+  WHERE
+    attempt_start_msec > %[1]v
+    AND attempt_start_msec < %[2]v ),
+  CBA AS (
+  SELECT
+    *
+  FROM
+`+buildDataQuery(start, end)+`),
+  unnested AS (
+  SELECT
+    A.attempt_start_msec,
+    A.patchset,
+    A.issue,
+    (A.click_to_patch_committed_sec > 0) AS committed,
+    id
+  FROM
+    CQA AS A
+  CROSS JOIN
+    UNNEST(A.contributing_bbucket_ids) AS id
+  WHERE
+    A.cq_name = 'chromium/chromium/src'),
+`+buildsWithPatchQuery(end)+`
+  total_time_per_builder AS (
+  SELECT
+    issue,
+    patchset,
+    master,
+    builder,
+    SUM(execution_duration_s) AS total_time
+  FROM
+    chromium_tryjob_builds
+  GROUP BY
+    issue,
+    patchset,
+    master,
+    builder ),
+  data AS (
+  SELECT
+    attempt_start_msec,
+    issue,
+    patchset,
+    click_to_result_sec / 60 AS CTR_min,
+    click_to_patch_committed_sec / 60 AS CTC_min,
+    first_start_msec,
+    fail_type
+  FROM
+    CQA
+  WHERE
+    cq_name = 'chromium/chromium/src'
+    AND (fail_type IS NULL
+      OR fail_type NOT IN `+failTypeQuery(end)+`),
   id_parent_tup AS (
+  SELECT
+    A.issue,
+    B.patchset,
+    A.attempt_start_msec,
+    A.id
+  FROM (
     SELECT
-      A.issue,
-      B.patchset,
-      A.attempt_start_msec,
-      A.id
-    FROM (
-      SELECT
-        issue,
-        MIN(attempt_start_msec) AS attempt_start_msec,
-        id
-      FROM
-        unnested
-      GROUP BY
-        issue,
-        id) AS A
-    INNER JOIN
-      CQA AS B
-    ON
-      A.issue = B.issue
-      AND A.attempt_start_msec = B.attempt_start_msec ),
-  tup_has_compile AS (
-    SELECT
-      A.issue,
-      A.patchset,
-      A.attempt_start_msec,
-      A.id
+      issue,
+      MIN(attempt_start_msec) AS attempt_start_msec,
+      id
     FROM
-      unnested AS A
-    INNER JOIN
-     CSA AS B
-    ON
-      A.id = B.bbucket_id
-    WHERE
-      STRPOS(B.step_name, 'compile') = 1
+      unnested
     GROUP BY
-      A.issue,
-      A.patchset,
-      A.attempt_start_msec,
-      A.id ),
-  tup_has_compile_no_child AS (
-    SELECT
-      A.issue,
-      A.attempt_start_msec,
-      A.patchset
-    FROM
-      id_parent_tup AS A
-    INNER JOIN
-      tup_has_compile AS B
-    ON
-      A.issue = B.issue
-      AND A.attempt_start_msec = B.attempt_start_msec
-      AND A.patchset = B.patchset
-    GROUP BY
-      A.issue,
-      A.attempt_start_msec,
-      A.patchset ),
-  data_has_compile AS (
-    SELECT
-      C.issue,
-      C.patchset,
-      C.attempt_start_msec,
-      D.CTR_min,
-      D.CTC_min
-    FROM
-      tup_has_compile_no_child AS C
-    INNER JOIN
-      data AS D
-    ON
-      C.issue = D.issue
-      AND C.patchset = D.patchset
-      AND C.attempt_start_msec = D.attempt_start_msec ),
+      issue,
+      id) AS A
+  INNER JOIN
+    CQA AS B
+  ON
+    A.issue = B.issue
+    AND A.attempt_start_msec = B.attempt_start_msec ),
   time_from_builds AS (
-    SELECT
-      A.issue,
-      A.patchset,
-      A.attempt_start_msec,
-      MAX(total_time) AS longest_time
-    FROM
-      id_parent_tup AS A
-    INNER JOIN
-      total_time_per_builder AS B
-    ON
-      A.issue = B.issue
-      AND A.patchset = B.patchset
-    GROUP BY
-      A.issue,
-      A.patchset,
-      A.attempt_start_msec ),
+  SELECT
+    A.issue,
+    A.patchset,
+    A.attempt_start_msec,
+    MAX(total_time) AS longest_time
+  FROM
+    id_parent_tup AS A
+  INNER JOIN
+    total_time_per_builder AS B
+  ON
+    A.issue = CAST(B.issue AS STRING)
+    AND A.patchset = CAST(B.patchset AS STRING)
+  GROUP BY
+    A.issue,
+    A.patchset,
+    A.attempt_start_msec ),
   tmp AS (
-    SELECT
-      A.issue,
-      A.patchset,
-      A.attempt_start_msec,
-      B.master,
-      B.builder,
-      B.total_time
-    FROM
-      time_from_builds AS A
-    INNER JOIN
-      total_time_per_builder AS B
-    ON
-      A.issue = B.issue
-      AND A.patchset = B.patchset
-      AND A.longest_time = B.total_time ),
+  SELECT
+    A.issue,
+    A.patchset,
+    A.attempt_start_msec,
+    B.master,
+    B.builder,
+    B.total_time
+  FROM
+    time_from_builds AS A
+  INNER JOIN
+    total_time_per_builder AS B
+  ON
+    A.issue = CAST(B.issue AS STRING)
+    AND A.patchset = CAST(B.patchset AS STRING)
+    AND A.longest_time = B.total_time ),
   only_valid AS (
-    SELECT
-      A.*,
-      TIMESTAMP_TRUNC(TIMESTAMP_MILLIS(CAST(A.attempt_start_msec AS INT64)), DAY) AS day_ts
-    FROM
-      tmp AS A
-    INNER JOIN
-      data_has_compile AS B
-    ON
-      A.issue = B.issue
-      AND A.patchset = B.patchset
-      AND A.attempt_start_msec = B.attempt_start_msec )
-`, start.UTC().Unix()*1000, end.UTC().Unix()*1000) // attempt_start_msec is in milliseconds.
+  SELECT
+    A.*,
+    TIMESTAMP_TRUNC(TIMESTAMP_MILLIS(CAST(A.attempt_start_msec AS INT64)), DAY) AS day_ts
+  FROM
+    tmp AS A)`,
+		start.UTC().Unix()*1000, end.UTC().Unix()*1000) // attempt_start_msec is in milliseconds.
 }
 
 // Gets a table of number of times a builder was the slowest builder for an issue/patchset pair
 func limitingQuery(start, end time.Time) string {
-	return hardQueryPrefix(start, end) + `,grouped AS (
+	return hardQueryPrefix(start, end) + `
+  ,grouped AS (
     SELECT
       builder,
       COUNT(*) AS count,
       AVG(total_time) AS avg_time,
-      APPROX_QUANTILES(total_time, 100)[OFFSET(90)] AS ninety_time,
-      APPROX_QUANTILES(total_time, 100)[OFFSET(95)] AS ninety_five_time
+      CAST(APPROX_QUANTILES(total_time, 100)[OFFSET(90)] AS INT64) AS ninety_time,
+      CAST(APPROX_QUANTILES(total_time, 100)[OFFSET(95)] AS INT64) AS ninety_five_time
     FROM
       only_valid
     GROUP BY
@@ -301,9 +311,9 @@ LIMIT
 // Gets a table of number of times a builder was the slowest builder for an issue/patchset pair
 func longestBuilds(builder string, start, end time.Time) string {
 	return hardQueryPrefix(start, end) + fmt.Sprintf(`
-  SELECT builder, issue, patchset, attempt_start_msec AS attempt_start, total_time AS duration
+  SELECT builder, issue, patchset, attempt_start_msec AS attempt_start, CAST(total_time AS INT64) AS duration
   FROM only_valid
-  WHERE builder = '%s' AND total_time > 2 * 60 * 60
+  WHERE builder = '%s'
   GROUP BY builder, issue, patchset, attempt_start_msec, total_time
   ORDER BY total_time DESC
 `, builder)
@@ -351,37 +361,37 @@ ORDER BY quant[OFFSET(50)] DESC
 func clInfoQuery(builder, issue, patchset string) string {
 	return fmt.Sprintf(`
 WITH builds_with_patch_url AS (
-    SELECT
-      master,
-      builder,
-      build_number,
-      build_sched_msec,
-      result,
-      execution_duration_s,
-      SPLIT(patch_url, "/") AS parts
-    FROM
-      plx.google.chrome_infra.completed_builds.all
-    WHERE
-      builder = '%s'
-      AND patch_url IS NOT NULL
-      AND LENGTH(patch_url) > 6
-      AND STRPOS(patch_url, "codereview") = 0 )
   SELECT
     master,
+    builder,
     build_number,
-    build_sched_msec AS build_sched,
+    CAST(build_sched_msec AS INT64) AS build_sched_msec,
     result,
-    execution_duration_s as duration
+    execution_duration_s,
+    SPLIT(patch_url, "/") AS parts
   FROM
-    builds_with_patch_url
+    plx.google.chrome_infra.completed_builds.all
   WHERE
-    parts[OFFSET(4)] = "chromium"
-    AND parts[OFFSET(5)] = "src"
-    AND parts[OFFSET(6)] = "+"
-    AND parts[OFFSET(7)] = "%s"
-    AND parts[OFFSET(8)] = "%s"
-  ORDER BY
-    build_number DESC
+    builder = '%s'
+    AND patch_url IS NOT NULL
+    AND LENGTH(patch_url) > 6
+    AND STRPOS(patch_url, "codereview") = 0 )
+SELECT
+  master,
+  build_number,
+  CAST(build_sched_msec AS INT64) AS build_sched,
+  result,
+  execution_duration_s as duration
+FROM
+  builds_with_patch_url
+WHERE
+  parts[OFFSET(4)] = "chromium"
+  AND parts[OFFSET(5)] = "src"
+  AND parts[OFFSET(6)] = "+"
+  AND parts[OFFSET(7)] = "%s"
+  AND parts[OFFSET(8)] = "%s"
+ORDER BY
+  build_number DESC
 	`, builder, issue, patchset)
 }
 
@@ -551,11 +561,7 @@ func runQuery(c context.Context, query string, result interface{}, cacheTime tim
 			asS := cell.V.(string)
 			switch schema.Type {
 			case "INTEGER":
-				res, err := strconv.Atoi(asS)
-				if err != nil {
-					panic(err)
-				}
-				value = reflect.ValueOf(int32(res))
+				fallthrough
 			case "INT64":
 				res, err := strconv.Atoi(asS)
 				if err != nil {

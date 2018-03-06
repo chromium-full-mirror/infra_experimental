@@ -11,6 +11,7 @@ import (
 
 	"infra/appengine/cq-analyze/api/cq_analyze"
 
+	"go.chromium.org/luci/common/logging"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -71,6 +72,7 @@ func (s *cqAnalyzeService) GetLimitingBuilders(c context.Context, req *cq_analyz
 	if math.Abs(float64(endOfWeek().Sub(end))) < float64(time.Hour*24*7) {
 		cacheTime = shortCacheTime
 	}
+	logging.Warningf(c, "q %v", limitingQuery(start, end))
 	if err := runQuery(c, limitingQuery(start, end), &res.Builders, cacheTime); err != nil {
 		return nil, err
 	}
@@ -101,9 +103,22 @@ func (s *cqAnalyzeService) GetCLsForBuilder(c context.Context, req *cq_analyze.G
 	if math.Abs(float64(endOfWeek().Sub(end))) < float64(time.Hour*24*7) {
 		cacheTime = shortCacheTime
 	}
+	var minDuration int64
+	minDuration = 2 * 60 * 60
+	if req.MinDuration != 0 {
+		minDuration = req.MinDuration
+	}
+
 	if err := runQuery(c, longestBuilds(req.Builder, start, end), &res.Builds, cacheTime); err != nil {
 		return nil, err
 	}
+	filtered := []*cq_analyze.LongBuild{}
+	for _, build := range res.Builds {
+		if build.Duration > minDuration {
+			filtered = append(filtered, build)
+		}
+	}
+	res.Builds = filtered
 	return res, nil
 }
 

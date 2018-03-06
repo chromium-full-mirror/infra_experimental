@@ -1,4 +1,4 @@
-application: cq-analyzer
+application: cq-analyzerr
 runtime: go
 api_version: go1
 

@@ -29,16 +29,17 @@ message GetLimitingBuildersResponse {
 
 message LimitingBuilder {
   string builder = 1;
-  int32 count = 2;
+  int64 count = 2;
   double avg_time = 3;
-  double ninety_time = 4;
-  double ninety_five_time = 5;
+  int64 ninety_time = 4;
+  int64 ninety_five_time = 5;
 }
 
 message GetCLsForBuilderRequest {
   string builder = 1;
   string start_date = 2;
   string end_date = 3;
+  int64 min_duration = 4;
 }
 
 message GetCLsForBuilderResponse {
@@ -51,7 +52,7 @@ message LongBuild {
   string issue = 3;
   string patchset = 4;
   double attempt_start = 5;
-  double duration = 6;
+  int64 duration = 6;
 }
 
 message GetLongStepsRequest {
@@ -102,11 +103,11 @@ message GetCLInfoForBuilderResponse {
 }
 
 message Build {
-  int32 build_number = 1;
-  int32 build_sched = 2;
+  int64 build_number = 1;
+  int64 build_sched = 2;
   double duration = 3;
   string master = 5;
-  int32 result = 6;
+  int64 result = 6;
 }
 
 message GetBuildInfoRequest {
@@ -123,10 +124,10 @@ message GetBuildInfoResponse {
 message Step {
   // Hackity hack hack
   string master = 1;
-  int32 number = 2;
+  int64 number = 2;
   string name = 3;
   // Duration in seconds
   double duration = 4;
-  int32 result = 5;
+  int64 result = 5;
 }
 

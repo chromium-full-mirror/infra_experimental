@@ -30,7 +30,6 @@ const authGroup = "auth-service-access"
 func getTemplatePath() string {
 	path := "build/es6-bundled/templates"
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		fmt.Printf("file does not exist")
 		return "templates"
 	}
 	return path
