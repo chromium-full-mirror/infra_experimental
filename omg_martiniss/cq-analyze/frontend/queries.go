@@ -19,13 +19,20 @@ import (
 
 var switchTime = time.Date(2018, time.March, 1, 0, 0, 0, 0, time.UTC)
 
+func cqQuery(end time.Time) string {
+	if switchTime.Sub(end) < 0 {
+		return "`chrome-infra-events.aggregated.cq_attempts`"
+	}
+	return "`plx.google.chrome_infra.cq_attempts.all`"
+}
+
 func buildDataQuery(start time.Time, end time.Time) string {
 	tableName := "`plx.google.chrome_infra.completed_builds.all`"
 	fieldName := "build_sched_msec"
 	startS := fmt.Sprintf("%d", start.Unix()*1000)
 	endS := fmt.Sprintf("%d", end.Unix()*1000)
 
-	if switchTime.Sub(end) > 0 {
+	if switchTime.Sub(end) < 0 {
 		tableName = "`cr-buildbucket.builds.completed_BETA`"
 		fieldName = "start_time"
 		startS = fmt.Sprintf("TIMESTAMP_MILLIS(%v)", startS)
@@ -99,7 +106,7 @@ func buildsWithPatchQuery(end time.Time) string {
       AND parts[OFFSET(5)] = "src"
       AND parts[OFFSET(6)] = "+" ),
 `
-	if switchTime.Sub(end) > 0 {
+	if switchTime.Sub(end) < 0 {
 		queryS = `
   builds_with_patch_url AS (
   SELECT
@@ -131,22 +138,8 @@ func buildsWithPatchQuery(end time.Time) string {
 }
 
 func failTypeQuery(end time.Time) string {
-	if switchTime.Sub(end) > 0 {
+	if switchTime.Sub(end) < 0 {
 		return `
-		(
-          8, /* MANUAL_CANCEL */
-          5, /* MISSING_LGTM*/
-          4, /* NOT_LGTM */
-          1, /* FAILED_PRESUBMIT_BOT */
-          17, /*FAILED_PRESUBMIT_BOT_INFRA */
-          12, /* FAILED_REMOTE_REF_PRESUBMIT */
-          5, /* COMMIT_FALSE */
-          10, /* OPEN_DEPENDENCY */
-          6, /*NO_SIGNCLA */
-          14, /*FAILED_COMMIT */
-          2 /*FAILED_JOBS */ ))`
-	}
-	return `
       ( 'MANUAL_CANCEL',
         'MISSING_LGTM',
         'NOT_LGTM',
@@ -159,6 +152,20 @@ func failTypeQuery(end time.Time) string {
         'FAILED_COMMIT',
         'FAILED_JOBS' ))
 `
+	}
+	return `
+		(
+          8, /* MANUAL_CANCEL */
+          5, /* MISSING_LGTM*/
+          4, /* NOT_LGTM */
+          1, /* FAILED_PRESUBMIT_BOT */
+          17, /*FAILED_PRESUBMIT_BOT_INFRA */
+          12, /* FAILED_REMOTE_REF_PRESUBMIT */
+          5, /* COMMIT_FALSE */
+          10, /* OPEN_DEPENDENCY */
+          6, /*NO_SIGNCLA */
+          14, /*FAILED_COMMIT */
+          2 /*FAILED_JOBS */ ))`
 }
 
 func hardQueryPrefix(start, end time.Time) string {
@@ -168,7 +175,7 @@ WITH
   SELECT
     *
   FROM
-    `+"`chrome-infra-events.aggregated.cq_attempts`"+`
+    `+cqQuery(end)+`
   WHERE
     attempt_start_msec > %[1]v
     AND attempt_start_msec < %[2]v ),

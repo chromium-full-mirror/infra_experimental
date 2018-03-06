@@ -76,6 +76,11 @@
             <vaadin-date-picker label="End" value="{{endDate}}" max="[[_latestGoodDate()]]"></vaadin-date-picker>
             <paper-icon-button icon="arrow-forward" raised on-click="_nextTimespan">
             </paper-icon-button>
+            <template is="dom-if" if="[[_badWeek]]">
+              <em>
+                The internal dremel table cq_attempts was switched off this week, so the data here is incomplete.
+              </em>
+            </template>
           </span>
           <span>
             [[timespanDays]] days in this timespan
@@ -160,6 +165,10 @@
             type: Number,
             computed: '_computeTimespanDays(startDate, endDate)',
           },
+          _badWeek: {
+            type: Boolean,
+            computed: '_computeBadWeek(endDate)',
+          },
           startDate: {
             type: String,
             observer: '_dateChanged',
@@ -169,6 +178,10 @@
             observer: '_dateChanged',
           },
         }
+      }
+
+      _computeBadWeek(endDate) {
+        return endDate == "2018-02-24";
       }
 
       _dateChanged() {
