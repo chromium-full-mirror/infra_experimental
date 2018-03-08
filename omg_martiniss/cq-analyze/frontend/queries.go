@@ -297,9 +297,9 @@ func limitingQuery(start, end time.Time) string {
     SELECT
       builder,
       COUNT(*) AS count,
-      AVG(total_time) AS avg_time,
-      CAST(APPROX_QUANTILES(total_time, 100)[OFFSET(90)] AS INT64) AS ninety_time,
-      CAST(APPROX_QUANTILES(total_time, 100)[OFFSET(95)] AS INT64) AS ninety_five_time
+      AVG(total_time) AS avgTime,
+      CAST(APPROX_QUANTILES(total_time, 100)[OFFSET(90)] AS INT64) AS ninetyTime,
+      CAST(APPROX_QUANTILES(total_time, 100)[OFFSET(95)] AS INT64) AS ninetyFiveTime
     FROM
       only_valid
     GROUP BY
@@ -410,6 +410,20 @@ func buildInfoQuery(builder string, buildNumber int64) string {
     ORDER BY step_number
     ;
 `, builder, buildNumber)
+}
+
+func stepsQuery(builder, stepPrefix string, start, end time.Time) string {
+	return fmt.Sprintf(`
+    SELECT step_name AS name, master, step_duration_s AS duration, build_number AS build_number, result
+    FROM plx.google.chrome_infra.completed_steps.all
+    WHERE
+      builder = '%s'
+      AND STRPOS(step_name, '%s') = 1
+      AND build_sched_msec > %v
+      AND build_sched_msec < %v
+    ORDER BY step_duration_s DESC
+    ;
+`, builder, stepPrefix, start.Unix()*1000, end.Unix()*1000)
 }
 
 func knownBuildersQuery(start, end time.Time) string {

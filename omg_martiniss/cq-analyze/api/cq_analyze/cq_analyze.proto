@@ -15,6 +15,7 @@ service CQAnalyzeService {
   rpc GetKnownBuilders (GetKnownBuildersRequest) returns (GetKnownBuildersResponse) {}
   rpc GetCLInfoForBuilder (GetCLInfoForBuilderRequest) returns (GetCLInfoForBuilderResponse) {}
   rpc GetBuildInfo (GetBuildInfoRequest) returns (GetBuildInfoResponse) {}
+  rpc GetSteps (GetStepsRequest) returns (GetStepsResponse) {}
 }
 
 message GetLimitingBuildersRequest {
@@ -31,8 +32,10 @@ message LimitingBuilder {
   string builder = 1;
   int64 count = 2;
   double avg_time = 3;
-  int64 ninety_time = 4;
-  int64 ninety_five_time = 5;
+  // int32 so that js values aren't strings, since I'd imagine js numbers can't
+  // handle int64. :(
+  int32 ninety_time = 4;
+  int32 ninety_five_time = 5;
 }
 
 message GetCLsForBuilderRequest {
@@ -124,6 +127,7 @@ message GetBuildInfoResponse {
 message Step {
   // Hackity hack hack
   string master = 1;
+  int64 build_number = 6;
   int64 number = 2;
   string name = 3;
   // Duration in seconds
@@ -131,3 +135,15 @@ message Step {
   int64 result = 5;
 }
 
+message GetStepsRequest {
+  string builder = 1;
+  string step_prefix = 2;
+  string start_date = 3;
+  string end_date = 4;
+}
+
+message GetStepsResponse {
+  repeated Step steps = 1;
+  double duration = 2;
+  string master = 3;
+}

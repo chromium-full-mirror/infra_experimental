@@ -1,7 +1,12 @@
 <link rel="import" href="/bower_components/polymer/polymer.html">
+
+<link rel="import" href="/bower_components/app-route/app-route.html">
+
 <link rel="import" href="/bower_components/iron-ajax/iron-ajax.html">
 <link rel="import" href="/bower_components/iron-label/iron-label.html">
+
 <link rel="import" href="/bower_components/paper-input/paper-input.html">
+
 <link rel="import" href="/bower_components/vaadin-grid/vaadin-grid.html">
 
 <link rel="import" href="/elements/common-mixin.html">
@@ -23,21 +28,27 @@
       handle-as="json"
       loading="{{ajaxLoading}}"
       last-response="{{ajaxResponse}}"
+      bubbles
       ></iron-ajax>
+    <app-route
+        route="{{route}}"
+        pattern="/:builder/:issue/:patchset"
+        data="{{routeData}}"
+        tail="{{subroute}}"></app-route>
     <div id="app" class="content">
       <div>
         <div id="title-box">
           <h2>
-            cl/<a href$="[[_builderLink(builder)]]">[[builder]]</a>/[[issue]]/[[patchset]]
+            cl/<a href$="[[_builderLink(routeData.builder)]]">[[routeData.builder]]</a>/[[routeData.issue]]/[[routeData.patchset]]
           </h2>
           <h3>
             <div class="small-link">
-              <a href$="[[_gerritLink(issue,patchset)]]" target="_blank">
+              <a href$="[[_gerritLink(routeData.issue,routeData.patchset)]]" target="_blank">
                 gerrit
               </a>
             </div>
             <div class="small-link">
-              <a href$="[[_cqStatusLink(issue,patchset)]]" target="_blank">
+              <a href$="[[_cqStatusLink(routeData.issue,routeData.patchset)]]" target="_blank">
                 CQ status
               </a>
             </div>
@@ -64,8 +75,8 @@
             </template>
             <template>
               <span>
-                <a href$=[[_buildAnalyzeLink(builder,item.buildNumber)]]>
-                  [[item.buildNumber]]</a> <a class="small-link" href$=[[_bbBuildLink(master,builder,item.buildNumber)]] target="_blank"> MILO</a>
+                <a href$=[[_buildAnalyzeLink(routeData.builder,item.buildNumber)]]>
+                  [[item.buildNumber]]</a> <a class="small-link" href$=[[_bbBuildLink(master,routeData.builder,item.buildNumber)]] target="_blank"> MILO</a>
               </span>
             </template>
           </vaadin-grid-column>
@@ -109,37 +120,23 @@
             type: String,
             observer: '_routeChanged',
           },
-          builder: {
-            type: String,
-            computed: '_computeBuilder(route.*)',
-          },
           master: {
             type: String,
             computed: '_computeMaster(ajaxResponse.*)',
-          },
-          issue: {
-            type: String,
-            computed: '_computeIssue(route.*)',
-          },
-          patchset: {
-            type: String,
-            computed: '_computePatchset(route.*)',
           },
           name: {
             type: String,
           },
           active: {
             type: Boolean,
-            observer: '_activeChanged',
           },
         }
       }
 
-      _computeBuilder(route) {
-        if (route == undefined || !route.base.path) {
-          return '';
-        }
-        return route.base.path.split('/')[1];
+      static get observers() {
+        return [
+          '_query(route.*, routeData.*, active)',
+        ];
       }
 
       _computeMaster(resp) {
@@ -150,41 +147,21 @@
         return resp.builds[0].master.slice('master.'.length);
       }
 
-      _computeIssue(route) {
-        if (route == undefined || !route.base.path) {
-          return '';
-        }
-        return route.base.path.split('/')[3];
-      }
-
-      _computePatchset(route) {
-        if (route == undefined || !route.base.path) {
-          return '';
-        }
-        return route.base.path.split('/')[4];
-      }
-
-      _routeChanged() {
-        this._possiblyQuery(this.route, this.active);
-      }
-
-      _activeChanged() {
-        this._possiblyQuery(this.route, this.active);
-        if (!this.active) {
-          this.ajaxResponse = {};
-        }
-      }
-
-      _possiblyQuery(route, active) {
-        if (this.active && route.prefix.endsWith('cl')) {
-          let body = {
-            builder: this.builder,
-            issue: this.issue,
-            patchset: this.patchset,
-          };
-          this.$.ajax.body = JSON.stringify(body);
-          this.$.ajax.generateRequest();
-        }
+      _query(route, routeData, active) {
+        this._debounce(() => {
+          route = route.base;
+          routeData = routeData.base;
+          if (active && route.prefix.endsWith('cl')) {
+            let body = {
+              builder: routeData.builder,
+              issue: routeData.issue,
+              patchset: routeData.patchset,
+            };
+            this.ajaxResponse = {};
+            this.$.ajax.body = JSON.stringify(body);
+            this.$.ajax.generateRequest();
+          }
+        });
       }
 
       _totalDuration(builds) {

@@ -7,6 +7,7 @@
 <link rel="import" href="/bower_components/iron-location/iron-location.html">
 <link rel="import" href="/bower_components/iron-icons/iron-icons.html">
 <link rel="import" href="/bower_components/paper-button/paper-button.html">
+<link rel="import" href="/bower_components/paper-toast/paper-toast.html">
 <link rel="import" href="/bower_components/paper-icon-button/paper-icon-button.html">
 <link rel="import" href="/bower_components/vaadin-date-picker/vaadin-date-picker.html">
 
@@ -14,6 +15,7 @@
 <link rel="import" href="/elements/builder-analysis.html">
 <link rel="import" href="/elements/cl-analysis.html">
 <link rel="import" href="/elements/build-analysis.html">
+<link rel="import" href="/elements/steps-analysis.html">
 <link rel="import" href="/elements/common-mixin.html">
 
 <link rel="import" href="/bower_components/shared/chops-login.html">
@@ -62,6 +64,7 @@
       <app-header reveals>
         <app-toolbar>
           <div main-title>CQ Analyzer</div>
+          <paper-toast id="errorToast" duration="0" text="[[toastText]]"></paper-toast>
           <chops-login
                    login-url="[[loginUrl]]"
                    logout-url="[[logoutUrl]]"
@@ -82,22 +85,44 @@
               </em>
             </template>
           </span>
-          <span>
-            [[timespanDays]] days in this timespan
-          </span>
-          <paper-button raised on-click="_setEndDateNow">Go to current week</paper-button>
-        </div>
+        <span>
+          [[timespanDays]] days in this timespan
+        </span>
+        <paper-button raised on-click="_setEndDateNow">Go to current week</paper-button>
         <!-- iron-pages selects the view based on the active route -->
         <iron-pages id="pages" selected="[[routeData.view]]" selected-attribute="active" attr-for-selected="name">
-          <cq-limiting-builders start-date="[[startDate]]" end-date="[[endDate]]" name="limiting" route="{{subroute}}"></cq-limiting-builders>
+          <cq-limiting-builders
+              on-error="_ajaxErr"
+              on-request="_ajaxRequest"
+              start-date="[[startDate]]"
+              end-date="[[endDate]]"
+              name="limiting"
+              route="{{subroute}}"></cq-limiting-builders>
           <builder-analysis
+              on-error="_ajaxErr"
+              on-request="_ajaxRequest"
               start-date="[[startDate]]"
               end-date="[[endDate]]"
               name="builders"
               full-route="{{route}}"
               sub-route="{{subroute}}"></builder-analysis>
-          <cl-analysis name="cl" route="{{subroute}}"></cl-analysis>
-          <build-analysis name="build" route="{{subroute}}"></build-analysis>
+          <cl-analysis
+              on-error="_ajaxErr"
+              on-request="_ajaxRequest"
+              name="cl"
+              route="{{subroute}}"></cl-analysis>
+          <build-analysis
+              on-error="_ajaxErr"
+              on-request="_ajaxRequest"
+              name="build"
+              route="{{subroute}}"></build-analysis>
+          <steps-analysis
+              on-error="_ajaxErr"
+              on-request="_ajaxRequest"
+              name="steps"
+              start-date="[[startDate]]"
+              end-date="[[endDate]]"
+              route="{{subroute}}"></build-analysis>
         </iron-pages>
       </div>
     <div>
@@ -177,11 +202,28 @@
             type: String,
             observer: '_dateChanged',
           },
+          toastOpen: {
+            type: Boolean,
+            value: true,
+          },
+          toastText: {
+            type: String,
+            value: "Errar",
+          },
         }
       }
 
+      _ajaxErr(e) {
+        this.toastText = e.detail.error.message;
+        this.$.errorToast.show();
+      }
+
+      _ajaxRequest(e) {
+        this.$.errorToast.hide();
+      }
+
       _computeBadWeek(endDate) {
-        return endDate == "2018-02-24";
+        return endDate == "2018-03-03";
       }
 
       _dateChanged() {

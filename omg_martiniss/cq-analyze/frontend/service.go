@@ -11,7 +11,7 @@ import (
 
 	"infra/appengine/cq-analyze/api/cq_analyze"
 
-	"go.chromium.org/luci/common/logging"
+	"go.chromium.org/luci/common/bq"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -72,8 +72,7 @@ func (s *cqAnalyzeService) GetLimitingBuilders(c context.Context, req *cq_analyz
 	if math.Abs(float64(endOfWeek().Sub(end))) < float64(time.Hour*24*7) {
 		cacheTime = shortCacheTime
 	}
-	logging.Warningf(c, "q %v", limitingQuery(start, end))
-	if err := runQuery(c, limitingQuery(start, end), &res.Builders, cacheTime); err != nil {
+	if err := bq.RunQuery(c, limitingQuery(start, end), cacheTime, &res.Builders); err != nil {
 		return nil, err
 	}
 	return res, nil
@@ -109,7 +108,7 @@ func (s *cqAnalyzeService) GetCLsForBuilder(c context.Context, req *cq_analyze.G
 		minDuration = req.MinDuration
 	}
 
-	if err := runQuery(c, longestBuilds(req.Builder, start, end), &res.Builds, cacheTime); err != nil {
+	if err := bg.runQuery(c, longestBuilds(req.Builder, start, end), &res.Builds, cacheTime); err != nil {
 		return nil, err
 	}
 	filtered := []*cq_analyze.LongBuild{}
@@ -243,6 +242,38 @@ func (s *cqAnalyzeService) GetCLInfoForBuilder(c context.Context, req *cq_analyz
 	err := runQuery(c, clInfoQuery(req.Builder, req.Issue, req.Patchset), &res.Builds, longCacheTime)
 	if err != nil {
 		return nil, err
+	}
+	return res, nil
+}
+func (s *cqAnalyzeService) GetSteps(c context.Context, req *cq_analyze.GetStepsRequest) (*cq_analyze.GetStepsResponse, error) {
+	if req.Builder == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "must supply a builder")
+	}
+	if req.StartDate == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "must supply a start date")
+	}
+	if req.EndDate == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "must supply an end date")
+	}
+
+	start, end, err := parseDates(req.StartDate, req.EndDate)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	res := &cq_analyze.GetStepsResponse{
+		Steps: []*cq_analyze.Step{},
+	}
+
+	cacheTime := longCacheTime
+	if math.Abs(float64(endOfWeek().Sub(end))) < float64(time.Hour*24*7) {
+		cacheTime = shortCacheTime
+	}
+	if err := runQuery(c, stepsQuery(req.Builder, req.StepPrefix, start, end), &res.Steps, cacheTime); err != nil {
+		return nil, err
+	}
+	if len(res.Steps) > 0 {
+		res.Master = res.Steps[0].Master
 	}
 	return res, nil
 }

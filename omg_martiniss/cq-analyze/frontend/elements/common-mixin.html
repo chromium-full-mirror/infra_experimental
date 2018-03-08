@@ -5,7 +5,7 @@
         if (master && master.startsWith('master.')) {
           master = master.slice('master.'.length);
         }
-        return 'https://ci.chromium.org/buildbot/' + master + '/' + this.builder + '/' + buildNumber;
+        return 'https://ci.chromium.org/buildbot/' + master + '/' + builder + '/' + buildNumber;
       },
 
       _qp() {
@@ -69,18 +69,34 @@
         return this._newLink("/app/builders/" + builder);
       },
 
+      _stepsLink(builder, stepPrefix) {
+        return this._newLink("/app/steps/" + builder + "/" + stepPrefix);
+      },
+
       _buildAnalyzeLink(builder, buildNumber) {
         return this._newLink("/app/build/" + builder + '/' + buildNumber);
       },
 
       _clLink(builder, issue, patchset) {
-        return this._newLink('/app/cl/' + builder + '/cl/' + issue + '/' + patchset);
+        return this._newLink('/app/cl/' + builder + '/' + issue + '/' + patchset);
       },
 
       _duration(val) {
         let dur = moment.duration(val, 'seconds');
         let s = "";
+        if (dur.weeks() > 0) {
+          s += dur.weeks() + 'w';
+        }
+        if (dur.days() > 0) {
+          if (s.length > 0) {
+             s += ' ';
+          }
+          s += dur.days() + 'd';
+        }
         if (dur.hours() > 0) {
+          if (s.length > 0) {
+             s += ' ';
+          }
           s += dur.hours() + 'h';
         }
         if (dur.minutes() > 0) {
@@ -135,14 +151,31 @@
           1: "Success",
           2: "Failure",
           3: "Infra Failure",
+          4: "Warning",
         }[result];
       },
 
-      _debounce(callback) {
+      _debounce(callback, asyncModule) {
+        if (asyncModule == undefined) {
+          asyncModule = Polymer.Async.microTask;
+        }
         this._debouncer = Polymer.Debouncer.debounce(
           this._debouncer, // initially undefined
-          Polymer.Async.microTask,
+          asyncModule,
           callback);
+      },
+
+      _quantile(items, percentile) {
+        if (!items) {
+          return 0;
+        }
+        items.sort((a, b) => a - b);
+        // Need to effectively reverse the sort
+        let idx = percentile/100. * (items.length - 1);
+        return items[Math.round(idx)];
+      },
+      _quantDur(items, percentile) {
+        return this._duration(this._quantile(items, percentile));
       },
   };
 </script>

@@ -1,0 +1,262 @@
+<link rel="import" href="/bower_components/polymer/polymer.html">
+<link rel="import" href="/bower_components/iron-ajax/iron-ajax.html">
+<link rel="import" href="/bower_components/iron-label/iron-label.html">
+<link rel="import" href="/bower_components/iron-icons/iron-icons.html">
+<link rel="import" href="/bower_components/iron-input/iron-input.html">
+<link rel="import" href="/bower_components/paper-icon-button/paper-icon-button.html">
+<link rel="import" href="/bower_components/paper-spinner/paper-spinner.html">
+<link rel="import" href="/bower_components/vaadin-grid/vaadin-grid.html">
+
+<script src="/bower_components/moment/min/moment.min.js"></script>
+<link href="https://fonts.googleapis.com/css?family=Roboto+Mono" rel="stylesheet">
+
+
+<dom-module id="steps-analysis">
+  <template>
+    <link rel="stylesheet" type="text/css" href="/static/main.css">
+    <style>
+    </style>
+
+    <iron-ajax
+      id="ajax"
+      url="/prpc/cq_analyze.CQAnalyzeService/GetSteps"
+      method="POST"
+      content-type="application/json"
+      accept="json"
+      json-prefix=")]}'"
+      handle-as="json"
+      loading="{{ajaxLoading}}"
+      last-response="{{ajaxResponse}}"
+      bubbles
+      ></iron-ajax>
+    <app-route
+        route="{{route}}"
+        pattern="/:builder/:step"
+        data="{{routeData}}"
+        tail="{{subroute}}"></app-route>
+    <div id="app" class="content">
+      <div>
+        <div id="title-box">
+          <h2 class="title">
+            <a href$="[[_limitingLink()]]">builders</a>/<a href$="[[_builderLink(routeData.builder)]]">[[routeData.builder]]</a>/
+            <iron-input bind-value="{{routeData.step}}">
+              <input size$="[[stepLen]]" class="inline-input h2-input" value="{{value::input}}">
+              </input>
+            </iron-input>
+          </h2>
+        </div>
+      </div>
+      <template is="dom-if" if="[[ajaxLoading]]">
+        <div id="spinner-wrapper">
+          <paper-spinner active></paper-spinner>
+        </div>
+      </template>
+      <template is="dom-if" if="[[_not(ajaxLoading)]]">
+        <div>
+          <p>
+            <iron-label>
+              Total duration: [[_duration(totalDuration)]]
+            </iron-label>
+          </p>
+          <p>
+            <iron-label>
+              # of steps : [[numberSteps]]
+            </iron-label>
+          </p>
+          <p>
+            <iron-label>
+              Median: [[_quantDur(stepDurations,50)]]
+            </iron-label>
+          </p>
+          <p>
+            <iron-label>
+              90th: [[_quantDur(stepDurations,90)]]
+            </iron-label>
+          </p>
+          <p>
+            <iron-label>
+              95th: [[_quantDur(stepDurations,95)]]
+            </iron-label>
+          </p>
+        </div>
+        <vaadin-grid aria-label="Longest builds" items="[[ajaxResponse.steps]]">
+
+          <vaadin-grid-column flex-grow="1.4">
+            <template class="header">
+              <vaadin-grid-sorter path="buildNumber">
+                Build #
+              </vaadin-grid-sorter>
+            </template>
+            <template>
+              <div>
+                <a href$=[[_buildAnalyzeLink(routeData.builder,item.buildNumber)]]>
+                  [[item.buildNumber]]
+                </a>
+                <a class="small-link" href$=[[_bbBuildLink(master,routeData.builder,item.buildNumber)]] target="_blank">
+                  MILO
+                </a>
+              </div>
+            </template>
+          </vaadin-grid-column>
+
+          <vaadin-grid-column width="20em">
+            <template class="header">
+              <vaadin-grid-sorter path="name">
+                Name
+              </vaadin-grid-sorter>
+            </template>
+            <template>
+              <span class="name-container">
+                [[item.name]]
+              </span>
+            </template>
+          </vaadin-grid-column>
+
+          <vaadin-grid-column>
+            <template class="header">
+              <vaadin-grid-sorter path="duration">
+                Duration
+              </vaadin-grid-sorter>
+            </template>
+            <template>[[_duration(item.duration)]]</template>
+          </vaadin-grid-column>
+
+          <vaadin-grid-column>
+            <template class="header">
+              <vaadin-grid-sorter path="result">
+                Result
+              </vaadin-grid-sorter>
+            </template>
+            <template>[[_textForStepResult(item.result)]]</template>
+          </vaadin-grid-column>
+
+        </vaadin-grid>
+      </template>
+    </div>
+  </template>
+  <script>
+    'use strict';
+    class StepsAnalysis extends Polymer.mixinBehaviors([CommonMixin], Polymer.Element) {
+      static get is() { return 'steps-analysis'; }
+
+      static get properties() {
+        return {
+          ajaxResponse: {
+            type: Object,
+          },
+          route: {
+            type: String,
+          },
+          name: {
+            type: String,
+          },
+          minDuration: {
+            type: Number,
+            value: 20,
+          },
+          startDate: {
+            type: String,
+          },
+          endDate: {
+            type: String,
+          },
+          active: {
+            type: Boolean,
+          },
+          master: {
+            type: String,
+            computed: '_computeMaster(ajaxResponse.*)',
+          },
+          stepDurations: {
+            type: Array,
+            computed: '_computeStepDurations(ajaxResponse.*)',
+          },
+          totalDuration: {
+            type: Number,
+            computed: '_computeTotalDuration(stepDurations)',
+          },
+          numberSteps: {
+            type: Number,
+            computed: '_computeNumberSteps(ajaxResponse.*)',
+          },
+          stepLen: {
+            type: Number,
+            computed: '_computeStepLen(routeData.*)',
+          },
+        }
+      }
+
+      static get observers() {
+        return [
+          '_query(route.*, startDate, endDate, active, routeData.*)',
+        ];
+      }
+
+      _computeTotalDuration(stepDurations) {
+        return stepDurations.reduce((x, y) => x + y, 0);
+      }
+
+      _computeStepDurations(resp) {
+        resp = resp.base;
+        if (!resp || !resp.steps) {
+          return [];
+        }
+        return resp.steps.map((itm) => itm.duration);
+      }
+
+      _computeNumberSteps(resp) {
+        resp = resp.base;
+        if (!resp || !resp.steps) {
+          return 0;
+        }
+        return resp.steps.length;
+      }
+
+      _computeStepLen(routeData) {
+        routeData = routeData.base;
+        if (!routeData || !routeData.step) {
+          return 1;
+        }
+        return Math.max(routeData.step.length, 5);
+      }
+
+      _computeMaster(resp) {
+        resp = resp.base;
+        if (!resp || !resp.steps) {
+          return '';
+        }
+        return resp.master;
+      }
+
+      _computeStepPrefix(route) {
+        if (route == undefined || !route.base.path) {
+          return '';
+        }
+        return route.base.path.split('/')[2];
+      }
+
+      _query(route, startDate, endDate, active, routeData) {
+        let asyncFunc = Polymer.Async.timeOut.after(500);
+        if (!this.ajaxResponse) {
+          asyncFunc = Polymer.Async.microTask;
+        }
+        this._debounce(() => {
+          route = route.base;
+          if (active && route.prefix.endsWith('steps')) {
+            routeData = routeData.base;
+            let body = {
+              builder: routeData.builder,
+              stepPrefix: routeData.step,
+              startDate: startDate,
+              endDate: endDate,
+            };
+            this.ajaxResponse = {};
+            this.$.ajax.body = JSON.stringify(body);
+            this.$.ajax.generateRequest();
+          }
+        }, asyncFunc);
+      }
+    }
+    customElements.define(StepsAnalysis.is, StepsAnalysis);
+  </script>
+</dom-module>
