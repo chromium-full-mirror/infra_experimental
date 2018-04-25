@@ -1,4 +1,4 @@
-Roses are red,
-Violets are blue,
-Sugar is unhealth,
-And so are you.
+Here is some content for the new file.
+
+Actually, I guess maybe I should edit an existing file, rather than
+creating a new one.
