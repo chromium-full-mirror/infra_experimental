@@ -1,4 +1,4 @@
 subject: {{.Bulid.Builder.Builder}}
 
 status: {{.Bulid.Status}}
-b.template
+c.template. It was b.template before
