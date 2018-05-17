@@ -1,0 +1,4 @@
+subject: {{.Bulid.Builder.Builder}}
+
+status: {{.Bulid.Status}}
+b.template
