@@ -2,6 +2,7 @@ import argparse
 import datetime
 import os
 import json
+import socket
 import subprocess
 import sys
 import tempfile
@@ -49,7 +50,7 @@ def main():
       borked_tasks.append((name, duration_s, task['task_id']))
 
   if borked_tasks and args.dry_run:
-    print 'found %d hung tasks, skipping email' % len(borked_tasks) 
+    print 'found %d hung tasks, skipping email' % len(borked_tasks)
   elif borked_tasks and not args.dry_run:
     print 'found %d hung tasks, sending email...' % len(borked_tasks)
     msg = '<html><body>'
@@ -57,6 +58,10 @@ def main():
     for name, duration, task_id in borked_tasks:
       task_link = '<a href="https://chromium-swarm.appspot.com/task?id=%s">%s</a>' % (task_id, task_id)
       msg += '%s: %s running for %.2fm<br/>' % (task_link, name, duration/60.0)
+    msg += '<br/>'
+    msg += 'This email brought to you by '
+    msg += '<a href="https://chromium.googlesource.com/infra/experimental/+/master/bpastene/scan_for_hung_vm_tasks.py">scan_for_hung_vm_tasks.py</a> '
+    msg += 'running on a cron on %s.' % socket.gethostname()
     msg += '</body></html>'
 
     tmp_file = tempfile.NamedTemporaryFile(delete=False)
