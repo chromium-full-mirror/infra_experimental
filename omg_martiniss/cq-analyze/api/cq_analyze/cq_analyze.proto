@@ -42,7 +42,7 @@ message GetCLsForBuilderRequest {
   string builder = 1;
   string start_date = 2;
   string end_date = 3;
-  int64 min_duration = 4;
+  int32 min_duration = 4;
 }
 
 message GetCLsForBuilderResponse {
@@ -55,7 +55,7 @@ message LongBuild {
   string issue = 3;
   string patchset = 4;
   double attempt_start = 5;
-  int64 duration = 6;
+  int32 duration = 6;
 }
 
 message GetLongStepsRequest {
@@ -73,7 +73,9 @@ message LongStep {
   string name = 1;
   // Duration in seconds
   double duration_avg = 2;
-  double duration_90 = 3;
+  double durationNinety = 3;
+  // Number of steps with this name
+  int32 num = 4;
 }
 
 message GetBuildsRequest {

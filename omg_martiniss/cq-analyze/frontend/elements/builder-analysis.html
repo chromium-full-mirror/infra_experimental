@@ -1,13 +1,17 @@
 <link rel="import" href="/bower_components/polymer/polymer.html">
 <link rel="import" href="/bower_components/app-route/app-route.html">
+
 <link rel="import" href="/bower_components/iron-ajax/iron-ajax.html">
 <link rel="import" href="/bower_components/iron-label/iron-label.html">
 <link rel="import" href="/bower_components/iron-location/iron-query-params.html">
+
 <link rel="import" href="/bower_components/paper-input/paper-input.html">
 <link rel="import" href="/bower_components/paper-tabs/paper-tabs.html">
 <link rel="import" href="/bower_components/paper-tabs/paper-tab.html">
+<link rel="import" href="/bower_components/paper-tooltip/paper-tooltip.html">
 <link rel="import" href="/bower_components/paper-toggle-button/paper-toggle-button.html">
 <link rel="import" href="/bower_components/paper-spinner/paper-spinner.html">
+
 <link rel="import" href="/bower_components/vaadin-grid/vaadin-grid.html">
 <link rel="import" href="/bower_components/vaadin-grid/vaadin-grid-sorter.html">
 
@@ -23,6 +27,10 @@
       #step-header {
         display: flex;
         align-items: center;
+      }
+      .filter {
+        display: inline-flex;
+        margin-left: 2em;
       }
     </style>
 
@@ -68,18 +76,18 @@
           <a href$="[[_limitingLink()]]">builders</a>/[[routeData.builder]]
         </h2>
       </div>
-      <paper-tabs selected="{{builderTab}}" attr-for-selected="name" align-bottom>
+      <paper-tabs selected="{{routeData.view}}" attr-for-selected="name" align-bottom>
         <paper-tab name="cls">CLs</paper-tab>
         <paper-tab name="builds">Builds</paper-tab>
         <paper-tab name="steps">Steps</paper-tab>
       </paper-tabs>
       <app-route
           route="{{subRoute}}"
-          pattern="/:builder"
+          pattern="/:builder/:view"
           data="{{routeData}}"></app-route>
       <iron-location query="{{queryParams}}"></iron-location>
 
-      <iron-pages selected="{{builderTab}}" attr-for-selected="name">
+      <iron-pages selected="{{routeData.view}}" attr-for-selected="name">
         <div name="cls">
           <template is="dom-if" if="[[ajaxLoading]]">
             <div id="spinner-wrapper">
@@ -111,7 +119,14 @@
 
               <vaadin-grid-column>
                 <template class="header">
-                  <vaadin-grid-sorter path="attemptStart">Day scheduled</vaadin-grid-sorter>
+                  <vaadin-grid-sorter path="attemptStart">
+                    <div>
+                      First attempt
+                      <paper-tooltip>
+                        CLs may span multiple days. Click on CL for more detail.
+                      </paper-tooltip>
+                    </div>
+                  </vaadin-grid-sorter>
                 </template>
                 <template>[[_ts(item.attemptStart)]]</template>
               </vaadin-grid-column>
@@ -136,7 +151,7 @@
                     <a href$=[[_buildAnalyzeLink(routeData.builder,item.buildNumber)]]>
                       [[item.buildNumber]]
                     </a>
-                  <a class="small-link" href$=[[_bbBuildLink(master,builder,buildNum)]] target="_blank"> MILO</a>
+                  <a class="small-link" href$=[[_bbBuildLink(item.master,routeData.builder,item.buildNumber)]] target="_blank"> MILO</a>
                   </span>
                 </template>
               </vaadin-grid-column>
@@ -165,7 +180,7 @@
             </div>
           </template>
           <template is="dom-if" if="[[_not(ajaxLoading)]]">
-            <vaadin-grid aria-label="Longest builds" items="[[stepResponse.steps]]">
+            <vaadin-grid aria-label="Longest steps" items="[[steps]]">
               <vaadin-grid-column>
                 <template class="header">
                   <span id="step-header">
@@ -183,6 +198,19 @@
 
               <vaadin-grid-column flex-grow="0.2">
                 <template class="header">
+                  <vaadin-grid-sorter path="durationAvg">
+                    # steps &gt;
+                    <iron-input bind-value="{{minSteps}}">
+                      <input size="5" class="inline-input" value="{{value::input}}">
+                      </input>
+                    </iron-input>
+                  </vaadin-grid-sorter>
+                </template>
+                <template>[[item.num]]</template>
+              </vaadin-grid-column>
+
+              <vaadin-grid-column flex-grow="0.2">
+                <template class="header">
                   <vaadin-grid-sorter path="durationAvg">Average duration</vaadin-grid-sorter>
                 </template>
                 <template>[[_duration(item.durationAvg)]]</template>
@@ -190,9 +218,9 @@
 
               <vaadin-grid-column flex-grow="0.2">
                 <template class="header">
-                  <vaadin-grid-sorter path="duration90">90th percentile duration</vaadin-grid-sorter>
+                  <vaadin-grid-sorter path="durationNinety">90th percentile duration</vaadin-grid-sorter>
                 </template>
-                <template>[[_duration(item.duration90)]]</template>
+                <template>[[_duration(item.durationNinety)]]</template>
               </vaadin-grid-column>
 
             </vaadin-grid>
@@ -208,11 +236,6 @@
 
       static get properties() {
         return {
-          builderTab: {
-            type: String,
-            value: "cls",
-            observer: '_query',
-          },
           fullRoute: {
             type: Object,
             notify: true,
@@ -244,11 +267,30 @@
           view: {
             type: String,
             value: "cls",
-          }
+          },
+          minSteps: {
+            type: Number,
+            value: 10,
+          },
+          steps: {
+            type: Array,
+            computed: "_computeSteps(stepResponse.*, minSteps)",
+          },
         }
       }
+
       static get observers() {
         return [ '_routeDataChanged(routeData.*)' ]
+      }
+
+      _computeSteps(resp, minSteps) {
+        resp = resp.base;
+        if (!resp || !resp.steps) {
+          return [];
+        }
+        return resp.steps.filter((itm) => {
+          return itm.num > Number(minSteps)
+        });
       }
 
       _activeChanged() {
@@ -260,7 +302,6 @@
 
       _routeDataChanged(routeData) {
         this._query();
-        this.view = routeData.base.view;
       }
 
       _query() {
@@ -275,11 +316,11 @@
             this.clResponse = {};
             this.stepResponse = {};
             let ironAjax = undefined;
-            if (this.builderTab == "cls") {
+            if (this.routeData.view == "cls") {
               ironAjax = this.$.clAjax;
-            } else if (this.builderTab == "builds") {
+            } else if (this.routeData.view == "builds") {
               ironAjax = this.$.buildAjax;
-            } else if (this.builderTab == "steps") {
+            } else if (this.routeData.view == "steps") {
               ironAjax = this.$.stepAjax;
             }
 

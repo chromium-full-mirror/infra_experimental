@@ -280,13 +280,7 @@ WITH
   ON
     A.issue = CAST(B.issue AS STRING)
     AND A.patchset = CAST(B.patchset AS STRING)
-    AND A.longest_time = B.total_time ),
-  only_valid AS (
-  SELECT
-    A.*,
-    TIMESTAMP_TRUNC(TIMESTAMP_MILLIS(CAST(A.attempt_start_msec AS INT64)), DAY) AS day_ts
-  FROM
-    tmp AS A)`,
+    AND A.longest_time = B.total_time )`,
 		start.UTC().Unix()*1000, end.UTC().Unix()*1000) // attempt_start_msec is in milliseconds.
 }
 
@@ -301,7 +295,7 @@ func limitingQuery(start, end time.Time) string {
       CAST(APPROX_QUANTILES(total_time, 100)[OFFSET(90)] AS INT64) AS ninetyTime,
       CAST(APPROX_QUANTILES(total_time, 100)[OFFSET(95)] AS INT64) AS ninetyFiveTime
     FROM
-      only_valid
+      tmp
     GROUP BY
       builder )
 SELECT
@@ -318,10 +312,10 @@ LIMIT
 // Gets a table of number of times a builder was the slowest builder for an issue/patchset pair
 func longestBuilds(builder string, start, end time.Time) string {
 	return hardQueryPrefix(start, end) + fmt.Sprintf(`
-  SELECT builder, issue, patchset, attempt_start_msec AS attempt_start, CAST(total_time AS INT64) AS duration
-  FROM only_valid
+  SELECT builder, issue, patchset, MIN(attempt_start_msec) AS attemptStart, CAST(total_time AS INT64) AS duration
+  FROM tmp
   WHERE builder = '%s'
-  GROUP BY builder, issue, patchset, attempt_start_msec, total_time
+  GROUP BY builder, issue, patchset, total_time
   ORDER BY total_time DESC
 `, builder)
 }
@@ -331,11 +325,11 @@ func buildsQuery(builder string, start, end time.Time) string {
 	return fmt.Sprintf(`
   SELECT
     master,
-    build_number,
-    build_sched_msec AS build_sched,
+    build_number AS buildNumber,
+    build_sched_msec AS buildSched,
     execution_duration_s AS duration,
     result
-  FROM plx.google.chrome_infra.completed_builds.all
+  FROM `+"`plx.google.chrome_infra.completed_builds.all`"+`
   WHERE
     builder = '%s'
     AND build_sched_msec > %v
@@ -345,12 +339,11 @@ func buildsQuery(builder string, start, end time.Time) string {
 `, builder, start.UTC().Unix()*1000, end.UTC().Unix()*1000)
 }
 
-// Gets all builds for a builder
 func longStepsQuery(builder string, start, end time.Time) string {
 	return fmt.Sprintf(`
 WITH dat AS (
   SELECT
-    step_name, APPROX_QUANTILES(step_duration_s, 100) AS quant
+    step_name, COUNT(*) AS num, APPROX_QUANTILES(step_duration_s, 100) AS quant
   FROM plx.google.chrome_infra.completed_steps.all
   WHERE
     builder = '%v'
@@ -358,7 +351,7 @@ WITH dat AS (
     AND build_sched_msec < %v
   GROUP BY step_name
 )
-SELECT step_name AS name, quant[OFFSET(50)] as duration_avg, quant[OFFSET(90)] AS duration_90
+SELECT step_name AS name, num as num, quant[OFFSET(50)] as durationAvg, quant[OFFSET(90)] AS durationNinety
 FROM dat
 ORDER BY quant[OFFSET(50)] DESC
 `, builder, start.UTC().Unix()*1000, end.UTC().Unix()*1000)
@@ -385,8 +378,8 @@ WITH builds_with_patch_url AS (
     AND STRPOS(patch_url, "codereview") = 0 )
 SELECT
   master,
-  build_number,
-  CAST(build_sched_msec AS INT64) AS build_sched,
+  build_number AS buildNumber,
+  CAST(build_sched_msec AS INT64) AS buildSched,
   result,
   execution_duration_s as duration
 FROM
@@ -414,7 +407,7 @@ func buildInfoQuery(builder string, buildNumber int64) string {
 
 func stepsQuery(builder, stepPrefix string, start, end time.Time) string {
 	return fmt.Sprintf(`
-    SELECT step_name AS name, master, step_duration_s AS duration, build_number AS build_number, result
+    SELECT step_name AS name, master, step_duration_s AS duration, build_number AS buildNumber, result
     FROM plx.google.chrome_infra.completed_steps.all
     WHERE
       builder = '%s'

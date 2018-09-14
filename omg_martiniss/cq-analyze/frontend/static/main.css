@@ -8,12 +8,12 @@ input.inline-input {
   border: 1px solid transparent;
   border-radius: 2px;
   font-family: 'Roboto Mono', monospace;
-  background-color: #f4f4f4;
 }
 input.inline-input.h2-input {
   /* Can't use em because input elements set the size, so em is relative to
    * that, which isn't what we want. */
   font-size: 24px;
+  background-color: #f4f4f4;
 }
 input.inline-input:hover {
   border: 1px solid #90CAF9;

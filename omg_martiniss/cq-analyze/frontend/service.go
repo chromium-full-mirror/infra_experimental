@@ -11,7 +11,7 @@ import (
 
 	"infra/appengine/cq-analyze/api/cq_analyze"
 
-	"go.chromium.org/luci/common/bq"
+	bq "go.chromium.org/luci/bq/appengine"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -72,7 +72,7 @@ func (s *cqAnalyzeService) GetLimitingBuilders(c context.Context, req *cq_analyz
 	if math.Abs(float64(endOfWeek().Sub(end))) < float64(time.Hour*24*7) {
 		cacheTime = shortCacheTime
 	}
-	if err := bq.RunQuery(c, limitingQuery(start, end), cacheTime, &res.Builders); err != nil {
+	if err := bq.RunQuery(c, "chrome-infra-events", limitingQuery(start, end), cacheTime, &res.Builders); err != nil {
 		return nil, err
 	}
 	return res, nil
@@ -102,13 +102,13 @@ func (s *cqAnalyzeService) GetCLsForBuilder(c context.Context, req *cq_analyze.G
 	if math.Abs(float64(endOfWeek().Sub(end))) < float64(time.Hour*24*7) {
 		cacheTime = shortCacheTime
 	}
-	var minDuration int64
+	var minDuration int32
 	minDuration = 2 * 60 * 60
 	if req.MinDuration != 0 {
 		minDuration = req.MinDuration
 	}
 
-	if err := bg.runQuery(c, longestBuilds(req.Builder, start, end), &res.Builds, cacheTime); err != nil {
+	if err := bq.RunQuery(c, "chrome-infra-events", longestBuilds(req.Builder, start, end), cacheTime, &res.Builds); err != nil {
 		return nil, err
 	}
 	filtered := []*cq_analyze.LongBuild{}
@@ -181,7 +181,7 @@ func (s *cqAnalyzeService) GetLongSteps(c context.Context, req *cq_analyze.GetLo
 	if math.Abs(float64(endOfWeek().Sub(end))) < float64(time.Hour*24*7) {
 		cacheTime = shortCacheTime
 	}
-	if err := runQuery(c, longStepsQuery(req.Builder, start, end), &res.Steps, cacheTime); err != nil {
+	if err := bq.RunQuery(c, "chrome-infra-events", longStepsQuery(req.Builder, start, end), cacheTime, &res.Steps); err != nil {
 		return nil, err
 	}
 
@@ -220,7 +220,7 @@ func (s *cqAnalyzeService) GetBuilds(c context.Context, req *cq_analyze.GetBuild
 	if math.Abs(float64(endOfWeek().Sub(end))) < float64(time.Hour*24*7) {
 		cacheTime = shortCacheTime
 	}
-	if err := runQuery(c, buildsQuery(req.Builder, start, end), &res.Builds, cacheTime); err != nil {
+	if err := bq.RunQuery(c, "chrome-infra-events", buildsQuery(req.Builder, start, end), cacheTime, &res.Builds); err != nil {
 		return nil, err
 	}
 	return res, nil
@@ -239,7 +239,7 @@ func (s *cqAnalyzeService) GetCLInfoForBuilder(c context.Context, req *cq_analyz
 	res := &cq_analyze.GetCLInfoForBuilderResponse{
 		Builds: []*cq_analyze.Build{},
 	}
-	err := runQuery(c, clInfoQuery(req.Builder, req.Issue, req.Patchset), &res.Builds, longCacheTime)
+	err := bq.RunQuery(c, "chrome-infra-events", clInfoQuery(req.Builder, req.Issue, req.Patchset), longCacheTime, &res.Builds)
 	if err != nil {
 		return nil, err
 	}
@@ -269,7 +269,7 @@ func (s *cqAnalyzeService) GetSteps(c context.Context, req *cq_analyze.GetStepsR
 	if math.Abs(float64(endOfWeek().Sub(end))) < float64(time.Hour*24*7) {
 		cacheTime = shortCacheTime
 	}
-	if err := runQuery(c, stepsQuery(req.Builder, req.StepPrefix, start, end), &res.Steps, cacheTime); err != nil {
+	if err := bq.RunQuery(c, "chrome-infra-events", stepsQuery(req.Builder, req.StepPrefix, start, end), cacheTime, &res.Steps); err != nil {
 		return nil, err
 	}
 	if len(res.Steps) > 0 {
@@ -288,7 +288,7 @@ func (s *cqAnalyzeService) GetBuildInfo(c context.Context, req *cq_analyze.GetBu
 	res := &cq_analyze.GetBuildInfoResponse{
 		Steps: []*cq_analyze.Step{},
 	}
-	err := runQuery(c, buildInfoQuery(req.Builder, req.BuildNum), &res.Steps, longCacheTime)
+	err := bq.RunQuery(c, "chrome-infra-events", buildInfoQuery(req.Builder, req.BuildNum), longCacheTime, &res.Steps)
 	if err != nil {
 		return nil, err
 	}

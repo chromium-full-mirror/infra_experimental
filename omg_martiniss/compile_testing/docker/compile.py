@@ -20,7 +20,7 @@ def main():
   rev = subprocess.check_output(['git', 'rev-parse', 'HEAD'])
 
   lines = []
-  goma_cache = os.environ['GOMA_STORE_ONLY'] != 'true'
+  goma_cache = os.environ.get('GOMA_STORE_ONLY') != 'true'
   lines.append(
       'ninja args: %s| builder %s | revision %s | goma_cache %s' % (
           rest, args.builder, rev, goma_cache))

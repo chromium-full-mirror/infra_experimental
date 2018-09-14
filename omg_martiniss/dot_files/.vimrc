@@ -10,13 +10,13 @@ if isdirectory(expand('$HOME/.vim/bundle/Vundle.vim'))
   call vundle#begin()
   " Required
   Plugin 'gmarik/vundle'
-  " Install plugins that come from github.  Once Vundle is installed, these can be
-  " installed with :PluginInstall
+
   Plugin 'easymotion/vim-easymotion'
   Plugin 'google/vim-colorscheme-primary'
   Plugin 'kien/ctrlp.vim'
   Plugin 'scrooloose/nerdcommenter'
   Plugin 'scrooloose/syntastic'
+  Plugin 'tpope/vim-fugitive'
   Plugin 'tpope/vim-surround'
   Plugin 'tpope/vim-sensible'
   Plugin 'tpope/vim-repeat'
@@ -27,10 +27,6 @@ if isdirectory(expand('$HOME/.vim/bundle/Vundle.vim'))
   "Plugin 'fatih/vim-go'
   Plugin 'altercation/vim-colors-solarized'
   Plugin 'encody/nvim'
-  " Provide many default snippets for a variety of snippets.
-  " Uncomment and :PluginInstall to enable
-  " Plugin 'honza/vim-snippets'
-
   call vundle#end()
 else
   echomsg 'Vundle is not installed. You can install Vundle from'
@@ -51,11 +47,10 @@ filetype plugin indent on
 " Enable syntax highlighting
 syntax on
 syntax enable
-au BufNewFile,BufRead *.pyl set filetype=python
 set t_Co=256
 
 set background=dark
-colorscheme solarized
+colorscheme peachpuff
 
 " Uncomment if you want to map ; to : to cut down on chording
 " nnoremap ; :
@@ -152,5 +147,17 @@ let g:go_highlight_operators = 1
 let g:go_highlight_build_constraints = 1
 let g:syntastic_go_checkers = ['golint', 'govet', 'errcheck']
 let g:syntastic_mode_map = { 'mode': 'active', 'passive_filetypes': ['go'] }
+
+" syntastic stuff
+set statusline+=%#warningmsg#
+set statusline+=%{SyntasticStatuslineFlag()}
+set statusline+=%*
+let g:syntastic_always_populate_loc_list = 1
+let g:syntastic_auto_loc_list = 1
+let g:syntastic_check_on_open = 1
+let g:syntastic_check_on_wq = 0
+
+nnoremap )e :lnext<CR>
+nnoremap (e :lprevious<CR>
 
 let g:instant_markdown_autostart = 0

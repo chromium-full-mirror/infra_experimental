@@ -27,6 +27,7 @@ def main():
   args = parser.parse_args()
   if not args.no_fetch:
     subprocess.check_call(['gsutil', '-m', 'cp', 'gs://martiniss-compile-time-data/linux_chromium_rel_ng/results_run*', 'results'])
+    subprocess.check_call(['gsutil', '-m', 'cp', 'gs://martiniss-compile-time-data/linux_android_rel_ng/results_run*', 'results'])
     subprocess.check_call(['gsutil', '-m', 'cp', 'gs://martiniss-compile-time-data/android_n5x_swarming_rel/results_run*', 'results'])
 
   files = os.listdir(os.path.join(FILE_DIR, args.dir))
@@ -53,7 +54,6 @@ def main():
         full_inst = fname.split('-')[1]
         run = fname.split('-')[-1]
       except ValueError:
-        print 'bad file', fname
         continue
 
       if len(ninja_arr) == 1:

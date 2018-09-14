@@ -13,7 +13,7 @@
     "polymer": "Polymer/polymer#^2.0.0",
     "webcomponentsjs": "webcomponents/webcomponentsjs#^1.0.1",
     "iron-ajax": "PolymerElements/iron-ajax#^2.1.2",
-    "vaadin-grid": "vaadin/vaadin-grid#^4.1.5",
+    "vaadin-grid": "vaadin/vaadin-grid#^5.0.0",
     "app-layout": "PolymerElements/app-layout#^2.0.5",
     "app-route": "PolymerElements/app-route#^2.0.3",
     "iron-pages": "PolymerElements/iron-pages#^2.1.0",
@@ -29,7 +29,8 @@
     "paper-tabs": "PolymerElements/paper-tabs#^2.0.0",
     "paper-autocomplete": "ellipticaljs/paper-autocomplete#^3.6.0",
     "paper-icon-button": "PolymerElements/paper-icon-button#^2.1.0",
-    "iron-input": "PolymerElements/iron-input#^2.1.1"
+    "iron-input": "PolymerElements/iron-input#^2.1.1",
+    "paper-tooltip": "PolymerElements/paper-tooltip#^2.1.1"
   },
   "devDependencies": {
     "iron-test-helpers": "PolymerElements/iron-test-helpers",

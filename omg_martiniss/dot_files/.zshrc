@@ -5,7 +5,6 @@ export ZSH=/usr/local/google/home/martiniss/.oh-my-zsh
 # Look in ~/.oh-my-zsh/themes/
 # Optionally, if you set this to "random", it'll load a random theme each
 # time that oh-my-zsh is loaded.
-ZSH_THEME="evan"
 ZSH_THEME="martiniss"
 
 # Uncomment the following line to use case-sensitive completion.
@@ -58,7 +57,7 @@ plugins=(git)
 #export PYTHONPATH="$HOME/src/google_appengine:$PYTHONPATH"
 # export MANPATH="/usr/local/man:$MANPATH"
 
-source $ZSH/oh-my-zsh.sh
+#source $ZSH/oh-my-zsh.sh
 
 # You may need to manually set your language environment
 # export LANG=en_US.UTF-8
@@ -112,6 +111,9 @@ export PATH=$HOME/dt:$HOME/.gem/ruby/1.9.1/bin/:$HOME/google-cloud-sdk/bin:$PATH
 export PATH=$HOME/src/go_appengine:$PATH
 
 bindkey -v
+bindkey '^R' history-incremental-search-backward
+
+bindkey -M viins 'jj' vi-cmd-mode
 export KEYTIMEOUT=1
 
 export GOMA_DIR=$HOME/goma
@@ -120,10 +122,6 @@ export GOOGLE_APPLICATION_CREDENTIALS=~/keys/cq-analyzer.json
 
 eval `$HOME/src/infra/go/env.py`
 
-function path_precmd {
-  title $(python -c 'import os, sys; a, b = sys.argv[1:]; print "~" + b[len(a):] if os.path.commonprefix([a, b]) == a else b' $HOME $(pwd))
-}
-
-autoload -U add-zsh-hook
-add-zsh-hook precmd path_precmd
 source /etc/bash_completion.d/g4d
+
+export PUPPET_PUBK=$HOME/src/puppet/puppetm/keys/eyaml/public_key.pkcs7.pem

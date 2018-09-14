@@ -214,7 +214,7 @@
       }
 
       _ajaxErr(e) {
-        this.toastText = e.detail.error.message;
+        this.toastText = e.detail.error.message || "Unknown error";
         this.$.errorToast.show();
       }
 
@@ -238,7 +238,9 @@
       }
 
       _computeTimespanDays(start, end) {
-        return moment.duration(moment(end).diff(moment(start))).days();
+        let diff = moment(end).diff(moment(start));
+        // Add an hour so daylight savings doesn't break everything
+        return moment.duration(diff).add(1, 'h').days();
       }
 
       _latestGoodDate() {
