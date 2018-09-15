@@ -160,4 +160,7 @@ let g:syntastic_check_on_wq = 0
 nnoremap )e :lnext<CR>
 nnoremap (e :lprevious<CR>
 
+nnoremap <leader>s "_diwP
+nnoremap <leader>S "_diWP
+
 let g:instant_markdown_autostart = 0

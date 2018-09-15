@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -42,13 +43,16 @@ func main() {
 	i := 0
 	paths := make([]string, len(pids))
 	for path := range pids {
+		paths[i] = path
+		i++
+	}
+	sort.Strings(paths)
+	for i, path := range paths {
 		rel, err := filepath.Rel(originalPath, path)
 		if err != nil {
 			panic(err)
 		}
 		fmt.Printf("[%v]: %v\n", i, rel)
-		paths[i] = path
-		i++
 	}
 
 	num := -1
