@@ -1,7 +1,7 @@
 import {LitElement, html} from '@polymer/lit-element';
 import {state} from 'state.js';
 
-class MonoDex extends LitElement {
+class MonDex extends LitElement {
 
   static get properties() {
     return {
@@ -39,4 +39,4 @@ class MonoDex extends LitElement {
 
 }
 
-customElements.define('monodex', MyElement);
+customElements.define('mon-dex', MyElement);
