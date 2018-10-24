@@ -10,5 +10,10 @@
         "game.js"
       ]
     }
-  ]
+  ],
+  "background": {
+    "scripts": [
+      "background.js"
+    ]
+  }
 }
