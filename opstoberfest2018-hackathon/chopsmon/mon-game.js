@@ -1,4 +1,4 @@
-import {LitElement, html} from 'lit-element';
+import {LitElement, html} from '/node_modules/@polymer/lit-element';
 import {state} from 'state.js';
 
 class MonoDex extends LitElement {
@@ -39,4 +39,4 @@ class MonoDex extends LitElement {
 
 }
 
-customElements.define('monodex', MyElement);
+customElements.define('mon-dex', MyElement);
