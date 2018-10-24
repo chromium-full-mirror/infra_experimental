@@ -1,21 +1,40 @@
 import {LitElement, html} from '@polymer/lit-element';
+import {state} from 'state.js';
 
 class MonoDex extends LitElement {
 
   static get properties() {
     return {
-      mood: {type: String}
+      expanded: {type: Array},
     };
   }
 
   constructor() {
     super();
-    this.mood = 'happy';
+    this.expanded = false;
   }
 
   render() {
-    return html`<style> .mood { color: green; } </style>
-      Web Components are <span class="mood">${this.mood}</span>!`;
+    const monsters = state.getOwnedMonsters();
+    const monsterEls = monsters.map(monster => html`
+      <div>{monster}</div>
+    `);
+
+    if (expanded) {
+      return html`
+        <style></style>
+        <div>
+          {monsterEls}
+        </div>
+      `;
+    } else {
+      return html`
+        <style></style>
+        <div>
+          not expanded
+        </div>
+      `;
+    }
   }
 
 }
