@@ -2,5 +2,13 @@
   "name": "Pokemonorail",
   "version": "1.0",
   "description": "Gotta catch 'em all!",
-  "manifest_version": 2
+  "manifest_version": 2,
+  "content_scripts": [
+    {
+      "matches": ["https://bugs.chromium.org/p/chromium/issues/detail*"],
+      "js": [
+        "game.js"
+      ]
+    }
+  ]
 }
