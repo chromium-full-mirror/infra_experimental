@@ -1,0 +1,2 @@
+class MonoDex extends HTMLElement {
+}
