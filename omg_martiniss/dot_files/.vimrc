@@ -15,6 +15,7 @@ if isdirectory(expand('$HOME/.vim/bundle/Vundle.vim'))
   Plugin 'google/vim-colorscheme-primary'
   Plugin 'kien/ctrlp.vim'
   Plugin 'scrooloose/nerdcommenter'
+  Plugin 'scrooloose/nerdtree'
   Plugin 'scrooloose/syntastic'
   Plugin 'tpope/vim-fugitive'
   Plugin 'tpope/vim-surround'
@@ -160,7 +161,6 @@ let g:syntastic_check_on_wq = 0
 nnoremap )e :lnext<CR>
 nnoremap (e :lprevious<CR>
 
-nnoremap <leader>s "_diwP
-nnoremap <leader>S "_diWP
+vnoremap <leader>/ y/<C-R>"<CR>
 
 let g:instant_markdown_autostart = 0

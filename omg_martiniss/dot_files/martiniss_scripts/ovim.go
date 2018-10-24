@@ -11,9 +11,13 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/moowiz/autocomp"
 )
 
 func main() {
+	autocomp.KeepFresh()
+
 	if len(os.Args) < 2 {
 		fmt.Printf("Path required")
 		os.Exit(1)
@@ -23,6 +27,11 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	originalPath, err = filepath.EvalSymlinks(originalPath)
+	if err != nil {
+		panic(err)
+	}
+	// fmt.Printf("original path %v\n", originalPath)
 	res := findCachedFiles(originalPath)
 	filtered := filterPaths(res, originalPath)
 	if len(filtered) == 0 {
@@ -125,6 +134,10 @@ func findCachedFiles(path string) []string {
 	parsed := []string{}
 	for _, file := range files {
 		path := strings.Replace(file.Name(), "%", string(filepath.Separator), -1)
+		if strings.HasSuffix(path, ".swo") || strings.HasSuffix(path, ".swn") {
+			// Weird unnamed files I think
+			continue
+		}
 		if !strings.HasSuffix(path, ".swp") {
 			panic(fmt.Errorf("Weird cache file %s", path))
 		}
