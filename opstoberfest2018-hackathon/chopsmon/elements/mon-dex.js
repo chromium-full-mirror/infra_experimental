@@ -62,12 +62,17 @@ class MonDex extends LitElement {
     const monsters = getOwnedMonsters();
     const monsterEls = monsters.map(monster => html`
       <div>
-        ${monster.name}
+        <img src="/img/${monster.image}" />
+        <h3>
+          ${monster.name}
+        </h3>
       </div>
     `);
     return html`
       <div class="dex-list">
-        Your Chopsmons!
+        <h2>
+          Your Chopsmons!
+        </h2>
         ${monsterEls}
       </div>`;
   }
