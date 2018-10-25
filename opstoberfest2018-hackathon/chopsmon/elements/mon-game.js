@@ -16,8 +16,8 @@ class MonGame extends LitElement {
 
   render() {
     return html`
-      <mon-battle></mon-battle>
       <mon-dex></mon-dex>
+      <mon-battle></mon-battle>
     `;
   }
 }
