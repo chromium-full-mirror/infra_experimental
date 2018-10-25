@@ -49,6 +49,9 @@ class MonBattle extends LitElement {
       enemyTurnRunning: {
         type: Boolean,
       },
+      ballCapturing:  {
+        type: Boolean,
+      },
       myMaxHealth: {
         type: Number,
       },
@@ -73,7 +76,11 @@ class MonBattle extends LitElement {
     console.log('me', this.me);
     console.log('enemy', this.enemy);
     this.enemy = this.enemy || {};
+    this.myMaxHealth = 100;
+    this.myHealth = this.myMaxHealth;
 
+    this.enemyMaxHealth = 100;
+    this.enemyHealth = this.enemyMaxHealth;
     this.turnAnimationLength = 200;
 
     this.me = getActiveMonster();
@@ -156,7 +163,7 @@ class MonBattle extends LitElement {
     }, this.turnAnimationLength);
   }
 
-  capture() {
+  captureEnd() {
     // TODO: Add some sort of animation/indication that you captured the
     // Chopsmon.
 
@@ -172,6 +179,21 @@ class MonBattle extends LitElement {
     } else {
       this._opponentAttacks();
     }
+  }
+
+  capture() {
+    console.log('capture');
+    this.ballCapturing = true;
+    this.shadowRoot.querySelector('#ball').style.visibility = 'visible';
+
+    console.log('capture2');
+
+    setTimeout(() => {
+      console.log('timeout');
+      this.ballCapturing = false;
+      this.captureEnd();
+      this.shadowRoot.querySelector('#ball').style.visibility = 'hidden';
+    }, 3000);
   }
 
   run() {
@@ -270,6 +292,29 @@ class MonBattle extends LitElement {
           width: 100%;
         }
 
+        #ball {
+          height: 20%;
+          position: absolute;
+        }
+　　　　
+        .ball-animation {
+          animation-duration: 3s;
+          animation-name: capture;
+          background-color: red;
+        }
+
+        @keyframes capture {
+          from {
+            top: 60%;
+            left: 30%;
+          }
+
+          to {
+            top: 15%;
+            left: 65%;
+          }
+        }
+
         #question {
           margin: 0;
           text-align: center;
@@ -340,6 +385,8 @@ class MonBattle extends LitElement {
           ${movesStr}
         </div>
       </div>
+
+      <img id="ball" src="/img/ball.png" class='ball-animation' />
     `
   }
 }
