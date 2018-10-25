@@ -3,8 +3,13 @@ import { arrayChoice } from './helpers.js';
 
 let storage = window.localStorage;
 
+function processMonster(mon) {
+  mon.maxHealth = mon.health;
+  return mon;
+}
+
 export const MONSTERS_MAP = MONSTERS.reduce(
-  (acc, v) => Object.assign({}, acc, {[v.name]: v}),
+  (acc, v) => Object.assign({}, acc, {[v.name]: processMonster(v)}),
   {});
 
 export function getOwnedMonsterNames() {
@@ -33,7 +38,7 @@ export function getActiveMonster() {
     activeMonster = arrayChoice(ownedMonsters);
     storage.setItem("activeMonster", activeMonster);
   }
-  return MONSTERS_MAP[activeMonster];
+  return Object.assign({}, MONSTERS_MAP[activeMonster]);
 }
 
 export function setActiveMonster(monster) {

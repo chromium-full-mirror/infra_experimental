@@ -1,7 +1,37 @@
 import {LitElement, html} from '@polymer/lit-element';
 import {addCapturedMonster, getActiveMonster} from './state.js';
-import {randInt} from './helpers.js';
+import {randInt, arrayChoice, sleep} from './helpers.js';
 import './mon-health-bar.js';
+
+const MOVES = {
+  bite: (me, enemy) => {
+    const attackPower = (me.attack / 10.0) * 10;
+    const enemyDamage = randInt(attackPower * 1.5, attackPower * 0.5);
+    enemy.health -= enemyDamage;
+  },
+  sting: (me, enemy) => {
+    const attackPower = (me.attack / 10.0) * 10;
+    const enemyDamage = randInt(attackPower * 1.5, attackPower * 0.5);
+    enemy.health -= enemyDamage;
+  },
+  tackle: (me, enemy) => {
+    const attackPower = (me.attack / 10.0) * 10;
+    const enemyDamage = randInt(attackPower * 1.5, attackPower * 0.5);
+    enemy.health -= enemyDamage;
+  },
+  tornado: (me, enemy) => {
+    // Make fancy
+    const attackPower = (me.attack / 10.0) * 10;
+    const enemyDamage = randInt(attackPower * 1.5, attackPower * 0.5);
+    enemy.health -= enemyDamage;
+  },
+  file_bug: (me, enemy) => {
+    // Make fancy
+    const attackPower = (me.attack / 10.0) * 10;
+    const enemyDamage = randInt(attackPower * 1.5, attackPower * 0.5);
+    enemy.health -= enemyDamage;
+  },
+};
 
 class MonBattle extends LitElement {
 
@@ -40,12 +70,9 @@ class MonBattle extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
+    console.log('me', this.me);
+    console.log('enemy', this.enemy);
     this.enemy = this.enemy || {};
-    this.myMaxHealth = 100;
-    this.myHealth = this.myMaxHealth;
-
-    this.enemyMaxHealth = 100;
-    this.enemyHealth = this.enemyMaxHealth;
 
     this.turnAnimationLength = 200;
 
@@ -81,43 +108,49 @@ class MonBattle extends LitElement {
     super();
   }
 
-  attack() {
-    // TODO: Replace this with custom numbers per Chopsmon.
-    const attackPower = 30;
-    const myDamage = randInt(attackPower * 1.5, attackPower * 0.5);
-
-    // Run my turn before the enemy's turn.
-    // TODO: Add speed mechanic so this isn't always the same.
-    this.enemyHealth -= myDamage;
+  move(move) {
+    if (move === "catch") {
+      this.capture();
+      return;
+    }
+    if (move === "run") {
+      this.run();
+      return;
+    }
     this.myTurnRunning = true;
+    console.log('me attacking');
+    MOVES[move](this.me, this.enemy);
 
-    setTimeout(() => {
+    sleep(this.turnAnimationLength).then(() => {
       this.myTurnRunning = false;
-      if (this.enemyHealth <= 0) {
+      if (this.enemy.health <= 0) {
         // You win! :D
+        console.log('you win!');
         this.dispatchEvent(new CustomEvent('end-battle'));
-
         // TODO: You win screen, maybe with XP and level up.
       } else {
-        this._opponentAttacks();
+        sleep(this.turnAnimationLength).then(() => {
+          this._opponentAttacks();
+        });
       }
-    }, this.turnAnimationLength);
+    });
+    this.update('me', 'enemy');
   }
 
   _opponentAttacks() {
     // TODO: Replace this with custom numbers per Chopsmon.
-    const attackPower = 30;
-    const enemyDamage = randInt(attackPower * 1.5, attackPower * 0.5);
-    this.myHealth -= enemyDamage;
+    let move = arrayChoice(this.enemy.moves);
     this.enemyTurnRunning = true;
+    console.log(this.enemy.moves);
+    console.log('enemy attacking');
+    MOVES[move](this.enemy, this.me);
+
     setTimeout(() => {
       this.enemyTurnRunning = false;
-
-      if (this.myHealth <= 0) {
-        // You lose. :(
-
+      if (this.me.health <= 0) {
         // TODO: Some sort of cutesy "you lose" screen that isn't too
         // discouraging.
+        console.log('you lose!');
         this.dispatchEvent(new CustomEvent('end-battle'));
       }
     }, this.turnAnimationLength);
@@ -275,6 +308,11 @@ class MonBattle extends LitElement {
   }
 
   renderDom() {
+    let moves = this.me.moves.slice();
+    moves.push('catch');
+    moves.push('run');
+    let movesStr = moves.map(move => html`
+        <button class="capitalize" @click="${() => this.move(move)}">${move}</button>`);
     return html`
       <div id="mine">
         <img src="/img/${this.me.image}" class="${this.myTurnRunning ? 'attack-left' : ''}" />
@@ -285,24 +323,21 @@ class MonBattle extends LitElement {
 
       <mon-health-bar
         id="mine-hp"
-        .maxHealth="${this.myMaxHealth}"
-        .health="${this.myHealth}"
+        .maxHealth="${this.me.maxHealth}"
+        .health="${this.me.health}"
         .transitionTime="${this.turnAnimationLength}"
       ></mon-health-bar>
       <mon-health-bar
         id="enemy-hp"
-        .maxHealth="${this.enemyMaxHealth}"
-        .health="${this.enemyHealth}"
+        .maxHealth="${this.enemy.maxHealth}"
+        .health="${this.enemy.health}"
         .transitionTime="${this.turnAnimationLength}"
       ></mon-health-bar>
 
       <div id="menu">
         <div id="question">What will <span class="capitalize">${this.me.name}</span> do?</div>
         <div id="options">
-          <button class="capitalize" @click="${this.attack}">Choo choo</button>
-          <button class="capitalize" @click="${this.attack}">Tackle</buton>
-          <button class="capitalize" @click="${this.capture}">Catch</button>
-          <button class="capitalize" @click="${this.run}">Run</button>
+          ${movesStr}
         </div>
       </div>
     `
