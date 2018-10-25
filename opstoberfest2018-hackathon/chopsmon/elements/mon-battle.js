@@ -145,7 +145,7 @@ class MonBattle extends LitElement {
 
     setTimeout(() => {
       this.battleState = 'battle';
-    }, (keyFrames.length + 1) * duration + messageLength);
+    }, (keyFrames.length + 1) * duration + this.messageLength);
   }
 
   constructor() {
@@ -251,7 +251,7 @@ class MonBattle extends LitElement {
   }
 
   end() {
-    setTimeout(() => this.dispatchEvent(new CustomEvent('end-battle')), messageLength);
+    setTimeout(() => this.dispatchEvent(new CustomEvent('end-battle')), this.messageLength);
   }
 
   render() {
