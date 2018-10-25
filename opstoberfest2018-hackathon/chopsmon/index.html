@@ -248,7 +248,7 @@
  
  <tr><th align="left">Merged:</th>
  <td class="rel_issues">
- <a href="detail?id=898033" title="issue 898033: Monarch-Pusher for chrome-ops-devx-monarch-push has no recent run for module chrome-ops-devx-monorail-staging"
+ <a href="detail?id=898033" title=""
  class="closed_ref"
  >issue 898033</a>
  </td>
@@ -277,10 +277,10 @@
  <tr><th class="vt" align="left">Cc:</th><td>
  
  
-<div class="userlink_avail" title="abennetts@google.com">
+<div class="userlink_avail" title="lucibunny@google.com">
  
  
- <a href="/u/abennetts@google.com/">abennetts@google.com</a>
+ <a href="/u/lucibunny@google.com/">lucibunny@google.com</a>
 </div>
 
 
@@ -545,7 +545,7 @@
  </option>
  
  <option value="2" selected>
- Description #2 (abennetts@google.com, Oct 22 2018)
+ Description #2 (lucibunny@google.com, Oct 22 2018)
  </option>
  
 </select>
@@ -555,7 +555,7 @@
  <div id="d1"
  style="display: none;">
  <pre class="issue_text" tabIndex="1">
-Filed by <a href="/u/chrome-trooper-alerts@google.com" title="" class="" rel="nofollow">chrome-trooper-alerts@google.com</a> on behalf of <a href="mailto:noreply@google.com" title="" class="" rel="nofollow">noreply@google.com</a>
+third_party/blink/renderer/platform/graphics/bitmap_image_test.cc loads images from third_party/WebKit/LayoutTests/images/resources
 
 
  </pre>
@@ -566,34 +566,7 @@ Filed by <a href="/u/chrome-trooper-alerts@google.com" title="" class="" rel="no
  <div id="d2"
  >
  <pre class="issue_text" tabIndex="1">
-User:            chrome-ops-devx-monarch-push
-Module:          chrome-ops-devx-monorail-prod
-Age in seconds:  1540087441.65
-Alert threshold: VAL &gt; 14400
-
-Summary:
-Monarch-Pusher for user chrome-ops-devx-monarch-push module
-chrome-ops-devx-monorail-prod has not performed a successful run recently.
-
-Push history for this config:
-  <a href="https://monarch-pusher.corp.google.com/historyz?config=chrome-ops-devx-monarch-push/chrome-ops-devx-monorail-prod" title="" class="" rel="nofollow">https://monarch-pusher.corp.google.com/historyz?config=chrome-ops-devx-monarch-push/chrome-ops-devx-monorail-prod</a>
-
-Your user in the dashboard:
-  <a href="https://monarch-pusher.corp.google.com/?user=chrome-ops-devx-monarch-push" title="" class="" rel="nofollow">https://monarch-pusher.corp.google.com/?user=chrome-ops-devx-monarch-push</a>
-
-Troubleshooting tips / playbook:
-  <a href="https://g3doc.corp.google.com/monitoring/monarch_pusher/g3doc/playbook/WhyNotPushing.md" title="" class="" rel="nofollow">https://g3doc.corp.google.com/monitoring/monarch_pusher/g3doc/playbook/WhyNotPushing.md</a>
-
-Alert details:
-  Message: Condition &#39;MonarchPusher_TooLongSinceLastSuccess&#39; was triggered.
-  AMC details: <a href="http://alertmanager.corp.google.com/i/2756071203696279642" title="" class="" rel="nofollow">http://alertmanager.corp.google.com/i/2756071203696279642</a>
-
-This alert was sent to you via subspace from:
-<a href="https://cs.corp.google.com/piper///depot/google3/configs/monitoring/monarch_pusher/horizontal.py" title="" class="" rel="nofollow">https://cs.corp.google.com/piper///depot/google3/configs/monitoring/monarch_pusher/horizontal.py</a>
-
-Filed by <a href="/u/chrome-trooper-alerts@google.com" title="" class="" rel="nofollow">chrome-trooper-alerts@google.com</a> on behalf of <a href="mailto:noreply@google.com" title="" class="" rel="nofollow">noreply@google.com</a>
-
-
+BitmapImageTest loads images that are only used for BitmapImageTest from third_party/WebKit/LayoutTests. We should move the BitmapImageTest images to third_party/blink/renderer/platform/testing/data/ and update BitmapImageTest's ReadFile to read from the platform/testing/data directory (PlatformTestDataPath). This will more cleanly separate the unit test and layout test data.
  </pre>
  
  </div>
@@ -620,7 +593,7 @@ Filed by <a href="/u/chrome-trooper-alerts@google.com" title="" class="" rel="no
  value="">
  <input type="hidden" name="status" value="Assigned">
  <input type="hidden" name="owner" value="jeffcarp@chromium.org">
- <input type="hidden" name="cc" value="abennetts@google.com">
+ <input type="hidden" name="cc" value="lucibunny@google.com">
  <input type="hidden" name="components" value="Infra">
  
  
@@ -2413,32 +2386,7 @@ Filed by <a href="/u/chrome-trooper-alerts@google.com" title="" class="" rel="no
  <input type="hidden" name="blocking" value="">
  </div>
  <textarea name="comment" class="issue_text" id="desc_comment_area" cols="80" rows="8">
-User:            chrome-ops-devx-monarch-push
-Module:          chrome-ops-devx-monorail-prod
-Age in seconds:  1540087441.65
-Alert threshold: VAL &gt; 14400
-
-Summary:
-Monarch-Pusher for user chrome-ops-devx-monarch-push module
-chrome-ops-devx-monorail-prod has not performed a successful run recently.
-
-Push history for this config:
-  https://monarch-pusher.corp.google.com/historyz?config=chrome-ops-devx-monarch-push/chrome-ops-devx-monorail-prod
-
-Your user in the dashboard:
-  https://monarch-pusher.corp.google.com/?user=chrome-ops-devx-monarch-push
-
-Troubleshooting tips / playbook:
-  https://g3doc.corp.google.com/monitoring/monarch_pusher/g3doc/playbook/WhyNotPushing.md
-
-Alert details:
-  Message: Condition &#39;MonarchPusher_TooLongSinceLastSuccess&#39; was triggered.
-  AMC details: http://alertmanager.corp.google.com/i/2756071203696279642
-
-This alert was sent to you via subspace from:
-https://cs.corp.google.com/piper///depot/google3/configs/monitoring/monarch_pusher/horizontal.py
-
-Filed by chrome-trooper-alerts@google.com on behalf of noreply@google.com
+third_party/blink/renderer/platform/graphics/bitmap_image_test.cc loads images from third_party/WebKit/LayoutTests/images/resources
 
 </textarea></br>
  
@@ -2486,7 +2434,7 @@ Filed by chrome-trooper-alerts@google.com on behalf of noreply@google.com
  <a name="c1" id="c_ts1540170578"
  href="/p/chromium/issues/detail?id=897473#c1">Comment 1</a>
  by
- <a style="white-space: nowrap" href="/u/abennetts@google.com/" title="abennetts@google.com">abennetts@google.com</a></span>,
+ <a style="white-space: nowrap" href="/u/lucibunny@google.com/" title="lucibunny@google.com">lucibunny@google.com</a></span>,
  <span class="date" title="Mon Oct 22 01:09:38 2018 UTC">
  Oct 22
  (3 days ago)
@@ -2538,7 +2486,7 @@ Filed by chrome-trooper-alerts@google.com on behalf of noreply@google.com
  <table class="updates">
  <tr><td class="box-inner">
  
- <b>Cc:</b> abennetts@google.com<br>
+ <b>Cc:</b> lucibunny@google.com<br>
 
  
  <b>Summary:</b> Monarch-Pusher for chrome-ops-devx-monarch-push has no recent run for module chrome-ops-devx-monorail-prod (was: Monarch-Pusher for chrome-ops-devx-monarch-push has no recent run for
@@ -2551,7 +2499,27 @@ Filed by chrome-trooper-alerts@google.com on behalf of noreply@google.com
  
 
 <pre class="issue_text">
-Filled in description manually from raw subspace notification logs.  Sorry that it was missing, I&#39;ll fix the subspace receiver config to fill this in automatically in future; see <a href="/p/chromium/issues/detail?id=790913" title="Add monitoring alerts for Monarch and Monarch Pusher" class="" rel="nofollow">crbug.com/790913</a>.
+WPT import https://crrev.com/c/1292517 introduced new failures in external/wpt/webrtc:
+
+List of new failures:
+external/wpt/webrtc/RTCRtpTransceiver.https.html new failing tests: https://crrev.com/c/1292517/4/third_party/WebKit/LayoutTests/external/wpt/webrtc/RTCRtpTransceiver.https-expected.txt
+
+This import contains upstream changes from e8fb64ee1c401bc2d1bd79eb99c07f8f0ede37ba to 64fed9375cb182a7109797f034a741977af95485:
+Add self to suggested reviewers for `tools/` (#13629): https://github.com/web-platform-tests/wpt/commit/64fed9375cb182a7109797f034a741977af95485
+Revert "Implement fallback content for RemoteFrameOwner": https://github.com/web-platform-tests/wpt/commit/b1d6c5d076523740d62187a19eda1ad20214271c
+Implement fallback content for RemoteFrameOwner: https://github.com/web-platform-tests/wpt/commit/5450f2c41562754e0cd6e301ebf38b6efa0fcec8
+Add wpt test for ligature feature precedence.: https://github.com/web-platform-tests/wpt/commit/0dbf2c59fb3fb1d28ca89f7eae3cff594e7cb9b8
+remove duplicate line: https://github.com/web-platform-tests/wpt/commit/2b3e49da896ad67c8e337304a07a8c77f93b4c3e
+Fix a couple of typos in transform interpolation tests: https://github.com/web-platform-tests/wpt/commit/b6076f52dcc5a73e80b4a49dcebb87520966f377
+Add tests for transform list interpolation: https://github.com/web-platform-tests/wpt/commit/a26f17d1cd70f1fd0c48b7c017dc36d0ec98cbfc
+Find affected idlharness tests (#13392): https://github.com/web-platform-tests/wpt/commit/9483e7118cfc7394a99c4247a8b50906e0331354
+Add assumption test for audio/video autoplay and make Chrome pass (#13622): https://github.com/web-platform-tests/wpt/commit/cf1873d8e4561c34fed1d3f3836d4c4a3f74aa8c
+[css-properties-values-api] List syntaxes should accept one or more items.: https://github.com/web-platform-tests/wpt/commit/0df5d1b9a35dcea274e220e50b7dca141c03b5eb
+Update urllib3 from 1.23 to 1.24 (#13548): https://github.com/web-platform-tests/wpt/commit/c38339f8a627aa8b8c5f5cd27539e82ee612877a
+Simplify a check.: https://github.com/web-platform-tests/wpt/commit/cd0851ecc7a2099f781ea01188e4a4efb42c4855
+Pass the right frame to PushAbsoluteContainingBlock to determine whether we're a fixed-pos containing block.: https://github.com/web-platform-tests/wpt/commit/2278414e01b9479d4884413f8f035bc66575b095
+Update interfaces/payment-request.idl (#13608): https://github.com/web-platform-tests/wpt/commit/41d27187aa87bdc51dcf94e35431b36a32baa9f2
+Update interfaces/csp-embedded-enforcement.idl (#13607): https://github.com/web-platform-tests/wpt/commit/695b7c4cc4c20a156b7edd868d69cac5f0cef375
 </pre>
  
  
@@ -2591,7 +2559,7 @@ Filled in description manually from raw subspace notification logs.  Sorry that 
  <a name="c2" id="c_ts1540170619"
  href="/p/chromium/issues/detail?id=897473#c2">Comment 2</a>
  by
- <a style="white-space: nowrap" href="/u/abennetts@google.com/" title="abennetts@google.com">abennetts@google.com</a></span>,
+ <a style="white-space: nowrap" href="/u/lucibunny@google.com/" title="lucibunny@google.com">lucibunny@google.com</a></span>,
  <span class="date" title="Mon Oct 22 01:10:19 2018 UTC">
  Oct 22
  (3 days ago)
@@ -2789,7 +2757,7 @@ Filled in description manually from raw subspace notification logs.  Sorry that 
  <a name="c4" id="c_ts1540424763"
  href="/p/chromium/issues/detail?id=897473#c4">Comment 4</a>
  by
- <a style="white-space: nowrap" href="/u/abennetts@google.com/" title="abennetts@google.com">abennetts@google.com</a></span>,
+ <a style="white-space: nowrap" href="/u/lucibunny@google.com/" title="lucibunny@google.com">lucibunny@google.com</a></span>,
  <span class="date" title="Wed Oct 24 23:46:03 2018 UTC">
  Today
  (15 hours ago)
@@ -2891,7 +2859,7 @@ Filled in description manually from raw subspace notification logs.  Sorry that 
  <a name="c5" id="c_ts1540424776"
  href="/p/chromium/issues/detail?id=897473#c5">Comment 5</a>
  by
- <a style="white-space: nowrap" href="/u/abennetts@google.com/" title="abennetts@google.com">abennetts@google.com</a></span>,
+ <a style="white-space: nowrap" href="/u/lucibunny@google.com/" title="lucibunny@google.com">lucibunny@google.com</a></span>,
  <span class="date" title="Wed Oct 24 23:46:16 2018 UTC">
  Today
  (15 hours ago)
@@ -2982,7 +2950,7 @@ Filled in description manually from raw subspace notification logs.  Sorry that 
  <a name="c6" id="c_ts1540424983"
  href="/p/chromium/issues/detail?id=897473#c6">Comment 6</a>
  by
- <a style="white-space: nowrap" href="/u/abennetts@google.com/" title="abennetts@google.com">abennetts@google.com</a></span>,
+ <a style="white-space: nowrap" href="/u/lucibunny@google.com/" title="lucibunny@google.com">lucibunny@google.com</a></span>,
  <span class="date" title="Wed Oct 24 23:49:43 2018 UTC">
  Today
  (15 hours ago)
@@ -3033,11 +3001,11 @@ Filled in description manually from raw subspace notification logs.  Sorry that 
  
 
 <pre class="issue_text">
-Example <a href="https://monarch-pusher.corp.google.com/diffz?run=run_chrome-ops-devx-monarch-push%2fchrome-ops-devx-monorail-prod_1540423651" title="" class="" rel="nofollow">https://monarch-pusher.corp.google.com/diffz?run=run_chrome-ops-devx-monarch-push%2fchrome-ops-devx-monorail-prod_1540423651</a> run failed with:
+Move image resources for bitmap_image_test to /testing/data
 
-Push failed: Failed to push config: Monarch config service SetModule(mdb=&quot;chrome-ops-devx-monarch-push&quot;, module=&quot;chrome-ops-devx-monorail-prod&quot;): generic::failed_precondition: Validation errors: soft [generic::not_found: Metric descriptor &#39;/chrome/infra/monorail/frontend/autocomplete_populate_latency&#39; not found.]
-
-Failing since <a href="http://cl/216216343" title="" class="" rel="nofollow">cl/216216343</a>, which attempts to add retention policy for this metric.
+This pacth means blink/renderer/platform/graphics/bitmap_image_test.cc
+loads images from blink/renderer/platform/testing/data.
+This will more cleanly separate the unit test and layout test data.
 </pre>
  
  
@@ -3077,7 +3045,7 @@ Failing since <a href="http://cl/216216343" title="" class="" rel="nofollow">cl/
  <a name="c7" id="c_ts1540425076"
  href="/p/chromium/issues/detail?id=897473#c7">Comment 7</a>
  by
- <a style="white-space: nowrap" href="/u/abennetts@google.com/" title="abennetts@google.com">abennetts@google.com</a></span>,
+ <a style="white-space: nowrap" href="/u/lucibunny@google.com/" title="lucibunny@google.com">lucibunny@google.com</a></span>,
  <span class="date" title="Wed Oct 24 23:51:16 2018 UTC">
  Today
  (15 hours ago)
@@ -3128,7 +3096,7 @@ Failing since <a href="http://cl/216216343" title="" class="" rel="nofollow">cl/
  
 
 <pre class="issue_text">
-<a href="/p/chromium/issues/detail?id=897472" title="Monarch-Pusher for chrome-ops-devx-monarch-push has no recent run for module chrome-ops-devx-monorail-staging" class="closed_ref" rel="nofollow"> Issue 897472 </a> has been merged into this issue.
+<a href="/p/chromium/issues/detail?id=897472" title="third_party/blink/renderer/platform/graphics/bitmap_image_test.cc loads images from third_party/WebKit/LayoutTests/images/resources" class="closed_ref" rel="nofollow"> Issue 897472 </a> has been merged into this issue.
 </pre>
  
  
@@ -3258,7 +3226,7 @@ Failing since <a href="http://cl/216216343" title="" class="" rel="nofollow">cl/
  
  <tr><th><label for="memberccedit">Cc:</label></th><td class="inplace" colspan="2">
  <input type="text" multiple id="memberccedit" size="90" autocomplete="off"
- name="cc" value="abennetts@google.com">
+ name="cc" value="lucibunny@google.com">
  
  </td></tr>
  
