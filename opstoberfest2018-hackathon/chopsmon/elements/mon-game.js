@@ -30,7 +30,7 @@ class MonGame extends LitElement {
           bottom: 0;
           width: 100px;
           height: 100px;
-          background: red;
+          background: blue;
         }
       </style>
     `;
