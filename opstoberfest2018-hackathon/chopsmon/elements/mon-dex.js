@@ -1,6 +1,6 @@
 import {LitElement, html} from '@polymer/lit-element'
 import {MONSTERS} from '../data/monsters.js';
-import {getOwnedMonsterNames} from './state.js';
+import {getOwnedMonsterNames, setActiveMonster} from './state.js';
 
 class MonDex extends LitElement {
   static get properties() {
@@ -53,6 +53,13 @@ class MonDex extends LitElement {
         border-left: #ddd 1px solid;
         overflow: auto;
       }
+      .caught {
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      .caught:hover {
+        background: #eee;
+      }
       .uncaught {
         filter: contrast(0) brightness(40%);
       }
@@ -71,6 +78,11 @@ class MonDex extends LitElement {
           <img
             src="/img/${monster.image}"
             class="${ caught ? 'caught' : 'uncaught' }"
+            @click="${ () => {
+              if (caught) {
+                setActiveMonster(monster.name);
+              }
+            } }"
           />
           <h3>
             ${ caught ? monster.name : '???' }

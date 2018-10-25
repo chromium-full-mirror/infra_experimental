@@ -1,5 +1,6 @@
 import {LitElement, html} from '@polymer/lit-element';
 import {MONSTERS} from '../data/monsters.js';
+import {arrayChoice, randInt} from './helpers.js';
 import './mon-battle.js';
 import './mon-dex.js';
 
@@ -10,7 +11,7 @@ class MonGame extends LitElement {
       encounterRate: {
         type: Number,
       },
-      opponent: {
+      enemy: {
         type: Object,
       },
     };
@@ -19,31 +20,22 @@ class MonGame extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     this.encounterRate = this.encounterRate || 100;
-    const r = this._randInt(100);
+    const r = randInt(100);
     if (r < this.encounterRate) {
       // Encounter triggered.
-      this.opponent = MONSTERS[this._randInt(MONSTERS.length)];
+      this.enemy = arrayChoice(MONSTERS);
     }
   }
 
-  disconnectedCallback() {
-    super.disconnectedCallback();
-    // TODO: Save Pokemon to localStorage here.
-  }
-
   endBattle() {
-    this.opponent = null;
-  }
-
-  _randInt(max) {
-    return Math.floor(Math.random() * max);
+    this.enemy = null;
   }
 
   render() {
     return html`
       <mon-dex></mon-dex>
-      ${ this.opponent &&
-        html`<mon-battle .opponent="${this.opponent}" @run="${this.endBattle}"></mon-battle>` }
+      ${ this.enemy &&
+        html`<mon-battle .enemy="${this.enemy}" @end-battle="${this.endBattle}"></mon-battle>` }
     `;
   }
 }

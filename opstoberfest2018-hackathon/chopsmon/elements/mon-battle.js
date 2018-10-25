@@ -1,17 +1,32 @@
 import {LitElement, html} from '@polymer/lit-element';
-//import {state} from 'state.js';
+import {addCapturedMonster, getActiveMonster} from './state.js';
+import {randInt} from './helpers.js';
+import './mon-health-bar.js';
 
 class MonBattle extends LitElement {
 
   static get properties() {
     return {
-      opponent: {
+      me: {
         type: Object,
       },
-      yourHealth: {
+      enemy: {
+        type: Object,
+      },
+      myMaxHealth: {
         type: Number,
       },
-      opponentHealth: {
+      myHealth: {
+        type: Number,
+      },
+      enemyMaxHealth: {
+        type: Number,
+      },
+      enemyHealth: {
+        type: Number,
+      },
+      /* Number of milliseconds for a single turn to animate. */
+      turnAnimationLength: {
         type: Number,
       },
     };
@@ -19,9 +34,16 @@ class MonBattle extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
-    this.opponent = this.opponent || {};
-    this.yourHealth = 100;
-    this.opponentHealth = 100;
+    this.enemy = this.enemy || {};
+    this.myMaxHealth = 100;
+    this.myHealth = this.myMaxHealth;
+
+    this.enemyMaxHealth = 100;
+    this.enemyHealth = this.enemyMaxHealth;
+
+    this.turnAnimationLength = 200;
+
+    this.me = getActiveMonster();
   }
 
   constructor() {
@@ -29,15 +51,61 @@ class MonBattle extends LitElement {
   }
 
   attack() {
-    // TODO: Implement logic to handle an attack.
+    // TODO: Replace this with custom numbers per Chopsmon.
+    const attackPower = 30;
+    const myDamage = randInt(attackPower * 1.5, attackPower * 0.5);
+
+    // Run my turn before the enemy's turn.
+    // TODO: Add speed mechanic so this isn't always the same.
+    this.enemyHealth -= myDamage;
+
+    if (this.enemyHealth <= 0) {
+      // You win! :D
+      setTimeout(() => this.dispatchEvent(new CustomEvent('end-battle')),
+        this.turnAnimationLength * 1.5);
+
+      // TODO: You win screen, maybe with XP and level up.
+    } else {
+      setTimeout(this._opponentAttacks.bind(this), this.turnAnimationLength);
+    }
+  }
+
+  _opponentAttacks() {
+    // TODO: Replace this with custom numbers per Chopsmon.
+    const attackPower = 30;
+    const enemyDamage = randInt(attackPower * 1.5, attackPower * 0.5);
+    this.myHealth -= enemyDamage;
+    if (this.myHealth <= 0) {
+      // You lose. :(
+      setTimeout(() => this.dispatchEvent(new CustomEvent('end-battle')),
+        this.turnAnimationLength * 1.5);
+
+      // TODO: Some sort of cutesy "you lose" screen that isn't too
+      // discouraging.
+    }
   }
 
   capture() {
-    // TODO: Implement logic to catch Chopsmon.
+    // TODO: Add some sort of animation/indication that you captured the
+    // Chopsmon.
+
+    // Out of 100.
+    const catchRate = 30;
+    const r = randInt(100);
+
+    if (r < catchRate) {
+      // Enemy caught!
+      addCapturedMonster(this.enemy.name);
+      setTimeout(() => this.dispatchEvent(new CustomEvent('end-battle')),
+        this.turnAnimationLength * 1.5);
+    } else {
+      this._opponentAttacks();
+    }
   }
 
   run() {
-    this.dispatchEvent(new CustomEvent('run'));
+    // TODO: Add running away animation.
+    this.dispatchEvent(new CustomEvent('end-battle'));
   }
 
   render() {
@@ -82,18 +150,14 @@ class MonBattle extends LitElement {
           left: 50%;
           top: 60%;
           width: 30%;
-          height: 5%;
-          border: solid 5px #333333;
+
           position: absolute;
         }
 
         #enemy-hp {
           left: 20%;
           top: 20%;
-          width: 30%;
-          height: 5%;
 
-          border:solid 5px #333333;
           position: absolute;
         }
 
@@ -143,11 +207,21 @@ class MonBattle extends LitElement {
 
   renderDom() {
     return html`
-      <img id="mine" src="/img/monorail1.png">
-      <img id="enemy" src="/img/${this.opponent.image}">
+      <img id="mine" src="/img/${this.me.image}">
+      <img id="enemy" src="/img/${this.enemy.image}">
 
-      <div id="mine-hp"></div>
-      <div id="enemy-hp"></div>
+      <mon-health-bar
+        id="mine-hp"
+        .maxHealth="${this.myMaxHealth}"
+        .health="${this.myHealth}"
+        .transitionTime="${this.turnAnimationLength}"
+      ></mon-health-bar>
+      <mon-health-bar
+        id="enemy-hp"
+        .maxHealth="${this.enemyMaxHealth}"
+        .health="${this.enemyHealth}"
+        .transitionTime="${this.turnAnimationLength}"
+      ></mon-health-bar>
 
       <div id="menu">
         <div id="question">What will <span class="capitalize">Monorail</span> do?</div>
