@@ -50,13 +50,17 @@ class MonBattle extends LitElement {
 
   battleSetupAnimations() {
     const duration = 500;
-    this.shadowRoot.host.style.transition = 'filter 500ms linear';
-    const keyFrames = [50, 0, 50, 0, 50, 0];
+    this.ownerDocument.body.style.transition = 'filter 500ms linear';
+    const keyFrames = [0, 50, 0, 50, 0, 50, 0];
     keyFrames.forEach((amount, index) => {
       setTimeout(() => {
-        this.shadowRoot.host.style.filter = `invert(${amount}%)`;
+        this.ownerDocument.body.style.filter = `invert(${amount}%)`;
       }, index * duration);
     })
+
+    setTimeout(() => {
+      this.shadowRoot.host.style.visibility = 'visible';
+    }, keyFrames.length * (duration - 1));
 
     setTimeout(() => {
       this.shadowRoot.querySelector('#mine').style.left = '10%';
@@ -143,6 +147,7 @@ class MonBattle extends LitElement {
         @import url('https://fonts.googleapis.com/css?family=Roboto');
 
         :host {
+          visibility: hidden; /* initially hidden */
           background: white;
           font-family: 'Roboto', sans-serif;
           font-size: 40px;
