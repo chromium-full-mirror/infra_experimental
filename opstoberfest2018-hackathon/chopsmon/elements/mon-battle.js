@@ -271,7 +271,6 @@ class MonBattle extends LitElement {
         }
 
         #mine {
-          filter: contrast(0%);
           left: -50%;
           transition: left 500ms linear;
           /* left: 10%; original */
