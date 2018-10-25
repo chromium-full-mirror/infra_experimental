@@ -118,6 +118,11 @@ class MonBattle extends LitElement {
     this.isPlayerTurn = true;
   }
 
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    document.getElementById('monorail').style.filter = '';
+  }
+
   battleSetupAnimations() {
     const duration = 400;
     this.ownerDocument.body.style.backgroundColor = 'black';
@@ -130,6 +135,7 @@ class MonBattle extends LitElement {
     })
 
     setTimeout(() => {
+      document.getElementById('monorail').style.filter = 'blur(4px)';
       this.shadowRoot.host.style.visibility = 'visible';
     }, keyFrames.length * (duration));
 
@@ -287,7 +293,6 @@ class MonBattle extends LitElement {
 
         :host {
           visibility: hidden; /* initially hidden */
-          background: white;
           font-family: 'Roboto', sans-serif;
           font-size: 40px;
           position: fixed;
@@ -401,6 +406,7 @@ class MonBattle extends LitElement {
           display: flex;
           align-items: stretch;
           flex-direction: column;
+          padding: 16px;
         }
 
         .info-box img {
