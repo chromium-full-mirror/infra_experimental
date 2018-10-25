@@ -56,6 +56,18 @@ func getCredentials(gitCookiesPath string) (string, error) {
 	return "", fmt.Errorf("Git auth secret not found. Is there an entry for '.googlesource.com' in your gitcookies file?")
 }
 
+func getEditor() string {
+	cmd := os.Getenv("VISUAL")
+	if cmd != "" {
+		return cmd
+	}
+	cmd = os.Getenv("EDITOR")
+	if cmd != "" {
+		return cmd
+	}
+	return "vim"
+}
+
 func doMain() error {
 	// Get default location for gitcookies file.
 	usr, err := user.Current()
@@ -127,7 +139,7 @@ func doMain() error {
 	writer.Flush()
 
 	// Open the temp file in vim, then fetch its new contents.
-	cmd := exec.Command("vim", tmpFile)
+	cmd := exec.Command(getEditor(), tmpFile)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	if err = cmd.Run(); err != nil {
