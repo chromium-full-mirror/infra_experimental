@@ -108,7 +108,7 @@ class MonBattle extends LitElement {
     this.turnDelayLength = 1000;
 
     this.captureAnimationLength = 1000;
-    this.messageLength = 1500;
+    this.messageLength = 3000;
 
     this.me = getActiveMonster();
     // Make players win on average more
