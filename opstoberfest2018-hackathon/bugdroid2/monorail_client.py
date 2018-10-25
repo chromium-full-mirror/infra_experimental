@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+
 import apiclient.discovery
 import apiclient.http
 import httplib2
@@ -12,14 +13,12 @@ import ssl
 import time
 
 from apiclient.errors import HttpError
-from oauth2client.client import OAuth2Credentials
-from oauth2client.client import OAuth2WebServerFlow
 from oauth2client.file import Storage
 from oauth2client.tools import run
 
 from infra_libs import httplib2_utils
 
-MONORAIL_PROD_URL = ('https://monorail-prod.appspot.com/_ah/api/discovery/'
+MONORAIL_PROD_URL = ('https://monorail-staging.appspot.com/_ah/api/discovery/'
                      'v1/apis/{api}/{apiVersion}/rest')
 
 
@@ -77,30 +76,22 @@ class SSLErrorLoggingHttp(object):
       self.__dict__[name] = value
     else:
       setattr(self._http, name, value)
-
+OAUTH_CLIENT_ID = (
+    '446450136466-2hr92jrq8e6i4tnsa56b52vacp7t3936.apps.googleusercontent.com')
+OAUTH_CLIENT_SECRET = 'uBfbay2KCy9t4QveJ-dOqHtp'
+# This is what most GAE apps require for authentication.
+OAUTH_SCOPE_EMAIL = 'https://www.googleapis.com/auth/userinfo.email'
 
 class MonorailClient(object):
 
   def __init__(self, credential_store, client=None):
     self._credentials = None
+    storage = Storage('credentials_file')
+    self._credentials = self._authenticate(
+      storage, None, OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET, OAUTH_SCOPE_EMAIL)
 
-    if client is None:  # pragma: no cover
-      with open(credential_store) as data_file:
-        creds_data = json.load(data_file)
-
-      self._credentials = OAuth2Credentials(
-          None, creds_data['client_id'], creds_data['client_secret'],
-          creds_data['refresh_token'], None,
-          'https://accounts.google.com/o/oauth2/token',
-          'python-issue-tracker-manager/2.0')
-
-      if self._credentials.invalid:
-        raise Exception(
-            'Failed to create credentials from credential store: %s.' %
-            credential_store)
-
-      client = build_client(
-          MONORAIL_PROD_URL, self._http_request_builder, 'monorail', 'v1')
+    client = build_client(
+        MONORAIL_PROD_URL, self._http_request_builder, 'monorail', 'v1')
 
     self.client = client
 
