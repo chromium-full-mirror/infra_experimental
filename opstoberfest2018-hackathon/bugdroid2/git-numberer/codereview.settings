@@ -1,4 +1,0 @@
-CC_LIST: chromium-reviews@chromium.org, infra-reviews+infra@chromium.org
-GERRIT_HOST: True
-GERRIT_SQUASH_UPLOADS: True
-VIEW_VC: https://chromium.googlesource.com/infra/gerrit-plugins/git-number-verifier/+/
