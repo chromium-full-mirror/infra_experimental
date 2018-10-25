@@ -105,51 +105,134 @@ export const MONSTERS = [
     "image": "findit.png",
     "weight": "4.27",
   },
-  // GerritCreate CLKick30104.43
-  // Goma10153.92
-  // LogdogBiteTornado (wag tail)30101.71
-  // Lucy10103.28
-  // MiloSplashTackle30105.42
-  // MonorailChoo choo ??Tackle30101.02
-  // SchedulerRewind time (heal)Tackle30102.14
-  // SOMShoot gunsTumbleweed30157.11
-  // SwarmingRepairSting45108.38
-  // Tricium101010.38
-  // Zira10107.81
   {
-    "name": "monorail",
-    "description": "Best bug management in town",
-    "health": 40,
+    "name": "gerrit",
+    "health": 30,
     "attack": 10,
-    "image": "monorail2.png",
+    "moves": [
+      "create CL",
+      "kick",
+    ],
+    "image": "gerrit.png",
+    "weight": "4.43",
+  },
+  {
+    "name": "goma",
+    "health": 10,
+    "attack": 10,
+    // Come up with themed moves
     "moves": [
       "tackle",
-      "file_bug"
+      "bite",
     ],
-    "weight": 8.38
+    "image": "goma.png",
+    "weight": "3.92",
   },
   {
     "name": "logdog",
     "description": "Fiercest dog in town",
     "health": 40,
     "attack": 10,
-    "image": "logdog.png",
     "moves": [
       "bite",
       "tornado"
     ],
+    "image": "logdog.png",
     "weight": 8.38
+  },
+  {
+    "name": "lucy",
+    "health": 10,
+    "attack": 10,
+    // Come up with themed moves
+    "moves": [
+      "tackle",
+      "bite",
+    ],
+    "image": "lucy_chromium1.png",
+    "weight": "3.28",
+  },
+  {
+    "name": "milo",
+    "health": 30,
+    "attack": 10,
+    // Come up with themed moves
+    "moves": [
+      "tackle",
+      "bite",
+    ],
+    "image": "milo.png",
+    "weight": "5.42",
+  },
+  {
+    "name": "monorail",
+    "description": "Best bug management in town",
+    "health": 40,
+    "attack": 10,
+    "moves": [
+      "tackle",
+      "file_bug"
+    ],
+    "image": "monorail2.png",
+    "weight": 8.38
+  },
+  {
+    "name": "scheduler",
+    "health": 30,
+    "attack": 10,
+    // Come up with themed moves
+    "moves": [
+      "tackle",
+      "bite",
+    ],
+    "image": "scheduler.png",
+    "weight": "2.14",
+  },
+  {
+    "name": "sheriff o matic",
+    "health": 30,
+    "attack": 15,
+    "moves": [
+      "shoot guns",
+      "tumbleweed",
+    ],
+    "image": "sheriff-o-matic.png",
+    "weight": "7.11"
   },
   {
     "name": "swarming",
     "description": "The best scheduler around",
     "health": 40,
     "attack": 10,
-    "image": "swarming.png",
     "moves": [
       "sting",
       "tackle"
     ],
+    "image": "swarming.png",
     "weight": 8.38
-  }
+  },
+  {
+    "name": "tricium",
+    "health": 10,
+    "attack": 10,
+    // Come up with themed moves
+    "moves": [
+      "tackle",
+      "bite",
+    ],
+    "image": "tricium.png",
+    "weight": "10.38",
+  },
+  {
+    "name": "zira",
+    "health": 10,
+    "attack": 10,
+    // Come up with themed moves
+    "moves": [
+      "tackle",
+      "bite",
+    ],
+    "image": "zira.png",
+    "weight": "7.81",
+  },
 ];
