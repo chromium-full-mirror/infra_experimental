@@ -68,6 +68,10 @@ class MonBattle extends LitElement {
       turnAnimationLength: {
         type: Number,
       },
+      /* Number of milliseconds to wait after a turn completes. */
+      turnDelayLength: {
+        type: Number,
+      },
     };
   }
 
@@ -76,12 +80,9 @@ class MonBattle extends LitElement {
     console.log('me', this.me);
     console.log('enemy', this.enemy);
     this.enemy = this.enemy || {};
-    this.myMaxHealth = 100;
-    this.myHealth = this.myMaxHealth;
 
-    this.enemyMaxHealth = 100;
-    this.enemyHealth = this.enemyMaxHealth;
     this.turnAnimationLength = 200;
+    this.turnDelayLength = 200;
 
     this.me = getActiveMonster();
 
