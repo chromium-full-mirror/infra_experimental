@@ -20,7 +20,7 @@ class MonGame extends LitElement {
 
   constructor() {
     super();
-    this.expanded = false;
+    this.expanded = true;
   }
 
   render() {

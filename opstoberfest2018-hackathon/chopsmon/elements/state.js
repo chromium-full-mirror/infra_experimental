@@ -2,7 +2,7 @@
  * @fileoverview Description of this file.
  */
 
-storage = window.localStorage
+let storage = window.localStorage
 
 let MONSTERS = {
   "monorail": {
@@ -59,8 +59,8 @@ let MONSTERS = {
 //     }
 // };
 
-getOwnedMonsterNames() {
-  ownedMonsters = storage.getItem("ownedMonsters")
+function getOwnedMonsterNames() {
+  var ownedMonsters = storage.getItem("ownedMonsters")
   if (ownedMonsters == null) {
     ownedMonsters = "monorail"
     storage.setItem("ownedMonsters", ownedMonsters);
@@ -68,12 +68,12 @@ getOwnedMonsterNames() {
   return ownedMonsters.split(",");
 }
 
-getOwnedMonsters() {
-  return getOwnedMonsterNames().map(x => { ...MONSTERS[x], name: x });
+export function getOwnedMonsters() {
+  return getOwnedMonsterNames().map(x => Object.assign({}, MONSTERS[x], {name: x}));
 }
 
-addCapturedMonster(monster) {
-  ownedMonsters = getOwnedMonsterNames();
+function addCapturedMonster(monster) {
+  var ownedMonsters = getOwnedMonsterNames();
   ownedMonsters = ownedMonsters + "," + monster;
   storage.setItem("ownedMonsters", ownedMonsters);
 }

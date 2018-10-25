@@ -1,5 +1,5 @@
 import {LitElement, html} from '@polymer/lit-element'
-// import {state} from 'state.js';
+import {getOwnedMonsters} from './state.js';
 
 class MonDex extends LitElement {
 
@@ -11,22 +11,20 @@ class MonDex extends LitElement {
 
   constructor() {
     super();
-    this.expanded = false;
+    this.expanded = true;
   }
 
   render() {
-    return html`<p>hey</p>`
-    /*
-    const monsters = state.getOwnedMonsters();
+    const monsters = getOwnedMonsters();
     const monsterEls = monsters.map(monster => html`
-      <div>{monster}</div>
+      <div>${monster.name}</div>
     `);
 
-    if (expanded) {
+    if (this.expanded) {
       return html`
         <style></style>
         <div>
-          {monsterEls}
+          ${monsterEls}
         </div>
       `;
     } else {
@@ -37,7 +35,6 @@ class MonDex extends LitElement {
         </div>
       `;
     }
-    */
   }
 }
 
