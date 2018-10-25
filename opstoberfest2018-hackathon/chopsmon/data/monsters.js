@@ -1,20 +1,30 @@
 export const MONSTERS = [
-  // {
-  //   "name": "buildbucket",
-  //   "description": "All your builds belong to us",
-  //   "health": 10,
-  //   "attack": 10,
-  //   "image": "buildbucket.png",
-  //   "weight": "4.02",
-  // },
-  // {
-  //   "name": "cats",
-  //   "description": "We got you covered",
-  //   "health": 10,
-  //   "attack": 10,
-  //   "image": "chops_CATS.png",
-  //   "weight": "2.84",
-  // },
+  {
+    "name": "buildbucket",
+    "description": "All your builds belong to us",
+    "health": 10,
+    "attack": 10,
+    "image": "buildbucket.png",
+    // Come up with themed moves
+    "moves": [
+      "tackle",
+      "bite",
+    ],
+    "weight": "4.02",
+  },
+  {
+    "name": "cats",
+    "description": "We got you covered",
+    "health": 10,
+    "attack": 10,
+    "image": "chops_CATS.png",
+    // Come up with themed moves
+    "moves": [
+      "tackle",
+      "bite",
+    ],
+    "weight": "2.84",
+  },
   {
     "name": "chrome infra auth",
     "health": 30,
@@ -48,10 +58,53 @@ export const MONSTERS = [
     "image": "codesearch.png",
     "weight": "2.57",
   },
-  // Crimson10107.56
-  // Depot tools10103.29
-  // Devon10102.38
-  // FinditFind weaknessRoll over30104.27
+  {
+    "name": "crimson",
+    "health": "10",
+    "attack": "10",
+    // Come up with themed moves
+    "moves": [
+      "tackle",
+      "bite",
+    ],
+    "image": "crimson.png",
+    "weight": "7.56",
+  },
+  {
+    "name": "depot tools",
+    "health": 10,
+    "attack": 10,
+    // Come up with themed moves
+    "moves": [
+      "tackle",
+      "bite",
+    ],
+    "image": "depot_tools1.png",
+    "weight": "3.29",
+  },
+  {
+    "name": "devon",
+    "health": 10,
+    "attack": 10,
+    // Come up with themed moves
+    "moves": [
+      "tackle",
+      "bite",
+    ],
+    "image": "devon_chromium3.png",
+    "weight": "2.38",
+  },
+  {
+    "name": "findit",
+    "health": 30,
+    "attack": 10,
+    "moves": [
+      "find weakness",
+      "roll over",
+    ],
+    "image": "findit.png",
+    "weight": "4.27",
+  },
   // GerritCreate CLKick30104.43
   // Goma10153.92
   // LogdogBiteTornado (wag tail)30101.71
