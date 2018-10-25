@@ -5,28 +5,33 @@ import './mon-health-bar.js';
 
 const MOVES = {
   bite: (me, enemy) => {
+    console.log('bite');
     const attackPower = (me.attack / 10.0) * 10;
     const enemyDamage = randInt(attackPower * 1.5, attackPower * 0.5);
     enemy.health -= enemyDamage;
   },
   sting: (me, enemy) => {
+    console.log('sting');
     const attackPower = (me.attack / 10.0) * 10;
     const enemyDamage = randInt(attackPower * 1.5, attackPower * 0.5);
     enemy.health -= enemyDamage;
   },
   tackle: (me, enemy) => {
+    console.log('tackle');
     const attackPower = (me.attack / 10.0) * 10;
     const enemyDamage = randInt(attackPower * 1.5, attackPower * 0.5);
     enemy.health -= enemyDamage;
   },
   tornado: (me, enemy) => {
     // Make fancy
+    console.log('tornado');
     const attackPower = (me.attack / 10.0) * 10;
     const enemyDamage = randInt(attackPower * 1.5, attackPower * 0.5);
     enemy.health -= enemyDamage;
   },
   file_bug: (me, enemy) => {
     // Make fancy
+    console.log('tornado');
     const attackPower = (me.attack / 10.0) * 10;
     const enemyDamage = randInt(attackPower * 1.5, attackPower * 0.5);
     enemy.health -= enemyDamage;
@@ -78,6 +83,18 @@ class MonBattle extends LitElement {
       turnDelayLength: {
         type: Number,
       },
+      isPlayerTurn: {
+        type: Boolean,
+      },
+      setupDone: {
+        type: Boolean,
+      },
+      playerMove: {
+        type: String,
+      },
+      enemyMove: {
+        type: String,
+      },
     };
   }
 
@@ -85,19 +102,19 @@ class MonBattle extends LitElement {
     super.connectedCallback();
 
     this.battleState = 'intro';
-
-    console.log('me', this.me);
-    console.log('enemy', this.enemy);
     this.enemy = this.enemy || {};
 
     this.turnAnimationLength = 200;
-    this.turnDelayLength = 200;
+    this.turnDelayLength = 1000;
 
     this.captureAnimationLength = 1000;
 
     this.me = getActiveMonster();
+    // Make players win on average more
+    this.me.attack = 15;
 
     this.battleSetupAnimations();
+    this.isPlayerTurn = true;
   }
 
   battleSetupAnimations() {
@@ -120,6 +137,9 @@ class MonBattle extends LitElement {
       this.shadowRoot.querySelector('#enemy').style.left = '60%';
       Array.from(this.shadowRoot.querySelectorAll('mon-health-bar')).forEach(bar =>
         bar.style.visibility = 'visible');
+      sleep(this.turnDelayLength*2).then(() => {
+        this.setupDone = true;
+      });
     }, (keyFrames.length + 1) * duration);
 
     setTimeout(() => {
@@ -140,45 +160,54 @@ class MonBattle extends LitElement {
       this.run();
       return;
     }
+    this.playerMove = move;
     this.myTurnRunning = true;
+    this.isPlayerTurn = false;
+    console.log(this.isPlayerTurn);
     console.log('me attacking');
     (MOVES[move] || MOVES["tackle"])(this.me, this.enemy);
 
+    console.log('before sleep');
     sleep(this.turnAnimationLength).then(() => {
-      this.myTurnRunning = false;
       if (this.enemy.health <= 0) {
         // You win! :D
-        console.log('you win!');
-        this.battleState = 'win';
-        this.end();
+        sleep(this.turnDelayLength).then(() => {
+          this.battleState = 'win';
+          this.end();
+        });
         // TODO: You win screen, maybe with XP and level up.
       } else {
-        sleep(this.turnAnimationLength).then(() => {
+        sleep(this.turnDelayLength).then(() => {
+          this.myTurnRunning = false;
           this._opponentAttacks();
         });
       }
     });
-    this.update('me', 'enemy');
   }
 
   _opponentAttacks() {
     // TODO: Replace this with custom numbers per Chopsmon.
     let move = arrayChoice(this.enemy.moves);
+    this.enemyMove = move;
     this.enemyTurnRunning = true;
-    console.log(this.enemy.moves);
     console.log('enemy attacking');
     (MOVES[move] || MOVES["tackle"])(this.enemy, this.me);
 
-    setTimeout(() => {
-      this.enemyTurnRunning = false;
+    sleep(this.turnAnimationLength).then(() => {
+      sleep(this.turnDelayLength).then(() => {
+        this.enemyTurnRunning = false;
+        this.isPlayerTurn = true;
+      });
       if (this.me.health <= 0) {
         // TODO: Some sort of cutesy "you lose" screen that isn't too
         // discouraging.
         console.log('you lose!');
-        this.battleState = 'lose';
-        this.end();
+        sleep(this.turnDelayLength).then(() => {
+          this.battleState = 'lose';
+          this.end();
+        });
       }
-    }, this.turnAnimationLength);
+    });
   }
 
   captureEnd() {
@@ -388,9 +417,21 @@ class MonBattle extends LitElement {
         let moveDisplay = (move) => move.replace('_', ' ');
         let movesStr = moves.map(move => html`
             <button class="capitalize" @click="${() => this.move(move)}">${moveDisplay(move)}</button>`);
+
+        let message = '';
+        if (this.isPlayerTurn) {
+          message = html`What will <span class="capitalize">${this.me.name}</span> do?`
+        }
+        else if (this.myTurnRunning) {
+          message = html`<span class="capitalize">${this.me.name}</span> uses <span class="capitalize">${moveDisplay(this.playerMove)}</span>`;
+        }
+        else if (this.enemyTurnRunning) {
+          message = html`<span class="capitalize">${this.enemy.name}</span> uses <span class="capitalize">${moveDisplay(this.enemyMove)}</span>`;
+        }
+
         return html`
           <div id="prompt">
-            What will <span class="capitalize">${this.me.name}</span> do?
+            ${message}
           </div>
           <div id="options">${movesStr}</div>
         `;
@@ -415,6 +456,7 @@ class MonBattle extends LitElement {
   }
 
   renderDom() {
+
     return html`
       <div id="mine">
         <img src="/img/${this.me.image}" class="${this.myTurnRunning ? 'attack-left' : ''}" />
@@ -439,7 +481,6 @@ class MonBattle extends LitElement {
       <div id="dialog">
         ${this.renderDialog()}
       </div>
-
       <img id="ball" src="/img/ball.png" class="${this.ballCapturing ? 'ball-animation' : ''}" />
     `
   }
