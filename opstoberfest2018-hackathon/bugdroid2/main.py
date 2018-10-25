@@ -7,6 +7,7 @@ COMMIT_IDS = ['fa4fdf56608b32896cd7dd733ad623e7474a9f1c']
 if __name__ == '__main__':
   monorail_client = MonorailClient()
   for commit_id in COMMIT_IDS:
+    # Testing
     msg = get_commit_message(commit_id, repo='infra/experimental')
     bug_ids = get_bug_ids(msg)
     for bug_id in bug_ids:
