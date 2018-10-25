@@ -13,6 +13,12 @@ class MonBattle extends LitElement {
       enemy: {
         type: Object,
       },
+      myTurnRunning: {
+        type: Boolean,
+      },
+      enemyTurnRunning: {
+        type: Boolean,
+      },
       myMaxHealth: {
         type: Number,
       },
@@ -84,16 +90,19 @@ class MonBattle extends LitElement {
     // Run my turn before the enemy's turn.
     // TODO: Add speed mechanic so this isn't always the same.
     this.enemyHealth -= myDamage;
+    this.myTurnRunning = true;
 
-    if (this.enemyHealth <= 0) {
-      // You win! :D
-      setTimeout(() => this.dispatchEvent(new CustomEvent('end-battle')),
-        this.turnAnimationLength * 1.5);
+    setTimeout(() => {
+      this.myTurnRunning = false;
+      if (this.enemyHealth <= 0) {
+        // You win! :D
+        this.dispatchEvent(new CustomEvent('end-battle'));
 
-      // TODO: You win screen, maybe with XP and level up.
-    } else {
-      setTimeout(this._opponentAttacks.bind(this), this.turnAnimationLength);
-    }
+        // TODO: You win screen, maybe with XP and level up.
+      } else {
+        this._opponentAttacks();
+      }
+    }, this.turnAnimationLength);
   }
 
   _opponentAttacks() {
@@ -101,14 +110,18 @@ class MonBattle extends LitElement {
     const attackPower = 30;
     const enemyDamage = randInt(attackPower * 1.5, attackPower * 0.5);
     this.myHealth -= enemyDamage;
-    if (this.myHealth <= 0) {
-      // You lose. :(
-      setTimeout(() => this.dispatchEvent(new CustomEvent('end-battle')),
-        this.turnAnimationLength * 1.5);
+    this.enemyTurnRunning = true;
+    setTimeout(() => {
+      this.enemyTurnRunning = false;
 
-      // TODO: Some sort of cutesy "you lose" screen that isn't too
-      // discouraging.
-    }
+      if (this.myHealth <= 0) {
+        // You lose. :(
+
+        // TODO: Some sort of cutesy "you lose" screen that isn't too
+        // discouraging.
+        this.dispatchEvent(new CustomEvent('end-battle'));
+      }
+    }, this.turnAnimationLength);
   }
 
   capture() {
@@ -146,6 +159,22 @@ class MonBattle extends LitElement {
       <style>
         @import url('https://fonts.googleapis.com/css?family=Roboto');
 
+        @keyframes attack-left {
+          0% {
+            transform: translateX(0);
+          }
+          50% {
+            transform: translateX(-100%);
+          }
+          100% {
+            transform: translateX(0);
+          }
+        }
+
+        .attack-left {
+          animation: attack-left 0.2s;
+        }
+
         :host {
           visibility: hidden; /* initially hidden */
           background: white;
@@ -157,6 +186,11 @@ class MonBattle extends LitElement {
           left: 0;
           top: 0;
           z-index: 100;
+        }
+
+        img {
+          max-width: 100%;
+          max-height: 100%;
         }
 
         #mine {
@@ -243,8 +277,12 @@ class MonBattle extends LitElement {
 
   renderDom() {
     return html`
-      <img id="mine" src="/img/${this.me.image}">
-      <img id="enemy" src="/img/${this.enemy.image}">
+      <div id="mine">
+        <img src="/img/${this.me.image}" class="${this.myTurnRunning ? 'attack-left' : ''}" />
+      </div>
+      <div id="enemy">
+        <img src="/img/${this.enemy.image}" class="${this.enemyTurnRunning ? 'attack-left' : ''}" />
+      </div>
 
       <mon-health-bar
         id="mine-hp"
