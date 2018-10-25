@@ -21,10 +21,9 @@ import (
 	"github.com/google/skia-buildbot/go/gitiles"
 )
 
-func printUsage() {
-	fmt.Printf("Usage: %s [OPTIONS] file-to-edit\n", os.Args[0])
-	flag.PrintDefaults()
-}
+var repo string
+var branch string
+var gitCookiesPath string
 
 func getGerritUrl() string {
 	// TODO: Make this configurable?
@@ -67,29 +66,36 @@ func doMain() error {
 	defGitCookiesFile := path.Join(homeDir, ".gitcookies")
 
 	// Arg stuff.
-	repoFlag := flag.String("repo", "chromium/src", "Repo to change, eg: 'chromium/src'.")
-	branchFlag := flag.String("branch", "master", "Branch to change.")
+	flags := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
+	flags.StringVar(&repo, "repo", "chromium/src", "Repo to change, eg: 'chromium/src'.")
+	flags.StringVar(&branch, "branch", "master", "Branch to change.")
 	//TODO: Support this.
 	//issueNumFlag := flag.Int("issue-num", 0, "Existing issue to upload change to. Creates a new issue when not specified.")
-	gitCookiesPathFlag := flag.String("git-cookies-path", defGitCookiesFile, "Path to git cookies file to use for gerrit/gitiles auth.")
-	flag.Usage = printUsage
-	flag.Parse()
-	if flag.NArg() != 1 {
-		flag.Usage()
-		return fmt.Errorf("Incorrect usage.")
-	} else if _, err := os.Stat(*gitCookiesPathFlag); os.IsNotExist(err) {
-		return fmt.Errorf("Git cookies file %s does not exist.\n", *gitCookiesPathFlag)
+	flags.StringVar(&gitCookiesPath, "git-cookies-path", defGitCookiesFile, "Path to git cookies file to use for gerrit/gitiles auth.")
+	flags.Usage = func() {
+		fmt.Printf("Usage: %s [OPTIONS] file-to-edit\n", os.Args[0])
+		flags.PrintDefaults()
 	}
-	fileName := flag.Arg(0)
+	flags.Parse(os.Args[1:])
+
+	if flags.NArg() != 1 {
+		flags.Usage()
+		return fmt.Errorf("Incorrect usage.")
+	} else if _, err := os.Stat(gitCookiesPath); os.IsNotExist(err) {
+		return fmt.Errorf("Git cookies file %s does not exist.\n", gitCookiesPath)
+	}
+	// TODO: Support editing multiple files. (ie: Chained editor sessions?)
+	filePath := flags.Arg(0)
+	_, fileName := path.Split(filePath)
 
 	// Pull the token from the gitcookie file.
-	cookie, err := getCredentials(*gitCookiesPathFlag)
+	cookie, err := getCredentials(gitCookiesPath)
 	if err != nil {
 		return err
 	}
 
 	// Create a client for use with gitiles' API.
-	fullRepoUrl := getFullRepoUrl(*repoFlag)
+	fullRepoUrl := getFullRepoUrl(repo)
 	client, err := gerrit.NewClient(getGerritUrl(), nil)
 	if err != nil {
 		return err
@@ -104,6 +110,9 @@ func doMain() error {
 	defer os.RemoveAll(tmpDir)
 
 	// Fetch the contents of the file to edit from gitiles and place it in a temp file.
+	// Use only the base name of the file when creating the temp file.
+	// TODO: Use the full path instead so that you can edit multiple similarly named files at once.
+	// eg: base/OWNERS and chrome/OWNERS
 	tmpFile := path.Join(tmpDir, fileName)
 	tmpFd, err := os.Create(tmpFile)
 	if err != nil {
@@ -111,9 +120,8 @@ func doMain() error {
 	}
 	writer := bufio.NewWriter(tmpFd)
 	repoClient := &http.Client{}
-	repo := gitiles.NewRepo(fullRepoUrl, *gitCookiesPathFlag, repoClient)
-	if err = repo.ReadFileAtRef(fileName, *branchFlag, writer); err != nil {
-		fmt.Printf("error: %s, %s, %s\n", fullRepoUrl, fileName, *branchFlag)
+	gitilesRepo := gitiles.NewRepo(fullRepoUrl, gitCookiesPath, repoClient)
+	if err = gitilesRepo.ReadFileAtRef(filePath, branch, writer); err != nil {
 		return err
 	}
 	writer.Flush()
@@ -139,7 +147,8 @@ func doMain() error {
 `
 	commitMsgFooter := `
 Bug:`
-	tmpCommitMsgFile := path.Join(tmpDir, "commit_msg.txt")
+	// Use a py file to trigger syntax highlighting of the comments.
+	tmpCommitMsgFile := path.Join(tmpDir, "commit_msg.py")
 	f, err := os.Create(tmpCommitMsgFile)
 	if err != nil {
 		return err
@@ -163,16 +172,16 @@ Bug:`
 		return err
 	}
 	commitMsg := string(commitMsgBytes[:])
-	commitMsg = strings.TrimSpace(commitMsg)
 	// Chop off the first 3 lines.
 	// TODO: Be smarter about what text to ignore (ie: the user might manually delete the first 3 lines).
 	commitMsgLines := strings.Split(commitMsg, "\n")[4:]
 	commitMsgHeader = commitMsgLines[0]
 	commitMsg = strings.Join(commitMsgLines, "\n")
+	commitMsg = strings.TrimSpace(commitMsg)
 
 	change := gerrit.ChangeInfo{
-		Project: *repoFlag,
-		Branch:  *branchFlag,
+		Project: repo,
+		Branch:  branch,
 		Subject: commitMsgHeader,
 	}
 
@@ -185,7 +194,6 @@ Bug:`
 		for {
 			select {
 			case <-dotPrinterDone:
-				fmt.Printf(" Done!\n")
 				return
 			case _ = <-ticker.C:
 				fmt.Printf(".")
@@ -200,6 +208,7 @@ Bug:`
 	}
 
 	// Change the full commit message.
+	commitMsg = fmt.Sprintf("%s\nChange-Id: %s", commitMsg, newCh.ChangeID)
 	msgBody := gerrit.ChangeEditMessageInput{Message: commitMsg}
 	_, err = client.Changes.ChangeCommitMessageInChangeEdit(newCh.ID, &msgBody)
 	if err != nil {
@@ -207,7 +216,7 @@ Bug:`
 	}
 
 	// Add the file change to the issue.
-	_, err = client.Changes.ChangeFileContentInChangeEdit(newCh.ID, fileName, newFileContents)
+	_, err = client.Changes.ChangeFileContentInChangeEdit(newCh.ID, filePath, newFileContents)
 	if err != nil {
 		return err
 	}
@@ -218,8 +227,11 @@ Bug:`
 		return err
 	}
 
-        // TODO: Print link to new gerrit change.
+	// TODO: Print link to new gerrit change.
 	dotPrinterDone <- true
+	url := fmt.Sprintf("%s%d", getGerritUrl(), newCh.Number)
+	fmt.Printf(" Done!\n")
+	fmt.Printf("New Gerrit issue located at:\n%s\n", url)
 	return nil
 }
 
