@@ -39,7 +39,6 @@ class MonDex extends LitElement {
     }
     */
   }
-
 }
 
 customElements.define('mon-dex', MonDex);
