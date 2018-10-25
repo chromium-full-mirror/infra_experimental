@@ -60,7 +60,7 @@ class MonBattle extends LitElement {
     const keyFrames = [0, 50, 0, 50, 0];
     keyFrames.forEach((amount, index) => {
       setTimeout(() => {
-        this.ownerDocument.body.style.filter = `invert(${amount}%)`;
+        // this.ownerDocument.body.style.filter = `invert(${amount}%)`;
       }, index * duration);
     })
 
