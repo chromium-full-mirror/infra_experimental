@@ -1,4 +1,5 @@
 import {LitElement, html} from '@polymer/lit-element';
+import './mon-dex.js';
 
 class MonGame extends LitElement {
   static get properties() {
@@ -49,6 +50,7 @@ class MonGame extends LitElement {
         }
       </style>
       <button class="dex-button"></button>
+      <mon-dex></mon-dex>
     `;
   }
 }

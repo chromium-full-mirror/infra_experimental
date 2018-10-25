@@ -1,4 +1,4 @@
-import {LitElement, html} from './node_modules/lit-element/lit-element.js';
+import {LitElement, html} from '@polymer/lit-element'
 // import {state} from 'state.js';
 
 class MonDex extends LitElement {
