@@ -1,6 +1,6 @@
 import {LitElement, html} from '@polymer/lit-element'
 import {MONSTERS} from '../data/monsters.js';
-import {getOwnedMonsterNames, setActiveMonster} from './state.js';
+import {getOwnedMonsterNames, getActiveMonster, setActiveMonster} from './state.js';
 
 class MonDex extends LitElement {
   static get properties() {
@@ -16,6 +16,7 @@ class MonDex extends LitElement {
   }
 
   render() {
+    let activeMonster = getActiveMonster();
     return html`<style>
       img {
         max-width: 100%;
@@ -29,7 +30,7 @@ class MonDex extends LitElement {
         height: 150px;
         cursor: pointer;
         background: none;
-        background-image: url('/img/lucy.png');
+        background-image: url('/img/${activeMonster.image}');
         background-size: 120%;
         background-position: center;
         border: none;
