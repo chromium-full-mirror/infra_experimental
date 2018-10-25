@@ -70,6 +70,29 @@ func getEditor() string {
 	return "vim"
 }
 
+type changeInput struct {
+	gerrit.ChangeInfo
+	BaseCommit string `json:"commit,omitempty"`
+}
+
+// createChange implements/hacks support missing from gerrit library.
+func createChange(client *gerrit.Client, input *changeInput) (*gerrit.ChangeInfo, *gerrit.Response, error) {
+	u := "changes/"
+
+	req, err := client.NewRequest("POST", u, input)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	v := new(gerrit.ChangeInfo)
+	resp, err := client.Do(req, v)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return v, resp, err
+}
+
 func doMain() error {
 	// Get default location for gitcookies file.
 	usr, err := user.Current()
@@ -193,10 +216,18 @@ Bug:`
 	commitMsg = strings.Join(commitMsgLines, "\n")
 	commitMsg = strings.TrimSpace(commitMsg)
 
-	change := gerrit.ChangeInfo{
-		Project: repo,
-		Branch:  branch,
-		Subject: commitMsgHeader,
+	branchInfo, _, err := client.Projects.GetBranch(repo, branch)
+	if err != nil {
+		return err
+	}
+
+	change := changeInput{
+		ChangeInfo: gerrit.ChangeInfo{
+			Project: repo,
+			Branch:  branch,
+			Subject: commitMsgHeader,
+		},
+		BaseCommit: branchInfo.Revision,
 	}
 
 	// The remained will take a while, so start a thread that prints dots to the console.
@@ -216,7 +247,7 @@ Bug:`
 	}()
 
 	// Create a new gerrit issue.
-	newCh, _, err := client.Changes.CreateChange(&change)
+	newCh, _, err := createChange(client, &change)
 	if err != nil {
 		return err
 	}
