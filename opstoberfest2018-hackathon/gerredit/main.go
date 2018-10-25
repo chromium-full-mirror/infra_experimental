@@ -146,6 +146,12 @@ func doMain() error {
 	}
 	defer os.RemoveAll(tmpDir)
 
+	// Get current branch commit to avoid race updates.
+	branchInfo, _, err := client.Projects.GetBranch(repo, branch)
+	if err != nil {
+		return err
+	}
+
 	// Fetch the contents of the file to edit from gitiles and place it in a temp file.
 	// Use only the base name of the file when creating the temp file.
 	// TODO: Use the full path instead so that you can edit multiple similarly named files at once.
@@ -158,7 +164,7 @@ func doMain() error {
 	writer := bufio.NewWriter(tmpFd)
 	repoClient := &http.Client{}
 	gitilesRepo := gitiles.NewRepo(fullRepoUrl, gitCookiesPath, repoClient)
-	if err = gitilesRepo.ReadFileAtRef(filePath, branch, writer); err != nil {
+	if err = gitilesRepo.ReadFileAtRef(filePath, branchInfo.Revision, writer); err != nil {
 		return err
 	}
 	writer.Flush()
@@ -215,11 +221,6 @@ Bug:`
 	commitMsgHeader = commitMsgLines[0]
 	commitMsg = strings.Join(commitMsgLines, "\n")
 	commitMsg = strings.TrimSpace(commitMsg)
-
-	branchInfo, _, err := client.Projects.GetBranch(repo, branch)
-	if err != nil {
-		return err
-	}
 
 	change := changeInput{
 		ChangeInfo: gerrit.ChangeInfo{
