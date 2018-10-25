@@ -15,6 +15,7 @@ class MonBattle extends LitElement {
   render() {
     return html`
       ${this.renderStyle()}
+      ${this.renderDom()}
     `
   }
 
@@ -29,7 +30,30 @@ class MonBattle extends LitElement {
           top: 0;
           width: 100vw;
         }
+
+        #mine {
+          filter: contrast(20%);
+          left: 10%;
+          top: 10%;
+          height: 80%;
+          position: absolute;
+          transform: scaleX(-1);
+        }
+
+        #enemy {
+          left: 60%;
+          top: 10%;
+          height: 50%;
+          position: absolute;
+        }
       </style>
+    `
+  }
+
+  renderDom() {
+    return html`
+      <img id="mine" src="/img/lucy.png">
+      <img id="enemy" src="/img/lucy.png">
     `
   }
 }
