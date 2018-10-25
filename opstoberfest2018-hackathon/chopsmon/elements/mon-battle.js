@@ -224,7 +224,7 @@ class MonBattle extends LitElement {
       ></mon-health-bar>
 
       <div id="menu">
-        <div id="question">What will <span class="capitalize">Monorail</span> do?</div>
+        <div id="question">What will <span class="capitalize">${this.me.name}</span> do?</div>
         <div id="options">
           <button class="capitalize" @click="${this.attack}">Choo choo</button>
           <button class="capitalize" @click="${this.attack}">Tackle</buton>
