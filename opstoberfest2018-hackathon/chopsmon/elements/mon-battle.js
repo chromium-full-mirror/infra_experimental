@@ -46,6 +46,25 @@ class MonBattle extends LitElement {
           height: 50%;
           position: absolute;
         }
+
+        #mine-hp {
+          left: 50%;
+          top: 60%;
+          width: 30%;
+          height: 5%;
+          border: solid 5px #333333;
+          position: absolute;
+        }
+
+        #enemy-hp {
+          left: 20%;
+          top: 20%;
+          width: 30%;
+          height: 5%;
+
+          border:solid 5px #333333;
+          position: absolute;
+        }
       </style>
     `
   }
@@ -54,6 +73,9 @@ class MonBattle extends LitElement {
     return html`
       <img id="mine" src="/img/lucy.png">
       <img id="enemy" src="/img/lucy.png">
+
+      <div id="mine-hp"></div>
+      <div id="enemy-hp"></div>
     `
   }
 }
