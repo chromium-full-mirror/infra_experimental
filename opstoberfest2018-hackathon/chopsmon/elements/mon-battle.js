@@ -142,7 +142,7 @@ class MonBattle extends LitElement {
     }
     this.myTurnRunning = true;
     console.log('me attacking');
-    MOVES[move](this.me, this.enemy);
+    (MOVES[move] || MOVES["tackle"])(this.me, this.enemy);
 
     sleep(this.turnAnimationLength).then(() => {
       this.myTurnRunning = false;
@@ -167,7 +167,7 @@ class MonBattle extends LitElement {
     this.enemyTurnRunning = true;
     console.log(this.enemy.moves);
     console.log('enemy attacking');
-    MOVES[move](this.enemy, this.me);
+    (MOVES[move] || MOVES["tackle"])(this.enemy, this.me);
 
     setTimeout(() => {
       this.enemyTurnRunning = false;
