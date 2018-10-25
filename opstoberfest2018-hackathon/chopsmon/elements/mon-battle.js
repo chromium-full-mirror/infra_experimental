@@ -108,6 +108,7 @@ class MonBattle extends LitElement {
     this.turnDelayLength = 1000;
 
     this.captureAnimationLength = 1000;
+    this.messageLength = 1500;
 
     this.me = getActiveMonster();
     // Make players win on average more
@@ -144,7 +145,7 @@ class MonBattle extends LitElement {
 
     setTimeout(() => {
       this.battleState = 'battle';
-    }, (keyFrames.length + 1) * duration + 1000);
+    }, (keyFrames.length + 1) * duration + messageLength);
   }
 
   constructor() {
@@ -250,7 +251,7 @@ class MonBattle extends LitElement {
   }
 
   end() {
-    setTimeout(() => this.dispatchEvent(new CustomEvent('end-battle')), 1000);
+    setTimeout(() => this.dispatchEvent(new CustomEvent('end-battle')), messageLength);
   }
 
   render() {
