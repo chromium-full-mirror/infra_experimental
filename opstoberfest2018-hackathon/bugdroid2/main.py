@@ -2,7 +2,7 @@ from get_commit_message import *
 from get_bug_ids import *
 from monorail_client import *
 
-COMMIT_IDS = ['fa4fdf56608b32896cd7dd733ad623e7474a9f1c']
+COMMIT_IDS = ['cde6526abe44096d51cc29174378a11873efae39']
 
 if __name__ == '__main__':
   monorail_client = MonorailClient()
