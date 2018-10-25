@@ -140,7 +140,7 @@ func doMain() error {
 	}
 	writer.Flush()
 
-	// Open the temp file in vim, then fetch its new contents.
+	// Open the temp file in editor, then fetch its new contents.
 	cmd := exec.Command(getEditor(), tmpFile)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
@@ -172,8 +172,8 @@ Bug:`
 	f.Sync()
 	f.Close()
 
-	// Open the commit message file in vim so the user can change it.
-	cmd = exec.Command("vim", tmpCommitMsgFile)
+	// Open the commit message file in editor so the user can change it.
+	cmd = exec.Command(getEditor(), tmpCommitMsgFile)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	if err = cmd.Run(); err != nil {
