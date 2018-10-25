@@ -49,7 +49,9 @@ func getCredentials(gitCookiesPath string) (string, error) {
 		}
 		tokens := strings.Split(line, "\t")
 		domain, xpath, key, value := tokens[0], tokens[2], tokens[5], tokens[6]
-		if domain == ".googlesource.com" && xpath == "/" && key == "o" {
+		if (domain == ".googlesource.com" ||
+			domain == "chromium.googlesource.com") &&
+			xpath == "/" && key == "o" {
 			return value, nil
 		}
 	}
