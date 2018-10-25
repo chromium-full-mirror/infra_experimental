@@ -26,8 +26,8 @@ class MonHealthBar extends LitElement {
     return html`
       <style>
         :host {
-          height: 5%;
-          width: 30%;
+          height: 40px;
+          width: 100%;
           max-width: 100%;
           border: solid 5px #333333;
           background: #eee;

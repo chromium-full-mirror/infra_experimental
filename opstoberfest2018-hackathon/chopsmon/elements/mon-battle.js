@@ -1,5 +1,5 @@
 import {LitElement, html} from '@polymer/lit-element';
-import {addCapturedMonster, getActiveMonster} from './state.js';
+import {getOwnedMonsterNames, addCapturedMonster, getActiveMonster} from './state.js';
 import {randInt, arrayChoice, sleep, sigmoid} from './helpers.js';
 import './mon-health-bar.js';
 
@@ -323,15 +323,16 @@ class MonBattle extends LitElement {
 
         #mine-hp {
           left: 50%;
-          top: 60%;
+          top: 50%;
           width: 30%;
 
           position: absolute;
         }
 
         #enemy-hp {
-          left: 20%;
-          top: 20%;
+          left: 22%;
+          top: 10%;
+          width: 30%;
 
           position: absolute;
         }
@@ -392,6 +393,19 @@ class MonBattle extends LitElement {
 
         .capitalize {
           text-transform: uppercase;
+        }
+
+        .info-box {
+          font-size: 30px;
+          line-height: 150%;
+          display: flex;
+          align-items: stretch;
+          flex-direction: column;
+        }
+
+        .info-box img {
+          width: 30px;
+          height: 30px;
         }
 
         button {
@@ -460,7 +474,7 @@ class MonBattle extends LitElement {
   }
 
   renderDom() {
-
+    const ownedMonsters = getOwnedMonsterNames();
     return html`
       <div id="mine">
         <img src="/img/${this.me.image}" class="${this.myTurnRunning ? 'attack-left' : ''}" />
@@ -469,18 +483,28 @@ class MonBattle extends LitElement {
         <img src="/img/${this.enemy.image}" class="${this.enemyTurnRunning ? 'attack-left' : ''}" />
       </div>
 
-      <mon-health-bar
-        id="mine-hp"
-        .maxHealth="${this.me.maxHealth}"
-        .health="${this.me.health}"
-        .transitionTime="${this.turnAnimationLength}"
-      ></mon-health-bar>
-      <mon-health-bar
-        id="enemy-hp"
-        .maxHealth="${this.enemy.maxHealth}"
-        .health="${this.enemy.health}"
-        .transitionTime="${this.turnAnimationLength}"
-      ></mon-health-bar>
+      <div id="mine-hp" class="info-box">
+        <div class="capitalize">
+          ${this.me.name}
+        </div>
+        <mon-health-bar
+          .maxHealth="${this.me.maxHealth}"
+          .health="${this.me.health}"
+          .transitionTime="${this.turnAnimationLength}"
+        ></mon-health-bar>
+      </div>
+
+      <div id="enemy-hp" class="info-box">
+        <div class="capitalize">
+          ${this.enemy.name}
+          ${ ownedMonsters.includes(this.enemy.name) ? html`<img src="/img/ball.png" />` : '' }
+        </div>
+        <mon-health-bar
+          .maxHealth="${this.enemy.maxHealth}"
+          .health="${this.enemy.health}"
+          .transitionTime="${this.turnAnimationLength}"
+        ></mon-health-bar>
+      </div>
 
       <div id="dialog">
         ${this.renderDialog()}
