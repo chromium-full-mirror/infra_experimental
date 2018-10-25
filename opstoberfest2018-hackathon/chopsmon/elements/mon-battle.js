@@ -129,6 +129,7 @@ class MonBattle extends LitElement {
           width: 100vw;
           left: 0;
           top: 0;
+          z-index: 100;
         }
 
         #mine {
