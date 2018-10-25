@@ -5,36 +5,71 @@ class MonDex extends LitElement {
 
   static get properties() {
     return {
-      expanded: {type: Boolean},
+      expanded: {
+        type: Boolean,
+        value: false,
+      },
     };
   }
 
-  constructor() {
-    super();
-    this.expanded = true;
+  toggle() {
+    this.expanded = !this.expanded;
   }
 
   render() {
+    return html`<style>
+      img {
+        max-width: 100%;
+        max-height: 100%;
+      }
+      .dex-button {
+        position: fixed;
+        right: 0;
+        bottom: 0;
+        width: 150px;
+        height: 150px;
+        cursor: pointer;
+        background: none;
+        background-image: url('/img/lucy.png');
+        background-size: 120%;
+        background-position: center;
+        border: none;
+        transition: transform;
+      }
+      .dex-button:hover {
+        background-image: url('/img/lucy_chromium1.png');
+      }
+      .dex-button:active {
+        transform: translateY(10px);
+      }
+      .dex-list {
+        box-sizing: border-box;
+        position: fixed;
+        padding: 1em 16px;
+        right: 0;
+        bottom: 0;
+        height: 100%;
+        width: 300px;
+        background: white;
+        border-left: #ddd 1px solid;
+      }
+    </style>
+    ${this.expanded && this.renderDexList()}
+    <button class="dex-button" @click=${this.toggle}></button>`;
+  }
+
+  renderDexList() {
     const monsters = getOwnedMonsters();
     const monsterEls = monsters.map(monster => html`
-      <div>${monster.name}</div>
+      <div>
+        ${monster.name}
+      </div>
     `);
-
-    if (this.expanded) {
-      return html`
-        <style></style>
-        <div>
-          ${monsterEls}
-        </div>
-      `;
-    } else {
-      return html`
-        <style></style>
-        <div>
-          not expanded
-        </div>
-      `;
-    }
+    return html`
+      <div class="dex-list">
+        Your Chopsmons!
+        ${monsterEls}
+      </div>`;
   }
 }
 
