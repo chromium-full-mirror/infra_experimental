@@ -1,6 +1,6 @@
 import {LitElement, html} from '@polymer/lit-element';
 import {addCapturedMonster, getActiveMonster} from './state.js';
-import {randInt, arrayChoice, sleep} from './helpers.js';
+import {randInt, arrayChoice, sleep, sigmoid} from './helpers.js';
 import './mon-health-bar.js';
 
 const MOVES = {
@@ -216,7 +216,10 @@ class MonBattle extends LitElement {
     // Chopsmon.
 
     // Out of 100.
-    const catchRate = 30;
+    // 1 - 0 => 4 -0 => -2 => 2
+    let val = ((1-this.enemy.health/this.enemy.maxHealth)*4 - 2.0);
+    const catchRate = sigmoid(val) * 100;
+    console.log('catch input is', val, 'out', catchRate);
     const r = randInt(100);
 
     if (r < catchRate) {

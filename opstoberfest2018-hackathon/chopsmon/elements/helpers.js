@@ -10,3 +10,7 @@ export function arrayChoice(arr) {
 export function sleep(milliseconds) {
   return new Promise(resolve => setTimeout(resolve, milliseconds))
 }
+
+export function sigmoid(t) {
+  return 1/(1+Math.pow(Math.E, -t));
+}
