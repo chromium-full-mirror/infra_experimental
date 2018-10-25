@@ -55,27 +55,26 @@ class MonBattle extends LitElement {
   }
 
   battleSetupAnimations() {
-    const duration = 500;
-    this.ownerDocument.body.style.transition = 'filter 500ms linear';
-    const keyFrames = [0, 50, 0, 50, 0];
+    const duration = 400;
+    this.ownerDocument.body.style.backgroundColor = 'black';
+    this.ownerDocument.body.style.transition = 'opacity 400ms ease';
+    const keyFrames = [1, 0.4, 1, 0.4, 1, 0.4, 1];
     keyFrames.forEach((amount, index) => {
       setTimeout(() => {
-        // this.ownerDocument.body.style.filter = `invert(${amount}%)`;
+        this.ownerDocument.body.style.opacity = amount;
       }, index * duration);
     })
 
     setTimeout(() => {
       this.shadowRoot.host.style.visibility = 'visible';
-    }, keyFrames.length * (duration - 1));
+    }, keyFrames.length * (duration));
 
     setTimeout(() => {
       this.shadowRoot.querySelector('#mine').style.left = '10%';
       this.shadowRoot.querySelector('#enemy').style.left = '60%';
       Array.from(this.shadowRoot.querySelectorAll('mon-health-bar')).forEach(bar =>
         bar.style.visibility = 'visible');
-    }, keyFrames.length * duration);
-
-    return new Promise(resolve => setTimeout(resolve, 4 * 500))
+    }, (keyFrames.length + 1) * duration);
   }
 
   constructor() {
