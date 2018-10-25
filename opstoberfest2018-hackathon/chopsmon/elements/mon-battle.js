@@ -51,7 +51,7 @@ class MonBattle extends LitElement {
   battleSetupAnimations() {
     const duration = 500;
     this.ownerDocument.body.style.transition = 'filter 500ms linear';
-    const keyFrames = [0, 50, 0, 50, 0, 50, 0];
+    const keyFrames = [0, 50, 0, 50, 0];
     keyFrames.forEach((amount, index) => {
       setTimeout(() => {
         this.ownerDocument.body.style.filter = `invert(${amount}%)`;
