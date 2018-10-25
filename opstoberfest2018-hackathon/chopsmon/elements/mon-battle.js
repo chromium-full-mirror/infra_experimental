@@ -67,6 +67,7 @@ class MonBattle extends LitElement {
 
           border:solid 5px #333333;
           position: absolute;
+        }
 
         #menu {
           background: #e3e9ff;
