@@ -44,6 +44,28 @@ class MonBattle extends LitElement {
     this.turnAnimationLength = 200;
 
     this.me = getActiveMonster();
+
+    this.battleSetupAnimations();
+  }
+
+  battleSetupAnimations() {
+    const duration = 500;
+    this.shadowRoot.host.style.transition = 'filter 500ms linear';
+    const keyFrames = [50, 0, 50, 0, 50, 0];
+    keyFrames.forEach((amount, index) => {
+      setTimeout(() => {
+        this.shadowRoot.host.style.filter = `invert(${amount}%)`;
+      }, index * duration);
+    })
+
+    setTimeout(() => {
+      this.shadowRoot.querySelector('#mine').style.left = '10%';
+      this.shadowRoot.querySelector('#enemy').style.left = '60%';
+      Array.from(this.shadowRoot.querySelectorAll('mon-health-bar')).forEach(bar =>
+        bar.style.visibility = 'visible');
+    }, keyFrames.length * duration);
+
+    return new Promise(resolve => setTimeout(resolve, 4 * 500))
   }
 
   constructor() {
@@ -134,7 +156,9 @@ class MonBattle extends LitElement {
 
         #mine {
           filter: contrast(0%);
-          left: 10%;
+          left: -50%;
+          transition: left 500ms linear;
+          /* left: 10%; original */
           top: 20%;
           height: 80%;
           position: absolute;
@@ -142,9 +166,11 @@ class MonBattle extends LitElement {
         }
 
         #enemy {
-          left: 60%;
+          left: 150%;
+          /* left: 60%; original */
           height: 50%;
           position: absolute;
+          transition: left 500ms linear;
         }
 
         #mine-hp {
@@ -201,6 +227,10 @@ class MonBattle extends LitElement {
           background: none;
           font-size: inherit;
           cursor: pointer;
+        }
+
+        mon-health-bar {
+          visibility: hidden; /* shown after intro */
         }
       </style>
     `
