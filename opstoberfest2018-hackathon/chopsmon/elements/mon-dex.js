@@ -24,6 +24,8 @@ class MonDex extends LitElement {
   }
 
   render() {
+    // .dex_list.bottom is set to prevent the expanded dex list from overlapping with the dex button
+    // Hacky? No idea how it will work if we add more mons than fit on screen
     return html`<style>
       img {
         max-width: 100%;
@@ -51,7 +53,7 @@ class MonDex extends LitElement {
         position: fixed;
         padding: 1em 16px;
         right: 0;
-        bottom: 0;
+        bottom: 60px;
         height: 100%;
         width: 150px;
         background: white;
