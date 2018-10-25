@@ -179,7 +179,7 @@ class MonBattle extends LitElement {
           background: white;
           font-family: 'Roboto', sans-serif;
           font-size: 40px;
-          position: absolute;
+          position: fixed;
           height: 100vh;
           width: 100vw;
           left: 0;
