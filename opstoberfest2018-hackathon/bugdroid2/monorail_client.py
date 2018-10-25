@@ -14,9 +14,7 @@ import time
 
 from apiclient.errors import HttpError
 from oauth2client.file import Storage
-from oauth2client.tools import run
-
-from infra_libs import httplib2_utils
+from oauth2client.client import OAuth2WebServerFlow
 
 MONORAIL_PROD_URL = ('https://monorail-staging.appspot.com/_ah/api/discovery/'
                      'v1/apis/{api}/{apiVersion}/rest')
@@ -84,7 +82,7 @@ OAUTH_SCOPE_EMAIL = 'https://www.googleapis.com/auth/userinfo.email'
 
 class MonorailClient(object):
 
-  def __init__(self, credential_store, client=None):
+  def __init__(self, client=None):
     self._credentials = None
     storage = Storage('credentials_file')
     self._credentials = self._authenticate(
@@ -96,7 +94,7 @@ class MonorailClient(object):
     self.client = client
 
   def _http_request_builder(self, _http, *args, **kwargs):
-    http = httplib2_utils.InstrumentedHttp('monorail')
+    http = httplib2.Http()
     http = self._credentials.authorize(http)
     http = SSLErrorLoggingHttp(http)
     return apiclient.http.HttpRequest(http, *args, **kwargs)
