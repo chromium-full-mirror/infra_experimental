@@ -356,8 +356,9 @@ class MonBattle extends LitElement {
     let moves = this.me.moves.slice();
     moves.push('catch');
     moves.push('run');
+    let moveDisplay = (move) => move.replace('_', ' ');
     let movesStr = moves.map(move => html`
-        <button class="capitalize" @click="${() => this.move(move)}">${move}</button>`);
+        <button class="capitalize" @click="${() => this.move(move)}">${moveDisplay(move)}</button>`);
     return html`
       <div id="mine">
         <img src="/img/${this.me.image}" class="${this.myTurnRunning ? 'attack-left' : ''}" />
