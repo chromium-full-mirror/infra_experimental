@@ -37,6 +37,9 @@ class MonBattle extends LitElement {
 
   static get properties() {
     return {
+      battleState: {
+        type: String,
+      },
       me: {
         type: Object,
       },
@@ -80,6 +83,9 @@ class MonBattle extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
+
+    this.battleState = 'intro';
+
     console.log('me', this.me);
     console.log('enemy', this.enemy);
     this.enemy = this.enemy || {};
@@ -115,6 +121,10 @@ class MonBattle extends LitElement {
       Array.from(this.shadowRoot.querySelectorAll('mon-health-bar')).forEach(bar =>
         bar.style.visibility = 'visible');
     }, (keyFrames.length + 1) * duration);
+
+    setTimeout(() => {
+      this.battleState = 'battle';
+    }, (keyFrames.length + 1) * duration + 1000);
   }
 
   constructor() {
@@ -139,7 +149,8 @@ class MonBattle extends LitElement {
       if (this.enemy.health <= 0) {
         // You win! :D
         console.log('you win!');
-        this.dispatchEvent(new CustomEvent('end-battle'));
+        this.battleState = 'win';
+        this.end();
         // TODO: You win screen, maybe with XP and level up.
       } else {
         sleep(this.turnAnimationLength).then(() => {
@@ -164,7 +175,8 @@ class MonBattle extends LitElement {
         // TODO: Some sort of cutesy "you lose" screen that isn't too
         // discouraging.
         console.log('you lose!');
-        this.dispatchEvent(new CustomEvent('end-battle'));
+        this.battleState = 'lose';
+        this.end();
       }
     }, this.turnAnimationLength);
   }
@@ -180,8 +192,8 @@ class MonBattle extends LitElement {
     if (r < catchRate) {
       // Enemy caught!
       addCapturedMonster(this.enemy.name);
-      setTimeout(() => this.dispatchEvent(new CustomEvent('end-battle')),
-        this.turnAnimationLength * 1.5);
+      this.battleState = 'catch';
+      this.end();
     } else {
       this._opponentAttacks();
     }
@@ -204,7 +216,12 @@ class MonBattle extends LitElement {
 
   run() {
     // TODO: Add running away animation.
-    this.dispatchEvent(new CustomEvent('end-battle'));
+    this.battleState = 'run';
+    this.end();
+  }
+
+  end() {
+    setTimeout(() => this.dispatchEvent(new CustomEvent('end-battle')), 1000);
   }
 
   render() {
@@ -287,7 +304,7 @@ class MonBattle extends LitElement {
           position: absolute;
         }
 
-        #menu {
+        #dialog {
           background: #e3e9ff;
           display: flex;
           align-items: center;
@@ -321,7 +338,7 @@ class MonBattle extends LitElement {
           visibility: visible;
         }
 
-        #question {
+        #prompt {
           margin: 0;
           text-align: center;
           width: 50%;
@@ -358,13 +375,47 @@ class MonBattle extends LitElement {
     `
   }
 
+  renderDialog() {
+    switch (this.battleState) {
+      case 'intro':
+        return html`
+          <div id="prompt">
+            A wild <span class="capitalize">${this.enemy.name}</span> appeared!
+          </div>`;
+      case 'battle':
+        let moves = this.me.moves.slice();
+        moves.push('catch');
+        moves.push('run');
+        let moveDisplay = (move) => move.replace('_', ' ');
+        let movesStr = moves.map(move => html`
+            <button class="capitalize" @click="${() => this.move(move)}">${moveDisplay(move)}</button>`);
+        return html`
+          <div id="prompt">
+            What will <span class="capitalize">${this.me.name}</span> do?
+          </div>
+          <div id="options">${movesStr}</div>
+        `;
+      case 'catch':
+        return html`
+          <div id="prompt">
+            Gotcha! <span class="capitalize">${this.enemy.name}</span> was caught!
+          </div>`;
+      case 'win':
+        return html`
+          <div id="prompt">
+            Wild <span class="capitalize">${this.enemy.name}</span> fainted!
+          </div>`;
+      case 'lose':
+        return html`
+          <div id="prompt">
+            Wild <span class="capitalize">${this.enemy.name}</span> fled!
+          </div>`;
+      case 'run':
+        return html`<div id="prompt">Got away safely!</div>`;
+    }
+  }
+
   renderDom() {
-    let moves = this.me.moves.slice();
-    moves.push('catch');
-    moves.push('run');
-    let moveDisplay = (move) => move.replace('_', ' ');
-    let movesStr = moves.map(move => html`
-        <button class="capitalize" @click="${() => this.move(move)}">${moveDisplay(move)}</button>`);
     return html`
       <div id="mine">
         <img src="/img/${this.me.image}" class="${this.myTurnRunning ? 'attack-left' : ''}" />
@@ -386,11 +437,8 @@ class MonBattle extends LitElement {
         .transitionTime="${this.turnAnimationLength}"
       ></mon-health-bar>
 
-      <div id="menu">
-        <div id="question">What will <span class="capitalize">${this.me.name}</span> do?</div>
-        <div id="options">
-          ${movesStr}
-        </div>
+      <div id="dialog">
+        ${this.renderDialog()}
       </div>
 
       <img id="ball" src="/img/ball.png" class="${this.ballCapturing ? 'ball-animation' : ''}" />
