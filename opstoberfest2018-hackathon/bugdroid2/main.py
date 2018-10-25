@@ -8,4 +8,5 @@ if __name__ == '__main__':
     msg = get_commit_message(commit_id)
     bug_ids = get_bug_ids(msg)
     for bug_id in bug_ids:
-      print 'updating bug %s with commit %s' % (bug_id, commit_id)
+      print 'updating bug %s with commit %s:' % (bug_id, commit_id)
+      print msg
