@@ -64,6 +64,9 @@ class MonBattle extends LitElement {
       enemyHealth: {
         type: Number,
       },
+      captureAnimationLength: {
+        type: Number,
+      },
       /* Number of milliseconds for a single turn to animate. */
       turnAnimationLength: {
         type: Number,
@@ -83,6 +86,8 @@ class MonBattle extends LitElement {
 
     this.turnAnimationLength = 200;
     this.turnDelayLength = 200;
+
+    this.captureAnimationLength = 1000;
 
     this.me = getActiveMonster();
 
@@ -194,7 +199,7 @@ class MonBattle extends LitElement {
       this.ballCapturing = false;
       this.captureEnd();
       this.shadowRoot.querySelector('#ball').style.visibility = 'hidden';
-    }, 3000);
+    }, this.captureAnimationLength);
   }
 
   run() {
@@ -296,24 +301,24 @@ class MonBattle extends LitElement {
         #ball {
           height: 20%;
           position: absolute;
-        }
-　　　　
-        .ball-animation {
-          animation-duration: 3s;
-          animation-name: capture;
-          background-color: red;
+          visibility: hidden;
         }
 
         @keyframes capture {
-          from {
+          0% {
             top: 60%;
             left: 30%;
           }
 
-          to {
+          100% {
             top: 15%;
             left: 65%;
           }
+        }
+
+        #ball.ball-animation {
+          animation: capture ${this.captureAnimationLength}ms;
+          visibility: visible;
         }
 
         #question {
@@ -388,7 +393,7 @@ class MonBattle extends LitElement {
         </div>
       </div>
 
-      <img id="ball" src="/img/ball.png" class='ball-animation' />
+      <img id="ball" src="/img/ball.png" class="${this.ballCapturing ? 'ball-animation' : ''}" />
     `
   }
 }
