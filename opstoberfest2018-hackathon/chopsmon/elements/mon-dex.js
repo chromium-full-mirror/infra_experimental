@@ -53,7 +53,7 @@ class MonDex extends LitElement {
         right: 0;
         bottom: 0;
         height: 100%;
-        width: 300px;
+        width: 150px;
         background: white;
         border-left: #ddd 1px solid;
         overflow: auto;
