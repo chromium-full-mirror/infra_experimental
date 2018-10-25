@@ -17,7 +17,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/andygrunwald/go-gerrit"
+	gerrit "github.com/andygrunwald/go-gerrit"
 	"github.com/google/skia-buildbot/go/gitiles"
 )
 
