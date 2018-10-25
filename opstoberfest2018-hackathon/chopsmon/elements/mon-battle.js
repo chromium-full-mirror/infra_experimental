@@ -4,4 +4,4 @@ import {state} from 'state.js';
 class MonBattle extends LitElement {
 }
 
-customElements.define('mon-battle', MyElement);
+customElements.define('mon-battle', MonBattle);
