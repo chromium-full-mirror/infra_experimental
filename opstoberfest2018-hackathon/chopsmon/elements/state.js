@@ -4,8 +4,9 @@
 
 let storage = window.localStorage
 
-let MONSTERS = {
+export var MONSTERS = {
   "monorail": {
+    "name": "monorail",
     "attack": 10,
     "description": "Best bug management in town",
     "health": 40,
@@ -17,6 +18,7 @@ let MONSTERS = {
     "weight": 8.38
   },
   "logdog": {
+    "name": "logdog",
     "attack": 10,
     "description": "Fiercest dog in town",
     "health": 40,
@@ -28,6 +30,7 @@ let MONSTERS = {
     "weight": 8.38
   },
   "swarming": {
+    "name": "swarming",
     "attack": 10,
     "description": "The best scheduler around",
     "health": 40,
@@ -36,7 +39,6 @@ let MONSTERS = {
       "sting",
       "tackle"
     ],
-    "name": "swarming",
     "weight": 8.38
   }
 };
@@ -59,7 +61,7 @@ let MONSTERS = {
 //     }
 // };
 
-function getOwnedMonsterNames() {
+export function getOwnedMonsterNames() {
   var ownedMonsters = storage.getItem("ownedMonsters")
   if (ownedMonsters == null) {
     ownedMonsters = "monorail"
@@ -72,7 +74,7 @@ export function getOwnedMonsters() {
   return getOwnedMonsterNames().map(x => Object.assign({}, MONSTERS[x], {name: x}));
 }
 
-function addCapturedMonster(monster) {
+export function addCapturedMonster(monster) {
   var ownedMonsters = getOwnedMonsterNames();
   ownedMonsters = ownedMonsters + "," + monster;
   storage.setItem("ownedMonsters", ownedMonsters);

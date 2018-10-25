@@ -1,5 +1,5 @@
 import {LitElement, html} from '@polymer/lit-element'
-import {getOwnedMonsters} from './state.js';
+import {MONSTERS, getOwnedMonsterNames} from './state.js';
 
 class MonDex extends LitElement {
 
@@ -52,26 +52,39 @@ class MonDex extends LitElement {
         width: 300px;
         background: white;
         border-left: #ddd 1px solid;
+        overflow: auto;
+      }
+      .uncaught {
+        filter: contrast(0) brightness(40%);
       }
     </style>
     ${this.expanded && this.renderDexList()}
-    <button class="dex-button" @click=${this.toggle}></button>`;
+    <button class="dex-button" @click=${this.toggle}></button>
+    `;
   }
 
   renderDexList() {
-    const monsters = getOwnedMonsters();
-    const monsterEls = monsters.map(monster => html`
-      <div>
-        <img src="/img/${monster.image}" />
-        <h3>
-          ${monster.name}
-        </h3>
-      </div>
-    `);
+    const monsters = Object.values(MONSTERS);
+    const ownedMonsters = getOwnedMonsterNames();
+    const monsterEls = monsters.map(monster => {
+      const caught = ownedMonsters.includes(monster.name);
+      return html`
+        <div>
+          <img
+            src="/img/${monster.image}"
+            class="${ caught ? 'caught' : 'uncaught' }"
+          />
+          <h3>
+            ${ caught ? monster.name : '???' }
+          </h3>
+        </div>
+        `
+      }
+    );
     return html`
       <div class="dex-list">
         <h2>
-          Your Chopsmons!
+          Your ChopsMons!
         </h2>
         ${monsterEls}
       </div>`;
