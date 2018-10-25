@@ -1,65 +1,10 @@
-/**
- * @fileoverview Description of this file.
- */
+import { MONSTERS } from '../data/monsters.js';
 
-let storage = window.localStorage
+let storage = window.localStorage;
 
-export var MONSTERS = {
-  "monorail": {
-    "name": "monorail",
-    "attack": 10,
-    "description": "Best bug management in town",
-    "health": 40,
-    "image": "monorail2.png",
-    "moves": [
-      "tackle",
-      "file_bug"
-    ],
-    "weight": 8.38
-  },
-  "logdog": {
-    "name": "logdog",
-    "attack": 10,
-    "description": "Fiercest dog in town",
-    "health": 40,
-    "image": "logdog.png",
-    "moves": [
-      "bite",
-      "tornado"
-    ],
-    "weight": 8.38
-  },
-  "swarming": {
-    "name": "swarming",
-    "attack": 10,
-    "description": "The best scheduler around",
-    "health": 40,
-    "image": "swarming.png",
-    "moves": [
-      "sting",
-      "tackle"
-    ],
-    "weight": 8.38
-  }
-};
-//     "moves": {
-//       "bite": {
-//         "damage": 10
-//       },
-//       "file_bug": {
-//         "damage": 10
-//       },
-//       "sting": {
-//         "damage": 10
-//       },
-//       "tackle": {
-//         "damage": 10
-//       },
-//       "tornado": {
-//         "damage": 10
-//       }
-//     }
-// };
+export const MONSTERS_MAP = MONSTERS.reduce(
+  (acc, v) => Object.assign({}, acc, {[v.name]: v}),
+  {});
 
 export function getOwnedMonsterNames() {
   var ownedMonsters = storage.getItem("ownedMonsters")
@@ -71,7 +16,7 @@ export function getOwnedMonsterNames() {
 }
 
 export function getOwnedMonsters() {
-  return getOwnedMonsterNames().map(x => Object.assign({}, MONSTERS[x], {name: x}));
+  return getOwnedMonsterNames().map(x => Object.assign({}, MONSTERS_MAP[x], {name: x}));
 }
 
 export function addCapturedMonster(monster) {

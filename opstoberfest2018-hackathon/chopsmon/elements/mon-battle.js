@@ -5,11 +5,39 @@ class MonBattle extends LitElement {
 
   static get properties() {
     return {
+      opponent: {
+        type: Object,
+      },
+      yourHealth: {
+        type: Number,
+      },
+      opponentHealth: {
+        type: Number,
+      },
     };
+  }
+
+  connectedCallback() {
+    super.connectedCallback();
+    this.opponent = this.opponent || {};
+    this.yourHealth = 100;
+    this.opponentHealth = 100;
   }
 
   constructor() {
     super();
+  }
+
+  attack() {
+    // TODO: Implement logic to handle an attack.
+  }
+
+  capture() {
+    // TODO: Implement logic to catch Chopsmon.
+  }
+
+  run() {
+    this.dispatchEvent(new CustomEvent('run'));
   }
 
   render() {
@@ -27,7 +55,7 @@ class MonBattle extends LitElement {
         :host {
           background: white;
           font-family: 'Roboto', sans-serif;
-          font-size: 8vh;
+          font-size: 40px;
           position: absolute;
           height: 100vh;
           width: 100vw;
@@ -103,6 +131,12 @@ class MonBattle extends LitElement {
         .capitalize {
           text-transform: uppercase;
         }
+
+        button {
+          background: none;
+          font-size: inherit;
+          cursor: pointer;
+        }
       </style>
     `
   }
@@ -110,7 +144,7 @@ class MonBattle extends LitElement {
   renderDom() {
     return html`
       <img id="mine" src="/img/monorail1.png">
-      <img id="enemy" src="/img/lucy.png">
+      <img id="enemy" src="/img/${this.opponent.image}">
 
       <div id="mine-hp"></div>
       <div id="enemy-hp"></div>
@@ -118,10 +152,10 @@ class MonBattle extends LitElement {
       <div id="menu">
         <div id="question">What will <span class="capitalize">Monorail</span> do?</div>
         <div id="options">
-          <div class="capitalize">Choo choo</div>
-          <div class="capitalize">Tackle</div>
-          <div class="capitalize">Move 3</div>
-          <div class="capitalize">Run</div>
+          <button class="capitalize" @click="${this.attack}">Choo choo</button>
+          <button class="capitalize" @click="${this.attack}">Tackle</buton>
+          <button class="capitalize" @click="${this.capture}">Catch</button>
+          <button class="capitalize" @click="${this.run}">Run</button>
         </div>
       </div>
     `

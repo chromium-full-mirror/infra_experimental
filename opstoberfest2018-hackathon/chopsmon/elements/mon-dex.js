@@ -1,13 +1,12 @@
 import {LitElement, html} from '@polymer/lit-element'
-import {MONSTERS, getOwnedMonsterNames} from './state.js';
+import {MONSTERS} from '../data/monsters.js';
+import {getOwnedMonsterNames} from './state.js';
 
 class MonDex extends LitElement {
-
   static get properties() {
     return {
       expanded: {
         type: Boolean,
-        value: false,
       },
     };
   }
@@ -58,15 +57,14 @@ class MonDex extends LitElement {
         filter: contrast(0) brightness(40%);
       }
     </style>
-    ${this.expanded && this.renderDexList()}
-    <button class="dex-button" @click=${this.toggle}></button>
+    ${this.expanded ? this.renderDexList() : ''}
+    <button class="dex-button" @click="${this.toggle}"></button>
     `;
   }
 
   renderDexList() {
-    const monsters = Object.values(MONSTERS);
     const ownedMonsters = getOwnedMonsterNames();
-    const monsterEls = monsters.map(monster => {
+    const monsterEls = MONSTERS.map(monster => {
       const caught = ownedMonsters.includes(monster.name);
       return html`
         <div>
