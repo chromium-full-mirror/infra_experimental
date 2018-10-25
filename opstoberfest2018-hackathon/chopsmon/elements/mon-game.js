@@ -24,15 +24,31 @@ class MonGame extends LitElement {
   render() {
     return html`
       <style>
-        :host {
+        img {
+          max-width: 100%;
+          max-height: 100%;
+        }
+        .dex-button {
           position: fixed;
           right: 0;
           bottom: 0;
-          width: 100px;
-          height: 100px;
-          background: blue;
+          width: 200px;
+          height: 200px;
+          cursor: pointer;
+          background: none;
+          background-image: url('/img/lucy.png');
+          background-size: 100%;
+          border: none;
+          transition: transform;
+        }
+        .dex-button:hover {
+          background-image: url('/img/lucy_chromium1.png');
+        }
+        .dex-button:active {
+          transform: translateY(10px);
         }
       </style>
+      <button class="dex-button"></button>
     `;
   }
 }
