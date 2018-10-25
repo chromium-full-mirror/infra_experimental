@@ -8,7 +8,15 @@ class MonDex extends LitElement {
       expanded: {
         type: Boolean,
       },
+      activeMonster: {
+        type: Object,
+      },
     };
+  }
+
+  constructor() {
+    super();
+    this.activeMonster = getActiveMonster();
   }
 
   toggle() {
@@ -16,7 +24,6 @@ class MonDex extends LitElement {
   }
 
   render() {
-    let activeMonster = getActiveMonster();
     return html`<style>
       img {
         max-width: 100%;
@@ -30,14 +37,11 @@ class MonDex extends LitElement {
         height: 150px;
         cursor: pointer;
         background: none;
-        background-image: url('/img/${activeMonster.image}');
+        background-image: url('/img/${this.activeMonster.image}');
         background-size: 120%;
         background-position: center;
         border: none;
         transition: transform;
-      }
-      .dex-button:hover {
-        background-image: url('/img/lucy_chromium1.png');
       }
       .dex-button:active {
         transform: translateY(10px);
@@ -81,6 +85,7 @@ class MonDex extends LitElement {
             class="${ caught ? 'caught' : 'uncaught' }"
             @click="${ () => {
               if (caught) {
+                this.activeMonster = monster;
                 setActiveMonster(monster.name);
               }
             } }"
