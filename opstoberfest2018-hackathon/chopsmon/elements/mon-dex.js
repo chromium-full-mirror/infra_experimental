@@ -70,6 +70,10 @@ class MonDex extends LitElement {
       .uncaught {
         filter: contrast(0) brightness(40%);
       }
+      .mon-name {
+        margin-top: 0;
+        text-align: center;
+      }
     </style>
     ${this.expanded ? this.renderDexList() : ''}
     <button class="dex-button" @click="${this.toggle}"></button>
@@ -92,7 +96,7 @@ class MonDex extends LitElement {
               }
             } }"
           />
-          <h3>
+          <h3 class="mon-name">
             ${ caught ? monster.name : '???' }
           </h3>
         </div>
