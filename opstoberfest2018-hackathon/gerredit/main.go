@@ -216,7 +216,7 @@ Bug:`
 	// Create a new gerrit issue.
 	newCh, _, err := client.Changes.CreateChange(&change)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	// Change the full commit message.
