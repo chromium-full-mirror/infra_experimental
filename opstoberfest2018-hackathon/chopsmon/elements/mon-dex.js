@@ -51,9 +51,9 @@ class MonDex extends LitElement {
       .dex-list {
         box-sizing: border-box;
         position: fixed;
-        padding: 1em 16px;
+        padding: 1em 16px 150px 1em;
         right: 0;
-        bottom: 60px;
+        bottom: 0;
         height: 100%;
         width: 150px;
         background: white;
