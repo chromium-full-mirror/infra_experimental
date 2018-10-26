@@ -1,0 +1,3 @@
+GERRIT_HOST: True
+GERRIT_SQUASH_UPLOADS: True
+VIEW_VC: https://chromium.googlesource.com/infra/experimental/+/
