@@ -42,6 +42,8 @@ def main():
     bb_template = f.read()
   with open('luci-scheduler') as f:
     sch_template = f.read()
+  with open('luci-logdog') as f:
+    logdog_template = f.read()
   with open('luci-milo') as f:
     milo_template = f.read()
   with open('project') as f:
@@ -52,10 +54,14 @@ def main():
     readers = 'all'
     swarming_host = 'chromium-swarm'
     recipe_bundle = 'infra/recipe_bundles/chromium.googlesource.com/chromium/tools/build'
+    logdog_writers = 'luci-logdog-chromium-writers'
+    logdog_bucket = 'chromium-luci-logdog'
   else:
     readers = 'project-%s-readers' % args.project
     swarming_host = 'chrome-swarming'
     recipe_bundle = 'infra_internal/recipe_bundles/chrome-internal.googlesource.com/chrome/tools/build_limited/scripts/slave'
+    logdog_writers = 'luci-logdog-%s-writers' % args.project
+    logdog_bucket = 'logdog-%s-archive' % args.project
 
   os.mkdir(args.project)
 
@@ -130,6 +136,13 @@ job {
     f.write(project_template % {
       'project': args.project,
       'readers': readers,
+    })
+
+  with open(os.path.join(args.project, 'luci-logdog.cfg'), 'w') as f:
+    f.write(logdog_template % {
+      'readers': readers,
+      'writers': logdog_writers,
+      'bucket': logdog_bucket,
     })
 
 if __name__ == '__main__':
