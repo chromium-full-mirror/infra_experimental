@@ -57,7 +57,7 @@ acl_sets {
 
 buckets {
   name: "luci.%(project)s.ci"
-  acl_sets: "ci
+  acl_sets: "ci"
   swarming {
     hostname: "%(swarming_host)s.appspot.com"
     builder_defaults {
