@@ -30,6 +30,7 @@ def parse_args():
   public.add_argument('--public', action='store_true')
   public.add_argument('--non-public', action='store_true')
   parser.add_argument('--builder-file', required=True)
+  parser.add_argument('--flex', help='Is project in flex?', action='store_true')
   args = parser.parse_args()
   assert args.public != args.non_public  # There can only be one.
   return args
@@ -82,6 +83,7 @@ def main():
     }""" % (name, osname)
     f.write(bb_template % {
       'project': args.project,
+      'pool': 'flex' if args.flex else args.project,
       'readers': readers,
       'swarming_host': swarming_host,
       'recipe_bundle': recipe_bundle,
