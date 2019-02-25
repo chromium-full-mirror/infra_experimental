@@ -28,7 +28,6 @@ def main():
         tags = bucket.swarming.builder_defaults.swarming_tags
         if want_tag not in tags:
           bad[bucket.name] = tags
-          break
 
       if bad:
         print path
