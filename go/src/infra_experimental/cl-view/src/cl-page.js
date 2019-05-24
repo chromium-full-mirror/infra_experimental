@@ -143,70 +143,6 @@ export class CLPage extends LitElement {
     ];
   }
 
-  uniqueVariants(runs) {
-    return new Map(runs.map(r => [r.variant.hash, r.variant]));
-  }
-
-  uniqueKeys(runs) {
-    const keys = new Set();
-    for (const r of runs) {
-      for (const k of Object.keys(r.variant.def)) {
-        keys.add(k);
-      }
-    }
-    return Array.from(keys).sort();
-  }
-
-  variantDefArray(variantDef) {
-    return Object.keys(variantDef).sort().map(k => [k, variantDef[k]]);
-  }
-
-  variantDefArrayOfStrings(variantDef) {
-    return this.variantDefArray(variantDef).map((k, v) => `${k}:${v}`);
-  }
-
-  variantTitle(variantDef) {
-    return this.variantDefArrayOfStrings(variantDef).join(' ');
-  }
-
-  compareByVariant(run1, run2) {
-    const def1 = this.variantDefArrayOfStrings(run1.variant.def);
-    const def2 = this.variantDefArrayOfStrings(run2.variant.def);
-    for (let i = 0; i < Math.min(def1.length, def2.length); i++) {
-      let cmp = this.compareStrings(def1[i], def2[i]);
-      if (cmp != 0) {
-        return cmp;
-      }
-    }
-    return def1.length - def2.length;
-  }
-
-  compareStrings(a, b) {
-    if (a < b) {
-      return -1;
-    }
-    if (a > b) {
-      return 1;
-    }
-    return 0;
-  }
-
-  failedVariantPairs() {
-    var pairs = new Set();
-    for (const f of this.failures) {
-      for (const r of f.runs) {
-        for (const k in r.variant.def) {
-          pairs.add(`${k}:${r.variant.def[k]}`);
-        }
-      }
-    }
-    return pairs;
-  }
-
-  /**
-   * Define a template for the new element by implementing LitElement's
-   * `render` function. `render` must return a lit-html TemplateResult.
-   */
   render() {
     return html`
       <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
@@ -427,6 +363,67 @@ export class CLPage extends LitElement {
       </div>
     `;
   }
+
+  uniqueVariants(runs) {
+    return new Map(runs.map(r => [r.variant.hash, r.variant]));
+  }
+
+  uniqueKeys(runs) {
+    const keys = new Set();
+    for (const r of runs) {
+      for (const k of Object.keys(r.variant.def)) {
+        keys.add(k);
+      }
+    }
+    return Array.from(keys).sort();
+  }
+
+  variantDefArray(variantDef) {
+    return Object.keys(variantDef).sort().map(k => [k, variantDef[k]]);
+  }
+
+  variantDefArrayOfStrings(variantDef) {
+    return this.variantDefArray(variantDef).map((k, v) => `${k}:${v}`);
+  }
+
+  variantTitle(variantDef) {
+    return this.variantDefArrayOfStrings(variantDef).join(' ');
+  }
+
+  compareByVariant(run1, run2) {
+    const def1 = this.variantDefArrayOfStrings(run1.variant.def);
+    const def2 = this.variantDefArrayOfStrings(run2.variant.def);
+    for (let i = 0; i < Math.min(def1.length, def2.length); i++) {
+      let cmp = this.compareStrings(def1[i], def2[i]);
+      if (cmp != 0) {
+        return cmp;
+      }
+    }
+    return def1.length - def2.length;
+  }
+
+  compareStrings(a, b) {
+    if (a < b) {
+      return -1;
+    }
+    if (a > b) {
+      return 1;
+    }
+    return 0;
+  }
+
+  failedVariantPairs() {
+    var pairs = new Set();
+    for (const f of this.failures) {
+      for (const r of f.runs) {
+        for (const k in r.variant.def) {
+          pairs.add(`${k}:${r.variant.def[k]}`);
+        }
+      }
+    }
+    return pairs;
+  }
+
 
   toggleVariantFilterHandler(show) {
     return () => {
