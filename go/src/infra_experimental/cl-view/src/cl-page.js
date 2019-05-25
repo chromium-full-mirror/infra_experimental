@@ -206,13 +206,6 @@ export class CLPage extends LitElement {
           vertical-align: middle;
           border-radius: 2px;
         }
-        table.runs .variants-end {
-          border-left: 1px solid rgba(0, 0, 0, 0.12);
-          padding-left: 10px;
-        }
-        table.runs thead th:nth-child(1) {
-          width: 10px;
-        }
         table.runs ul {
           margin: 0;
         }
@@ -254,6 +247,9 @@ export class CLPage extends LitElement {
           height: 100%;
           width: 94%;
           font-family: monospace;
+        }
+        .variant-column {
+          min-width: 400px;
         }
       </style>
 
@@ -312,10 +308,7 @@ export class CLPage extends LitElement {
                     <table class="runs">
                       <thead>
                         <tr>
-                          <th></th>
-                          ${this.uniqueKeys(test.runs).map((k) => html`
-                            <th>${k}</th>
-                          `)}
+                          <th class="variant-column">variant</th>
                           <th class="variants-end">summary</th>
                           <th>logs & artifacts</th>
                         </tr>
@@ -323,10 +316,15 @@ export class CLPage extends LitElement {
                       <tbody>
                         ${test.runs.filter((r) => r.visible).sort(this.compareByVariant.bind(this)).map(tr => html`
                           <tr>
-                            <td><i class="material-icons mdc-list-item__graphic" aria-hidden="true">error</i></td>
-                            ${this.uniqueKeys(test.runs).map((k) => html`
-                              <td>${tr.variant.def[k]}</td>
-                            `)}
+                            <td>
+                              <div class="mdc-chip-set">
+                                ${Object.keys(tr.variant.def).sort().map((k) => html`
+                                  <div class="mdc-chip">
+                                    <div class="mdc-chip__text variant-pair">${k}:${tr.variant.def[k]}</div>
+                                  </div>
+                                `)}
+                              </div>
+                            </td>
                             <td class="variants-end"><pre style="font: monospace">${tr.summary}</pre></td>
                             <td>
                               <div class="mdc-chip-set">
