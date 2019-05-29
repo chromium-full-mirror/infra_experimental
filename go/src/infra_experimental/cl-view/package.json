@@ -10,9 +10,14 @@
   "author": "The Polymer Authors",
   "license": "BSD-3-Clause",
   "dependencies": {
+    "@material/theme": "^1.1.0",
     "@webcomponents/webcomponentsjs": "latest",
     "lit-element": "latest",
     "material-components-web": "^2.2.0",
     "material-design-icons": "^3.0.1"
+  },
+  "devDependencies": {
+    "webpack": "^4.32.2",
+    "webpack-cli": "^3.3.2"
   }
 }

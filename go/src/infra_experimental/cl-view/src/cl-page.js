@@ -10,7 +10,7 @@
 
 
 // Import LitElement base class and html helper function
-import { LitElement, html, eventOptions } from 'lit-element';
+import { LitElement, html } from 'lit-element';
 import {MDCRipple} from '@material/ripple';
 import {MDCChipSet} from '@material/chips';
 import './failed-test';
@@ -145,8 +145,7 @@ export class CLPage extends LitElement {
 
   render() {
     return html`
-      <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
-      <link href="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.css" rel="stylesheet">
+      <link href="/node_modules/material-components-web/dist/material-components-web.min.css"  rel="stylesheet">
       <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
       <h1><a href="https://crrev.com/12345">CL 12345</a></h1>
@@ -157,6 +156,9 @@ export class CLPage extends LitElement {
       </p>
 
       <style>
+        :host {
+          font-family: Roboto;
+        }
         .title-grid {
           margin: 0;
           padding: 0;
