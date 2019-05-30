@@ -13,20 +13,24 @@
 import { LitElement, html } from 'lit-element';
 import {MDCRipple} from '@material/ripple';
 import {MDCChipSet} from '@material/chips';
+import {MDCTabBar} from '@material/tab-bar';
 import './failed-test';
+import './cq-attempt';
 
 
 export class CLPage extends LitElement {
+  static get properties() {
+    return {
+      changeInfo: { type: Object },
+    };
+  }
+
   constructor() {
     // Must call superconstructor first.
     super();
 
     // Initialize properties
     this.loadComplete = false;
-
-    this.totalTestRuns = 123132;
-    this.totalTestVariants = 12312;
-    this.totalTests = 212;
 
     const logs = [
       {
@@ -150,11 +154,6 @@ export class CLPage extends LitElement {
 
       <h1><a href="https://crrev.com/12345">CL 12345</a></h1>
 
-      <p>
-        ${this.totalTestRuns} test runs of ${this.totalTestVariants} variants of
-        ${this.totalTests} tests.
-      </p>
-
       <style>
         :host {
           font-family: Roboto;
@@ -253,10 +252,53 @@ export class CLPage extends LitElement {
         .variant-column {
           min-width: 400px;
         }
+        cq-attempt {
+          display: none;
+        }
+        cq-attempt.is-active {
+          display: block;
+        }
       </style>
 
       <div id="content-container">
         <div id="main-content">
+
+          ${!this.changeInfo.cqAttempts ? html`<p>No CQ attempts<p>` : html`
+            <h2>CQ attempts</h2>
+            <div id="cq-attempt-tab-bar" class="mdc-tab-bar" role="tablist">
+              <div class="mdc-tab-scroller">
+                <div class="mdc-tab-scroller__scroll-area">
+                  <div class="mdc-tab-scroller__scroll-content">
+
+                    ${this.changeInfo.cqAttempts.map((a, i) => {
+                      const selected = i == this.changeInfo.cqAttempts.length - 1;
+                      return html`
+                        <button class="mdc-tab mdc-tab--min-width ${selected ? "mdc-tab--active" : ""}" role="tab" aria-selected="${selected}">
+                          <span class="mdc-tab__content">
+                            <span class="mdc-tab__text-label">${this.cqAttemptTabLabel(a.started)}</span>
+                          </span>
+                          <span class="mdc-tab-indicator ${selected ? "mdc-tab-indicator--active" : ""}">
+                            <span class="mdc-tab-indicator__content mdc-tab-indicator__content--underline"></span>
+                          </span>
+                          <span class="mdc-tab__ripple"></span>
+                        </button>
+                      `;
+                    })}
+
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            ${this.changeInfo.cqAttempts.map((a, i) => html`
+              <cq-attempt
+                cqattempt=${JSON.stringify(a)}
+                class="${i == this.changeInfo.cqAttempts.length - 1 ? "is-active" : ""}"
+                @extra-content-selected=${this.displayContent.bind(this)}
+              ></cq-attempt>
+            `)}
+          `}
+
           <div class="mdc-card mdc-card--outlined failures-card">
             <h3>
               <i class="material-icons" aria-hidden="true">error</i>
@@ -364,6 +406,10 @@ export class CLPage extends LitElement {
     `;
   }
 
+  cqAttemptTabLabel(startTime) {
+    return startTime.toString();
+  }
+
   uniqueVariants(runs) {
     return new Map(runs.map(r => [r.variant.hash, r.variant]));
   }
@@ -442,6 +488,15 @@ export class CLPage extends LitElement {
     };
   }
 
+  displayContent(event) {
+    const contentId = event.detail.contentId;
+    const container = this.shadowRoot.getElementById("extra-content-container");
+    for (const el of container.querySelectorAll(".extra-content")) {
+      el.classList.toggle("visible", el.id == contentId);
+    }
+    container.classList.add('visible');
+}
+
   hideExtraContent() {
     this.shadowRoot.getElementById("extra-content-container").classList.remove('visible');
   }
@@ -514,6 +569,11 @@ export class CLPage extends LitElement {
     // }
 
     this._variantFilterChipSet = new MDCChipSet(this.shadowRoot.getElementById("variant-filter"));
+
+    const cqAttemptTabBarEl = this.shadowRoot.getElementById('cq-attempt-tab-bar');
+    if (cqAttemptTabBarEl) {
+      new MDCTabBar(cqAttemptTabBarEl);
+    }
   }
 }
 

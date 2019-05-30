@@ -9,6 +9,9 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"strconv"
+	"strings"
+	"time"
 
 	"go.chromium.org/luci/common/sync/parallel"
 	"golang.org/x/oauth2"
@@ -41,7 +44,8 @@ func main() {
 	handler := ChangeHandler{
 		TokenSource: ts,
 	}
-	r.GET("/cl/:host/:change", base, handler.Handle)
+	r.GET("/c/:host/:change/:patch", base, handler.HandleChange)
+	r.POST("/rpc/test-runs", base, handler.LoadRuns)
 
 	serveDir(r, base, "node_modules")
 	serveDir(r, base, "dist")
@@ -62,14 +66,17 @@ type ChangeHandler struct {
 	TokenSource oauth2.TokenSource
 }
 
-func (h *ChangeHandler) Handle(ctx *router.Context) {
-	tag := fmt.Sprintf("cq-attempets/gerrit-change/%s/%s", ctx.Params.ByName("host"), ctx.Params.ByName("change"))
+func (h *ChangeHandler) LoadRuns(ctx *router.Context) {
+	var request struct {
+		InvocationID string
+		TestName     string
+	}
+	if err := json.NewDecoder(ctx.Request.Body).Decode(&request); err != nil {
+		http.Error(ctx.Writer, err.Error(), http.StatusBadRequest)
+		return
+	}
 
-	spn, err := spanner.NewClient(
-		ctx.Context, "projects/luci-test-results-dev/instances/test-results/databases/test-results",
-		option.WithTokenSource(h.TokenSource),
-		option.WithQuotaProject("luci-test-results-dev"),
-	)
+	spn, err := h.spannerClient(ctx.Context)
 	if err != nil {
 		panic(err)
 	}
@@ -78,36 +85,72 @@ func (h *ChangeHandler) Handle(ctx *router.Context) {
 	txn := spn.ReadOnlyTransaction()
 	defer txn.Close()
 
-	_ = tag
-	// info, err := h.loadChangeInfo(ctx.Context, txn, tag)
-	// if err != nil {
-	// 	http.Error(ctx.Writer, err.Error(), http.StatusInternalServerError)
-	// 	return
-	// }
-	info := &ChangeInfo{
-		CQAttempts: []*CQAttempt{
-			{
-				InvocationId: "cq-attempt/gerrit-change/chromium-review.googlesource.com/1/2/10000",
-			},
-			{
-				InvocationId:  "cq-attempt/gerrit-change/chromium-review.googlesource.com/1/2/20000",
-				TotalTests:    100,
-				TotalVariants: 200,
-				TotalTestRuns: 300,
-				InterestingTestVariants: []*InterestingTestVariant{
-					{
-						TestName:    "a|b|c",
-						VariantHash: "deadbeef",
-						VariantDef: []string{
-							"os:linux",
-							"gpu:ati",
-						},
-						Successes: 0,
-						Failures:  3,
-					},
-				},
-			},
+	type TestRun struct {
+		VariantHash string   `json:"variantHash"`
+		VariantDef  []string `json:"variantDef"`
+		Status      int64    `json:"status"`
+	}
+	var runs []*TestRun
+
+	err = txn.Query(ctx.Context, spanner.Statement{
+		SQL: `
+			SELECT
+				tr.VariantHash,
+				tr.VariantDef,
+				tr.Status
+			FROM Inclusions incl
+			JOIN TestRuns tr ON tr.InvocationId = incl.IncludedInvocationId
+			WHERE incl.InvocationId = @InvocationId
+			  AND tr.TestName = @TestName
+			AND RunID NOT LIKE '%without patch%'
+		`,
+		Params: map[string]interface{}{
+			"InvocationId": request.InvocationID,
+			"TestName":     request.TestName,
 		},
+	}).Do(func(r *spanner.Row) error {
+		run := &TestRun{}
+		runs = append(runs, run)
+		return r.ToStruct(run)
+	})
+	if err != nil {
+		http.Error(ctx.Writer, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	err = json.NewEncoder(ctx.Writer).Encode(map[string]interface{}{
+		"runs": runs,
+	})
+	if err != nil {
+		panic(err)
+	}
+}
+
+func (h *ChangeHandler) spannerClient(ctx context.Context) (*spanner.Client, error) {
+	return spanner.NewClient(
+		ctx, "projects/luci-test-results-dev/instances/test-results/databases/test-results",
+		option.WithTokenSource(h.TokenSource),
+		option.WithQuotaProject("luci-test-results-dev"),
+	)
+}
+
+func (h *ChangeHandler) HandleChange(ctx *router.Context) {
+	tag := fmt.Sprintf("cq-attempt/gerrit-patch/%s/%s/%s", ctx.Params.ByName("host"), ctx.Params.ByName("change"), ctx.Params.ByName("patch"))
+	logging.Infof(ctx.Context, "using invocation tag %q, full is %q", tag, hashed(tag))
+
+	spn, err := h.spannerClient(ctx.Context)
+	if err != nil {
+		panic(err)
+	}
+	defer spn.Close()
+
+	txn := spn.ReadOnlyTransaction()
+	defer txn.Close()
+
+	info, err := h.loadChangeInfo(ctx.Context, txn, tag)
+	if err != nil {
+		http.Error(ctx.Writer, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	infoJSON, err := json.Marshal(info)
@@ -117,7 +160,7 @@ func (h *ChangeHandler) Handle(ctx *router.Context) {
 	}
 
 	err = indexTemplate.Execute(ctx.Writer, map[string]interface{}{
-		"ChangeInfo": template.JS(string(infoJSON)),
+		"ChangeInfoJSON": template.JS(string(infoJSON)),
 	})
 	if err != nil {
 		panic(err)
@@ -125,32 +168,33 @@ func (h *ChangeHandler) Handle(ctx *router.Context) {
 }
 
 type ChangeInfo struct {
-	CQAttempts []*CQAttempt
+	CQAttempts []*CQAttempt `json:"cqAttempts"`
 }
 
 type CQAttempt struct {
-	InvocationId string
+	InvocationId string    `json:"invocationId"`
+	Started      time.Time `json:"started"`
 
-	TotalTests    int
-	TotalVariants int
-	TotalTestRuns int
+	TotalTests    int64 `json:"totalTests"`
+	TotalVariants int64 `json:"totalVariants"`
+	TotalTestRuns int64 `json:"totalTestRuns"`
 
-	InterestingTestVariants []*InterestingTestVariant
-	Exonerations            []*Exoneration
+	InterestingTestVariants []*InterestingTestVariant `json:"interestingTestVariants"`
+	Exonerations            []*Exoneration            `json:"exonerations"`
 }
 
 type InterestingTestVariant struct {
-	TestName    string
-	VariantHash string
-	VariantDef  []string
-	Successes   int
-	Failures    int
+	TestName    string   `json:"testName"`
+	VariantHash string   `json:"variantHash"`
+	VariantDef  []string `json:"variantDef"`
+	Successes   int64    `json:"successes"`
+	Failures    int64    `json:"failures"`
 }
 
 type Exoneration struct {
-	TestName            string
-	VariantHash         string
-	ExplanationMarkdown string
+	TestName            string `json:"testName"`
+	VariantHash         string `json:"variantHash"`
+	ExplanationMarkdown string `json:"explanationMarkdown"`
 }
 
 func (*ChangeHandler) loadChangeInfo(ctx context.Context, txn *spanner.ReadOnlyTransaction, tag string) (*ChangeInfo, error) {
@@ -169,6 +213,13 @@ func (*ChangeHandler) loadChangeInfo(ctx context.Context, txn *spanner.ReadOnlyT
 		if err := r.Column(0, &attempt.InvocationId); err != nil {
 			return err
 		}
+		parts := strings.Split(attempt.InvocationId, "/")
+		ts, err := strconv.ParseInt(parts[len(parts)-1], 10, 64)
+		if err != nil {
+			return err
+		}
+		attempt.Started = time.Unix(ts/1000, 0)
+
 		ret.CQAttempts = append(ret.CQAttempts, attempt)
 		return nil
 	})
@@ -176,6 +227,7 @@ func (*ChangeHandler) loadChangeInfo(ctx context.Context, txn *spanner.ReadOnlyT
 		return nil, err
 	}
 
+	logging.Infof(ctx, "Found %d CQ Attempts", len(ret.CQAttempts))
 	if len(ret.CQAttempts) == 0 {
 		return ret, nil
 	}
@@ -191,7 +243,7 @@ func (*ChangeHandler) loadChangeInfo(ctx context.Context, txn *spanner.ReadOnlyT
 						COUNT(DISTINCT VariantHash) TotalVariants,
 						COUNT(*) TotalTestRuns
 					FROM Inclusions incl
-					JOIN TestRuns tr ON it.InvocationId = tr.InvocationId
+					JOIN TestRuns tr ON incl.IncludedInvocationId = tr.InvocationId
 					WHERE incl.InvocationId = @AttemptInvocationID
 				`,
 				Params: map[string]interface{}{
@@ -216,7 +268,7 @@ func (*ChangeHandler) loadChangeInfo(ctx context.Context, txn *spanner.ReadOnlyT
 					JOIN InterestingTests it ON incl.IncludedInvocationId = it.InvocationId
 					JOIN TestRuns tr ON it.InvocationId = tr.InvocationId AND it.TestName = tr.TestName
 					WHERE incl.InvocationId = @AttemptInvocationID
-					TODO: remove without patch
+					--TODO: remove without patch
 					AND RunID NOT LIKE '%without patch%'
 					GROUP BY tr.TestName, tr.VariantHash
 				`,
@@ -268,7 +320,7 @@ var indexTemplate = template.Must(template.New("index").Parse(`
   <meta http-equiv="X-UA-Compatible" content="ie=edge">
   <meta charset="UTF-8">
 
-  <link rel="manifest" href="./manifest.json">
+  <link rel="manifest" href="/manifest.json">
   <title>cl-page</title>
 
   <script src="/node_modules/material-components-web/dist/material-components-web.min.js"></script>
