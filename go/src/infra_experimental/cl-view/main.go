@@ -251,26 +251,33 @@ func (*ChangeHandler) loadChangeInfo(ctx context.Context, txn *spanner.ReadOnlyT
 		work <- func() error {
 			return txn.Query(ctx, spanner.Statement{
 				SQL: `
-				SELECT tr.TestName, tr.VariantHash, tr.VariantDef, tr.Status
-				FROM (
-					SELECT itv.InvocationId, itv.TestName, itv.VariantHash
-					FROM Inclusions incl
-					JOIN InterestingTestVariants itv ON itv.InvocationId = incl.IncludedInvocationId
-					JOIN TestRuns tr ON tr.InvocationId = itv.InvocationId AND tr.TestName = itv.TestName AND tr.VariantHash = itv.VariantHash
-					WHERE incl.InvocationId = @AttemptInvocationID
-					GROUP BY itv.InvocationId, itv.TestName, itv.VariantHash
-					HAVING NOT LOGICAL_OR(Status = 1)
+					SELECT tr.TestName, tr.VariantHash, tr.VariantDef, tr.Status
+					FROM (
+						SELECT DISTINCT TestName
+						FROM (
+							SELECT itv.InvocationId, itv.TestName, itv.VariantHash
+							FROM Inclusions incl
+							JOIN InterestingTestVariants itv ON itv.InvocationId = incl.IncludedInvocationId
+														JOIN TestRuns tr ON tr.InvocationId = itv.InvocationId AND tr.TestName = itv.TestName AND tr.VariantHash = itv.VariantHash
+							WHERE incl.InvocationId = @AttemptInvocationID
+														GROUP BY itv.InvocationId, itv.TestName, itv.VariantHash
+														HAVING NOT LOGICAL_OR(Status = 1)
 
-					EXCEPT DISTINCT
+							EXCEPT DISTINCT
 
-					SELECT ex.InvocationId, ex.TestName, ex.VariantHash
-					FROM Inclusions incl
-					JOIN Exonerations ex ON ex.InvocationId = incl.IncludedInvocationId
-					WHERE incl.InvocationId = @AttemptInvocationID
-				) intr
-				JOIN TestRuns tr ON tr.InvocationId = intr.InvocationId AND tr.TestName = intr.TestName AND tr.VariantHash = intr.VariantHash
-				ORDER BY TestName
-	`,
+							SELECT ex.InvocationId, ex.TestName, ex.VariantHash
+							FROM Inclusions incl
+							JOIN Exonerations ex ON ex.InvocationId = incl.IncludedInvocationId
+							WHERE incl.InvocationId = @AttemptInvocationID
+						)
+					) intr
+					JOIN (
+						SELECT tr.*
+						FROM Inclusions incl
+						JOIN TestRuns tr ON tr.InvocationId = incl.IncludedInvocationId
+						WHERE incl.InvocationId = @AttemptInvocationID
+					) tr ON tr.TestName = intr.TestName
+				`,
 				Params: map[string]interface{}{
 					"AttemptInvocationID": latest.InvocationId,
 				},

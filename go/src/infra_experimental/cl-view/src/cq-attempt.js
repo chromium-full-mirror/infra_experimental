@@ -61,7 +61,7 @@ class TestView extends LitElement {
           display: none;
         }
         .test-body {
-          margin-left: 40px;
+          margin-left: 20px;
         }
 
         .expand-more {
@@ -113,10 +113,10 @@ class TestView extends LitElement {
         .variant-pair {
           font-family: monospace;
         }
-        #extra-content-container {
+        .extra-content-container {
           min-width: 400px;
         }
-        #extra-content-container:not(.visible), .extra-content:not(.visible) {
+        .extra-content-container:not(.visible), .extra-content:not(.visible) {
           display: none;
         }
         #content-container {
@@ -129,7 +129,7 @@ class TestView extends LitElement {
           display: flex;
           align-items: center;
         }
-        #extra-content-container {
+        .extra-content-container {
           display: flex;
           flex-direction: column;
         }
@@ -143,6 +143,19 @@ class TestView extends LitElement {
         }
         .variant-column {
           min-width: 400px;
+        }
+        .variant-def {
+          display: flex;
+          align-items: center;
+        }
+        .variant-container {
+          border: solid 1px lightgrey;
+          border-radius: 10px;
+          margin-bottom: 2px;
+          padding: 0 4px;
+        }
+        .separator:not(:last-child) {
+          border-bottom: solid 1px lightgrey;
         }
       </style>
 
@@ -161,60 +174,63 @@ class TestView extends LitElement {
 
         <div class="test-body">
           ${variants.map((variant) => html`
-            <div class="mdc-chip-set">
-              ${variant.def.sort().map((p) => html`
-                <div class="mdc-chip">
-                  <div class="mdc-chip__text variant-pair">${p}</div>
+            <div class="variant-container">
+              <div class="variant-def">
+                Variant:
+                <div class="mdc-chip-set">
+                  ${variant.def.sort().map((p) => html`
+                    <div class="mdc-chip">
+                      <div class="mdc-chip__text variant-pair">${p}</div>
+                    </div>
+                  `)}
                 </div>
-              `)}
-            </div>
-            <table class="runs">
-              <thead>
-                <tr>
-                  <th>status</th>
-                  <th>summary</th>
-                  <th>logs & artifacts</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${variant.runs.map((run) => html`
-                  <tr>
-                    <td>${run.status}</td>
-                    <td class="variants-end"><pre style="font: monospace">Assertion failed: 1 != 2</pre></td>
-                    <td>
+              </div>
+              <div class="test-container mdc-layout-grid run-grid">
+                <div class="mdc-layout-grid__inner">
+                  <div class="mdc-layout-grid__cell">STATUS</div>
+                  <div class="mdc-layout-grid__cell">SUMMARY</div>
+                  <div class="mdc-layout-grid__cell">LOGS & ARTIFACTS</div>
+                </div>
+                ${variant.runs.map((run, i) => html`
+                  <div class="mdc-layout-grid__inner">
+                    <div class="mdc-layout-grid__cell">${run.status}</div>
+                    <div class="mdc-layout-grid__cell">Assertion failed</div>
+                    <div class="mdc-layout-grid__cell">
                       <div class="mdc-chip-set">
-                        <div class="mdc-chip" @click=${this.extraContentHandler("extra-content-1").bind(this)}>Log 1</div>
-                        <div class="mdc-chip" @click=${this.extraContentHandler("extra-content-2").bind(this)}>Log 2</div>
-                        <div class="mdc-chip" @click=${this.extraContentHandler("extra-content-3").bind(this)}>Screenshot</div>
+                        <div class="mdc-chip" @click=${this.extraContentHandler(`extra-content-container-${i}`, "1").bind(this)}>Log 1</div>
+                        <div class="mdc-chip" @click=${this.extraContentHandler(`extra-content-container-${i}`, "2").bind(this)}>Log 2</div>
+                        <div class="mdc-chip" @click=${this.extraContentHandler(`extra-content-container-${i}`, "3").bind(this)}>Screenshot</div>
                       </div>
-                    </td>
-                  </tr>
+                    </div>
+                  </div>
+                  <div id="extra-content-container-${i}" class="mdc-layout-grid__inner extra-content-container">
+                    <div class="mdc-layout-grid__cell">
+                      <div class="extra-content" data-content-id="1">
+                        <textarea readonly>Stack trace goes here....</textarea>
+                      </div>
+                      <div class="extra-content" data-content-id="2">
+                      <textarea readonly>Another log....</textarea>
+                      </div>
+                      <div class="extra-content" data-content-id="3">
+                        <img style="width:300px" src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Cat03.jpg/1200px-Cat03.jpg"></img>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="separator"></div>
                 `)}
-              </tbody>
-            </table>
+              </div>
+            </div>
           `)}
-
-          <div id="extra-content-container">
-            <div class="extra-content" id="extra-content-1">
-              <textarea readonly>Stack trace goes here....</textarea>
-            </div>
-            <div class="extra-content" id="extra-content-2">
-            <textarea readonly>Another log....</textarea>
-            </div>
-            <div class="extra-content" id="extra-content-3">
-              <img style="width:300px" src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Cat03.jpg/1200px-Cat03.jpg"></img>
-            </div>
-          </div>
         </div>
       </div>
     `;
   }
 
-  extraContentHandler(contentId) {
+  extraContentHandler(containerId, contentId) {
     return () => {
-      const container = this.shadowRoot.querySelector("#extra-content-container");
+      const container = this.shadowRoot.getElementById(containerId);
       for (const el of container.querySelectorAll(".extra-content")) {
-        el.classList.toggle("visible", el.id == contentId);
+        el.classList.toggle("visible", el.getAttribute("data-content-id") == contentId);
       }
       container.classList.add('visible');
     };
@@ -300,9 +316,6 @@ export class CQAttempt extends LitElement {
         .expanded .expand-less {
           display: inline;
         }
-        .variant-def {
-          font-family: monospace;
-        }
         .variant-chip-set {
           display: inline;
         }
@@ -337,10 +350,10 @@ export class CQAttempt extends LitElement {
         .variant-pair {
           font-family: monospace;
         }
-        #extra-content-container {
+        .extra-content-container {
           min-width: 400px;
         }
-        #extra-content-container:not(.visible), .extra-content:not(.visible) {
+        .extra-content-container:not(.visible), .extra-content:not(.visible) {
           display: none;
         }
         #content-container {
@@ -353,7 +366,7 @@ export class CQAttempt extends LitElement {
           display: flex;
           align-items: center;
         }
-        #extra-content-container {
+        .extra-content-container {
           display: flex;
           flex-direction: column;
         }
@@ -370,6 +383,11 @@ export class CQAttempt extends LitElement {
         }
         .loaded .loading-progress {
           display: none;
+        }
+        .test-view-container {
+          border: solid 1px lightgrey;
+          border-radius: 10px;
+          margin-bottom: 2px;
         }
       </style>
 
@@ -406,11 +424,13 @@ export class CQAttempt extends LitElement {
 
       <div>
         ${Object.keys(tests).sort().map(testName => html`
-          <test-view
-            invocationid="${this.cqAttempt.invocationId}"
-            test="${JSON.stringify({testName, test: tests[testName]})}"
-            predicate="${JSON.stringify(predicate)}"
-          ></test-view>
+          <div class="test-view-container">
+            <test-view
+              invocationid="${this.cqAttempt.invocationId}"
+              test="${JSON.stringify({testName, test: tests[testName]})}"
+              predicate="${JSON.stringify(predicate)}"
+            ></test-view>
+          <div>
         `)}
       </div>
     `;
@@ -422,20 +442,6 @@ export class CQAttempt extends LitElement {
         c.selected = show;
       }
     };
-  }
-  extraContentHandler(contentId) {
-    return (event) => {
-      const testEl = event.target.closest('.test');
-      const container = testEl.querySelector("#extra-content-container");
-      for (const el of container.querySelectorAll(".extra-content")) {
-        el.classList.toggle("visible", el.id == contentId);
-      }
-      container.classList.add('visible');
-    };
-  }
-
-  hideExtraContent() {
-    this.shadowRoot.getElementById("extra-content-container").classList.remove('visible');
   }
 
   variantPairSelected() {
