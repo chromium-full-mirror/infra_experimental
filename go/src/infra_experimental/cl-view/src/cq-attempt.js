@@ -222,7 +222,7 @@ class TestView extends LitElement {
                         <textarea readonly>Another log....</textarea>
                         </div>
                         <div class="extra-content" data-content-id="3">
-                          <img style="width:300px" src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Cat03.jpg/1200px-Cat03.jpg"></img>
+                          <img style="width:300px" src="https://test-results.appspot.com/data/layout_results/linux-blink-rel/12396/webkit_layout_tests%20%28with%20patch%29/layout-test-results/virtual/prefer_compositing_to_lcd_text/compositing/overflow/tiled-mask-expected.png"></img>
                         </div>
                       </div>
                     </div>
