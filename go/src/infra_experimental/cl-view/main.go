@@ -180,6 +180,7 @@ type TestVariant struct {
 }
 
 type TestRun struct {
+	RunID  string `json:"runId"`
 	Status string `json:"status"`
 }
 
@@ -251,7 +252,7 @@ func (*ChangeHandler) loadChangeInfo(ctx context.Context, txn *spanner.ReadOnlyT
 		work <- func() error {
 			return txn.Query(ctx, spanner.Statement{
 				SQL: `
-					SELECT tr.TestName, tr.VariantHash, tr.VariantDef, tr.Status
+					SELECT tr.RunID, tr.TestName, tr.VariantHash, tr.VariantDef, tr.Status
 					FROM (
 						SELECT DISTINCT TestName
 						FROM (
@@ -283,6 +284,7 @@ func (*ChangeHandler) loadChangeInfo(ctx context.Context, txn *spanner.ReadOnlyT
 				},
 			}).Do(func(r *spanner.Row) error {
 				var row struct {
+					RunID       string
 					TestName    string
 					VariantHash string
 					VariantDef  []string
@@ -305,6 +307,7 @@ func (*ChangeHandler) loadChangeInfo(ctx context.Context, txn *spanner.ReadOnlyT
 					test.Variants[row.VariantHash] = variant
 				}
 				variant.Runs = append(variant.Runs, &TestRun{
+					RunID:  row.RunID,
 					Status: statusByNumber[int(row.Status)],
 				})
 				return nil

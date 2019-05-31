@@ -103,18 +103,21 @@ class TestView extends LitElement {
           margin: 0;
         }
 
+        .test-header {
+          cursor: pointer;
+        }
         .test-container {
           margin: 5px;
         }
-        .test-name-containier {
-          display: flex;
-        }
-
         .variant-pair {
           font-family: monospace;
         }
         .extra-content-container {
+          display: flex;
+          flex-direction: column;
           min-width: 400px;
+          margin-left: 20px;
+          margin-top: 10px;
         }
         .extra-content-container:not(.visible), .extra-content:not(.visible) {
           display: none;
@@ -128,10 +131,6 @@ class TestView extends LitElement {
         #variant-filter-container {
           display: flex;
           align-items: center;
-        }
-        .extra-content-container {
-          display: flex;
-          flex-direction: column;
         }
         .extra-content {
           flex-grow: 1;
@@ -152,15 +151,46 @@ class TestView extends LitElement {
           border: solid 1px lightgrey;
           border-radius: 10px;
           margin-bottom: 2px;
-          padding: 0 4px;
+          padding: 5px 10px;
         }
         .separator:not(:last-child) {
           border-bottom: solid 1px lightgrey;
         }
+        .run-grid {
+          padding: 0;
+        }
+        .run-container-header {
+          align-items: center;
+        }
+        .run-container-header.pass {
+          background: #8d4;
+        }
+        .run-container-header.fail {
+          background: #e88;
+        }
+        .run-container-header.crash {
+          background: #c6c;
+          color: white;
+          font-weight: bold;
+        }
+        .log-container {
+          display: flex;
+        }
+        .log-button {
+          margin: 4px;
+          cursor: pointer;
+        }
+        .log-button:not(:last-child) {
+          border-right: solid 1px darkgrey;
+          padding-right: 5px;
+        }
+        .crash .log-button {
+          border-color: lightgrey;
+        }
       </style>
 
-      <div class="${this.loaded ? "loaded" : ""} ${this.expanded ? "expanded" : ""}">
-        <div class="test-container mdc-layout-grid title-grid" @click=${this.onClick.bind(this)}>
+      <div class="test-container ${this.loaded ? "loaded" : ""} ${this.expanded ? "expanded" : ""}">
+        <div class="test-header mdc-layout-grid title-grid" @click=${this.onClick.bind(this)}>
           <div class="mdc-layout-grid__inner">
             <div class="mdc-layout-grid__cell mdc-layout-grid__cell--span-11 test-name">
               <test-name testName="${this.test.testName}"></test-name>
@@ -185,34 +215,34 @@ class TestView extends LitElement {
                   `)}
                 </div>
               </div>
-              <div class="test-container mdc-layout-grid run-grid">
+              <div class="mdc-layout-grid run-grid">
                 <div class="mdc-layout-grid__inner">
                   <div class="mdc-layout-grid__cell">STATUS</div>
                   <div class="mdc-layout-grid__cell">SUMMARY</div>
                   <div class="mdc-layout-grid__cell">LOGS & ARTIFACTS</div>
                 </div>
                 ${variant.runs.map((run, i) => html`
-                  <div class="mdc-layout-grid__inner">
-                    <div class="mdc-layout-grid__cell">${run.status}</div>
-                    <div class="mdc-layout-grid__cell">Assertion failed</div>
-                    <div class="mdc-layout-grid__cell">
-                      <div class="mdc-chip-set">
-                        <div class="mdc-chip" @click=${this.extraContentHandler(`extra-content-container-${i}`, "1").bind(this)}>Log 1</div>
-                        <div class="mdc-chip" @click=${this.extraContentHandler(`extra-content-container-${i}`, "2").bind(this)}>Log 2</div>
-                        <div class="mdc-chip" @click=${this.extraContentHandler(`extra-content-container-${i}`, "3").bind(this)}>Screenshot</div>
+                  <div class="run-container">
+                    <div class="mdc-layout-grid__inner run-container-header ${run.status.toLowerCase()}">
+                      <div class="mdc-layout-grid__cell">${run.status}</div>
+                      <div class="mdc-layout-grid__cell">Assertion failed</div>
+                      <div class="mdc-layout-grid__cell log-container">
+                        <div class="log-button" @click=${this.extraContentHandler(`extra-content-container-${i}`, "1").bind(this)}>Log 1</div>
+                        <div class="log-button" @click=${this.extraContentHandler(`extra-content-container-${i}`, "2").bind(this)}>Log 2</div>
+                        <div class="log-button" @click=${this.extraContentHandler(`extra-content-container-${i}`, "3").bind(this)}>Screenshot</div>
                       </div>
                     </div>
-                  </div>
-                  <div id="extra-content-container-${i}" class="mdc-layout-grid__inner extra-content-container">
-                    <div class="mdc-layout-grid__cell">
-                      <div class="extra-content" data-content-id="1">
-                        <textarea readonly>Stack trace goes here....</textarea>
-                      </div>
-                      <div class="extra-content" data-content-id="2">
-                      <textarea readonly>Another log....</textarea>
-                      </div>
-                      <div class="extra-content" data-content-id="3">
-                        <img style="width:300px" src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Cat03.jpg/1200px-Cat03.jpg"></img>
+                    <div id="extra-content-container-${i}" class="mdc-layout-grid__inner extra-content-container">
+                      <div class="mdc-layout-grid__cell">
+                        <div class="extra-content" data-content-id="1">
+                          <textarea readonly>Stack trace goes here....</textarea>
+                        </div>
+                        <div class="extra-content" data-content-id="2">
+                        <textarea readonly>Another log....</textarea>
+                        </div>
+                        <div class="extra-content" data-content-id="3">
+                          <img style="width:300px" src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Cat03.jpg/1200px-Cat03.jpg"></img>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -227,8 +257,8 @@ class TestView extends LitElement {
   }
 
   extraContentHandler(containerId, contentId) {
-    return () => {
-      const container = this.shadowRoot.getElementById(containerId);
+    return (event) => {
+      const container = event.target.closest(".run-container").querySelector(".extra-content-container");
       for (const el of container.querySelectorAll(".extra-content")) {
         el.classList.toggle("visible", el.getAttribute("data-content-id") == contentId);
       }
@@ -319,39 +349,12 @@ export class CQAttempt extends LitElement {
         .variant-chip-set {
           display: inline;
         }
-        table.runs {
-          width: 100%;
-          display: table;
-          border-collapse: collapse;
-          border-spacing: 0;
-          border: none;
-        }
-        table.runs tr:not(:last-child) {
-          border-bottom: 1px solid rgba(0, 0, 0, 0.12);
-        }
-        table.runs th, table.runs td {
-          border: none;
-          display: table-cell;
-          text-align: left;
-          vertical-align: middle;
-          border-radius: 2px;
-        }
-        table.runs ul {
-          margin: 0;
-        }
-
         .test-container {
           margin: 5px;
-        }
-        .test-name-containier {
-          display: flex;
         }
 
         .variant-pair {
           font-family: monospace;
-        }
-        .extra-content-container {
-          min-width: 400px;
         }
         .extra-content-container:not(.visible), .extra-content:not(.visible) {
           display: none;
@@ -365,21 +368,6 @@ export class CQAttempt extends LitElement {
         #variant-filter-container {
           display: flex;
           align-items: center;
-        }
-        .extra-content-container {
-          display: flex;
-          flex-direction: column;
-        }
-        .extra-content {
-          flex-grow: 1;
-        }
-        .extra-content textarea {
-          height: 100%;
-          width: 94%;
-          font-family: monospace;
-        }
-        .variant-column {
-          min-width: 400px;
         }
         .loaded .loading-progress {
           display: none;
