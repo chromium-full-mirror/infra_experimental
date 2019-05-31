@@ -45,7 +45,7 @@ func main() {
 		TokenSource: ts,
 	}
 	r.GET("/c/:host/:change/:patch", base, handler.HandleChange)
-	r.POST("/rpc/test-runs", base, handler.LoadRuns)
+	r.POST("/rpc/stats", base, handler.Stats)
 
 	serveDir(r, base, "node_modules")
 	serveDir(r, base, "dist")
@@ -66,10 +66,9 @@ type ChangeHandler struct {
 	TokenSource oauth2.TokenSource
 }
 
-func (h *ChangeHandler) LoadRuns(ctx *router.Context) {
+func (h *ChangeHandler) Stats(ctx *router.Context) {
 	var request struct {
 		InvocationID string
-		TestName     string
 	}
 	if err := json.NewDecoder(ctx.Request.Body).Decode(&request); err != nil {
 		http.Error(ctx.Writer, err.Error(), http.StatusBadRequest)
@@ -85,43 +84,33 @@ func (h *ChangeHandler) LoadRuns(ctx *router.Context) {
 	txn := spn.ReadOnlyTransaction()
 	defer txn.Close()
 
-	type TestRun struct {
-		VariantHash string   `json:"variantHash"`
-		VariantDef  []string `json:"variantDef"`
-		Status      int64    `json:"status"`
+	var stats struct {
+		TotalTests    int64 `json:"totalTests"`
+		TotalVariants int64 `json:"totalVariants"`
+		TotalTestRuns int64 `json:"totalTestRuns"`
 	}
-	var runs []*TestRun
 
 	err = txn.Query(ctx.Context, spanner.Statement{
 		SQL: `
-			SELECT
-				tr.VariantHash,
-				tr.VariantDef,
-				tr.Status
-			FROM Inclusions incl
-			JOIN TestRuns tr ON tr.InvocationId = incl.IncludedInvocationId
-			WHERE incl.InvocationId = @InvocationId
-			  AND tr.TestName = @TestName
-			AND RunID NOT LIKE '%without patch%'
-		`,
+					SELECT
+						COUNT(DISTINCT TestName) TotalTests,
+						COUNT(DISTINCT VariantHash) TotalVariants,
+						COUNT(*) TotalTestRuns
+					FROM Inclusions incl
+					JOIN TestRuns tr ON incl.IncludedInvocationId = tr.InvocationId
+					WHERE incl.InvocationId = @AttemptInvocationID
+				`,
 		Params: map[string]interface{}{
-			"InvocationId": request.InvocationID,
-			"TestName":     request.TestName,
+			"AttemptInvocationID": request.InvocationID,
 		},
 	}).Do(func(r *spanner.Row) error {
-		run := &TestRun{}
-		runs = append(runs, run)
-		return r.ToStruct(run)
+		return r.ToStruct(&stats)
 	})
 	if err != nil {
-		http.Error(ctx.Writer, err.Error(), http.StatusInternalServerError)
-		return
+		panic(err)
 	}
 
-	err = json.NewEncoder(ctx.Writer).Encode(map[string]interface{}{
-		"runs": runs,
-	})
-	if err != nil {
+	if err = json.NewEncoder(ctx.Writer).Encode(&stats); err != nil {
 		panic(err)
 	}
 }
@@ -175,12 +164,33 @@ type CQAttempt struct {
 	InvocationId string    `json:"invocationId"`
 	Started      time.Time `json:"started"`
 
-	TotalTests    int64 `json:"totalTests"`
-	TotalVariants int64 `json:"totalVariants"`
-	TotalTestRuns int64 `json:"totalTestRuns"`
-
 	InterestingTestVariants []*InterestingTestVariant `json:"interestingTestVariants"`
 	Exonerations            []*Exoneration            `json:"exonerations"`
+
+	Tests map[string]*Test `json:"tests"`
+}
+
+type Test struct {
+	Variants map[string]*TestVariant `json:"variants"`
+}
+
+type TestVariant struct {
+	Def  []string   `json:"def"`
+	Runs []*TestRun `json:"runs"`
+}
+
+type TestRun struct {
+	Status string `json:"status"`
+}
+
+var statusByNumber = []string{
+	0: "UNKNOWN",
+	1: "PASS",
+	2: "FAIL",
+	3: "CRASH",
+	4: "ABORT",
+	5: "SKIP",
+	6: "TIMEOUT",
 }
 
 type InterestingTestVariant struct {
@@ -234,28 +244,66 @@ func (*ChangeHandler) loadChangeInfo(ctx context.Context, txn *spanner.ReadOnlyT
 	}
 
 	latest := ret.CQAttempts[len(ret.CQAttempts)-1]
-	return ret, parallel.FanOutIn(func(work chan<- func() error) {
-		// Load stats
+	latest.Tests = map[string]*Test{}
+	start := time.Now()
+	err = parallel.FanOutIn(func(work chan<- func() error) {
+		// Load interesting test runs.
 		work <- func() error {
 			return txn.Query(ctx, spanner.Statement{
 				SQL: `
-					SELECT
-						COUNT(DISTINCT TestName) TotalTests,
-						COUNT(DISTINCT VariantHash) TotalVariants,
-						COUNT(*) TotalTestRuns
+				SELECT tr.TestName, tr.VariantHash, tr.VariantDef, tr.Status
+				FROM (
+					SELECT itv.InvocationId, itv.TestName, itv.VariantHash
 					FROM Inclusions incl
-					JOIN TestRuns tr ON incl.IncludedInvocationId = tr.InvocationId
+					JOIN InterestingTestVariants itv ON itv.InvocationId = incl.IncludedInvocationId
+					JOIN TestRuns tr ON tr.InvocationId = itv.InvocationId AND tr.TestName = itv.TestName AND tr.VariantHash = itv.VariantHash
 					WHERE incl.InvocationId = @AttemptInvocationID
-				`,
+					GROUP BY itv.InvocationId, itv.TestName, itv.VariantHash
+					HAVING NOT LOGICAL_OR(Status = 1)
+
+					EXCEPT DISTINCT
+
+					SELECT ex.InvocationId, ex.TestName, ex.VariantHash
+					FROM Inclusions incl
+					JOIN Exonerations ex ON ex.InvocationId = incl.IncludedInvocationId
+					WHERE incl.InvocationId = @AttemptInvocationID
+				) intr
+				JOIN TestRuns tr ON tr.InvocationId = intr.InvocationId AND tr.TestName = intr.TestName AND tr.VariantHash = intr.VariantHash
+				ORDER BY TestName
+	`,
 				Params: map[string]interface{}{
 					"AttemptInvocationID": latest.InvocationId,
 				},
 			}).Do(func(r *spanner.Row) error {
-				return r.ToStruct(latest)
+				var row struct {
+					TestName    string
+					VariantHash string
+					VariantDef  []string
+					Status      int64
+				}
+				if err := r.ToStruct(&row); err != nil {
+					return err
+				}
+
+				test := latest.Tests[row.TestName]
+				if test == nil {
+					test = &Test{Variants: map[string]*TestVariant{}}
+					latest.Tests[row.TestName] = test
+				}
+				variant := test.Variants[row.VariantHash]
+				if variant == nil {
+					variant = &TestVariant{
+						Def: row.VariantDef,
+					}
+					test.Variants[row.VariantHash] = variant
+				}
+				variant.Runs = append(variant.Runs, &TestRun{
+					Status: statusByNumber[int(row.Status)],
+				})
+				return nil
 			})
 		}
 
-		// Load interesting test variants
 		work <- func() error {
 			return txn.Query(ctx, spanner.Statement{
 				SQL: `
@@ -268,8 +316,8 @@ func (*ChangeHandler) loadChangeInfo(ctx context.Context, txn *spanner.ReadOnlyT
 							JOIN InterestingTestVariants itv ON itv.InvocationId = incl.IncludedInvocationId
 														JOIN TestRuns tr ON tr.InvocationId = itv.InvocationId AND tr.TestName = itv.TestName AND tr.VariantHash = itv.VariantHash
 							WHERE incl.InvocationId = @AttemptInvocationID
-														GROUP BY itv.InvocationId, itv.TestName, itv.VariantHash
-														HAVING NOT LOGICAL_OR(Status = 1)
+							GROUP BY itv.InvocationId, itv.TestName, itv.VariantHash
+							HAVING NOT LOGICAL_OR(Status = 1)
 
 							EXCEPT DISTINCT
 
@@ -316,6 +364,11 @@ func (*ChangeHandler) loadChangeInfo(ctx context.Context, txn *spanner.ReadOnlyT
 			})
 		}
 	})
+	if err != nil {
+		return nil, err
+	}
+	logging.Infof(ctx, "took %s", time.Now().Sub(start))
+	return ret, nil
 }
 
 func hashed(s string) string {

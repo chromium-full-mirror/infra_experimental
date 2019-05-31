@@ -31,9 +31,6 @@ class TestView extends LitElement {
       get: () => expanded,
       set: (value) => {
         expanded = !!value;
-        if (expanded) {
-          this._maybeLoadTestRuns();
-        }
         this.requestUpdate();
       },
     })
@@ -42,8 +39,8 @@ class TestView extends LitElement {
   render() {
     const variantPredicate = new Set((this.predicate || {}).variants || []);
 
-    const runs = (this.runs || [])
-      .filter((run) => run.variantDef.length == 0 || run.variantDef.some((p) => variantPredicate.has(p)));
+    const variants = Object.values(this.test.test.variants)
+      .filter((v) => v.def.some((p) => variantPredicate.has(p)));
 
     return html`
       <link href="/node_modules/material-components-web/dist/material-components-web.min.css"  rel="stylesheet">
@@ -62,6 +59,9 @@ class TestView extends LitElement {
         }
         :not(.expanded) .test-body {
           display: none;
+        }
+        .test-body {
+          margin-left: 40px;
         }
 
         .expand-more {
@@ -144,9 +144,6 @@ class TestView extends LitElement {
         .variant-column {
           min-width: 400px;
         }
-        .loaded .loading-progress {
-          display: none;
-        }
       </style>
 
       <div class="${this.loaded ? "loaded" : ""} ${this.expanded ? "expanded" : ""}">
@@ -163,51 +160,39 @@ class TestView extends LitElement {
         </div>
 
         <div class="test-body">
-          <div role="progressbar" class="loading-progress mdc-linear-progress mdc-linear-progress--indeterminate">
-            <div class="mdc-linear-progress__buffering-dots"></div>
-            <div class="mdc-linear-progress__buffer"></div>
-            <div class="mdc-linear-progress__bar mdc-linear-progress__primary-bar">
-              <span class="mdc-linear-progress__bar-inner"></span>
-            </div>
-            <div class="mdc-linear-progress__bar mdc-linear-progress__secondary-bar">
-              <span class="mdc-linear-progress__bar-inner"></span>
-            </div>
-          </div>
-
-          <table class="runs">
-            <thead>
-              <tr>
-                <th>variant</th>
-                <th>status</th>
-                <th>summary</th>
-                <th>logs & artifacts</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${runs.map((run) => html`
-                <tr>
-                  <td>
-                    <div class="mdc-chip-set">
-                      ${run.variantDef.sort().map((p) => html`
-                        <div class="mdc-chip">
-                          <div class="mdc-chip__text variant-pair">${p}</div>
-                        </div>
-                      `)}
-                    </div>
-                  </td>
-                  <td>${StatusNames[run.status]}</td>
-                  <td class="variants-end"><pre style="font: monospace">Assertion failed: 1 != 2</pre></td>
-                  <td>
-                    <div class="mdc-chip-set">
-                      <div class="mdc-chip" @click=${this.extraContentHandler("extra-content-1").bind(this)}>Log 1</div>
-                      <div class="mdc-chip" @click=${this.extraContentHandler("extra-content-2").bind(this)}>Log 2</div>
-                      <div class="mdc-chip" @click=${this.extraContentHandler("extra-content-3").bind(this)}>Screenshot</div>
-                    </div>
-                  </td>
-                </tr>
+          ${variants.map((variant) => html`
+            <div class="mdc-chip-set">
+              ${variant.def.sort().map((p) => html`
+                <div class="mdc-chip">
+                  <div class="mdc-chip__text variant-pair">${p}</div>
+                </div>
               `)}
-            </tbody>
-          </table>
+            </div>
+            <table class="runs">
+              <thead>
+                <tr>
+                  <th>status</th>
+                  <th>summary</th>
+                  <th>logs & artifacts</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${variant.runs.map((run) => html`
+                  <tr>
+                    <td>${run.status}</td>
+                    <td class="variants-end"><pre style="font: monospace">Assertion failed: 1 != 2</pre></td>
+                    <td>
+                      <div class="mdc-chip-set">
+                        <div class="mdc-chip" @click=${this.extraContentHandler("extra-content-1").bind(this)}>Log 1</div>
+                        <div class="mdc-chip" @click=${this.extraContentHandler("extra-content-2").bind(this)}>Log 2</div>
+                        <div class="mdc-chip" @click=${this.extraContentHandler("extra-content-3").bind(this)}>Screenshot</div>
+                      </div>
+                    </td>
+                  </tr>
+                `)}
+              </tbody>
+            </table>
+          `)}
 
           <div id="extra-content-container">
             <div class="extra-content" id="extra-content-1">
@@ -242,30 +227,6 @@ class TestView extends LitElement {
   async onClick(event) {
     this.expanded = !this.expanded;
   }
-
-  async _maybeLoadTestRuns() {
-    if (this.runPromise) {
-      return;
-    }
-
-    this.runPromise = this._loadTestRuns();
-    this.runs = await this.runPromise;
-    this.loaded = true;
-    this.requestUpdate();
-  }
-
-  async _loadTestRuns() {
-    const res = await fetch("/rpc/test-runs", {
-      method: 'POST',
-      body: JSON.stringify({
-        InvocationId: this.invocationId,
-        TestName: this.test.testName,
-      })
-    });
-    const resBody = await res.json();
-    return resBody.runs;
-  }
-
 }
 
 customElements.define('test-view', TestView);
@@ -290,41 +251,27 @@ export class CQAttempt extends LitElement {
     const predicate = { variants: Array.from(variantPredicate) };
 
     const variantPairs = new Set();
-    const testMap = {};
+    const tests = {};
     if (this.cqAttempt) {
       // Collect unique variant pairs.
-      for (const tv of this.cqAttempt.interestingTestVariants || []) {
-        for (const pair of tv.variantDef) {
-          variantPairs.add(pair);
-        }
-      }
-
-      for (const tv of this.cqAttempt.interestingTestVariants || []) {
-        const match = tv.variantDef.some((p) => variantPredicate.has(p));
-        if (match) {
-          let test = testMap[tv.testName];
-          if (!test) {
-            test = {
-              testName: tv.testName,
-              variants: {},
-            };
-            testMap[tv.testName] = test;
+      for (const testName in this.cqAttempt.tests) {
+        const test = this.cqAttempt.tests[testName];
+        let match = false;
+        for (const variant of Object.values(test.variants)) {
+          for (const pair of variant.def) {
+            variantPairs.add(pair);
+            match = match || variantPredicate.has(pair);
           }
-
-          test.variants[tv.variantHash] = tv;
+        }
+        if (match) {
+          tests[testName] = test;
         }
       }
     }
-    const tests = Object.keys(testMap).sort().map((testName) => testMap[testName]);
 
     return html`
       <link href="/node_modules/material-components-web/dist/material-components-web.min.css"  rel="stylesheet">
       <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-
-      <p>
-        ${this.totalTestRuns} test runs of ${this.totalTestVariants} variants of
-        ${this.totalTests} tests.
-      </p>
 
       <style>
         :host {
@@ -428,9 +375,9 @@ export class CQAttempt extends LitElement {
 
       <div>
         <h3>Stats<h3>
-        <div>Tests: ${this.cqAttempt.totalTests}</div>
-        <div>Test variants: ${this.cqAttempt.totalVariants}</div>
-        <div>Test runs: ${this.cqAttempt.totalTestRuns}</div>
+        <div>Tests: ${this.stats ? this.stats.totalTests : "counting..."}</div>
+        <div>Test variants: ${this.stats ? this.stats.totalVariants : "counting..."}</div>
+        <div>Test runs: ${this.stats ? this.stats.totalTestRuns : "counting..."}</div>
       </div>
 
       <div id="variant-filter-container">
@@ -458,10 +405,10 @@ export class CQAttempt extends LitElement {
       </div>
 
       <div>
-        ${tests.map(test => html`
+        ${Object.keys(tests).sort().map(testName => html`
           <test-view
             invocationid="${this.cqAttempt.invocationId}"
-            test="${JSON.stringify(test)}"
+            test="${JSON.stringify({testName, test: tests[testName]})}"
             predicate="${JSON.stringify(predicate)}"
           ></test-view>
         `)}
@@ -508,6 +455,25 @@ export class CQAttempt extends LitElement {
     [].map.call(this.shadowRoot.querySelectorAll(selector), (el) => new MDCRipple(el));
 
     this._variantFilterChipSet = new MDCChipSet(this.shadowRoot.getElementById("variant-filter"));
+    this.requestUpdate();
+  }
+
+  async updated() {
+    if (!this.cqAttempt || (this.statsRequest && this.statsRequest.invocationId == this.cqAttempt.invocationId)) {
+      return;
+    }
+    this.statsRequest = {
+      invocationId: this.cqAttempt.invocationId,
+      promise: fetch('/rpc/stats', {
+        method: 'POST',
+        body: JSON.stringify({
+          invocationId: this.cqAttempt.invocationId,
+        })
+      })
+    };
+
+    const res = await this.statsRequest.promise;
+    this.stats = await res.json();
     this.requestUpdate();
   }
 }
