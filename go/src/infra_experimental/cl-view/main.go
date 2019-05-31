@@ -187,8 +187,6 @@ type InterestingTestVariant struct {
 	TestName    string   `json:"testName"`
 	VariantHash string   `json:"variantHash"`
 	VariantDef  []string `json:"variantDef"`
-	Successes   int64    `json:"successes"`
-	Failures    int64    `json:"failures"`
 }
 
 type Exoneration struct {
@@ -199,6 +197,7 @@ type Exoneration struct {
 
 func (*ChangeHandler) loadChangeInfo(ctx context.Context, txn *spanner.ReadOnlyTransaction, tag string) (*ChangeInfo, error) {
 	ret := &ChangeInfo{}
+
 	err := txn.Query(ctx, spanner.Statement{
 		SQL: `
 			SELECT DISTINCT InvocationId
@@ -227,7 +226,9 @@ func (*ChangeHandler) loadChangeInfo(ctx context.Context, txn *spanner.ReadOnlyT
 		return nil, err
 	}
 
-	logging.Infof(ctx, "Found %d CQ Attempts", len(ret.CQAttempts))
+	for _, a := range ret.CQAttempts {
+		logging.Infof(ctx, "Attempt: %s", a.InvocationId)
+	}
 	if len(ret.CQAttempts) == 0 {
 		return ret, nil
 	}
@@ -258,20 +259,34 @@ func (*ChangeHandler) loadChangeInfo(ctx context.Context, txn *spanner.ReadOnlyT
 		work <- func() error {
 			return txn.Query(ctx, spanner.Statement{
 				SQL: `
-					SELECT
-						tr.TestName,
-						tr.VariantHash,
-						ANY_VALUE(tr.VariantDef) VariantDef,
-						COUNTIF(Status = 1) successes,
-						COUNTIF(Status IN (2, 3, 4)) failures
-					FROM Inclusions incl
-					JOIN InterestingTests it ON incl.IncludedInvocationId = it.InvocationId
-					JOIN TestRuns tr ON it.InvocationId = tr.InvocationId AND it.TestName = tr.TestName
-					WHERE incl.InvocationId = @AttemptInvocationID
-					--TODO: remove without patch
-					AND RunID NOT LIKE '%without patch%'
-					GROUP BY tr.TestName, tr.VariantHash
-				`,
+					SELECT tr.TestName, tr.VariantHash, tr.VariantDef
+					FROM (
+						SELECT DISTINCT TestName
+						FROM (
+							SELECT itv.InvocationId, itv.TestName, itv.VariantHash
+							FROM Inclusions incl
+							JOIN InterestingTestVariants itv ON itv.InvocationId = incl.IncludedInvocationId
+														JOIN TestRuns tr ON tr.InvocationId = itv.InvocationId AND tr.TestName = itv.TestName AND tr.VariantHash = itv.VariantHash
+							WHERE incl.InvocationId = @AttemptInvocationID
+														GROUP BY itv.InvocationId, itv.TestName, itv.VariantHash
+														HAVING NOT LOGICAL_OR(Status = 1)
+
+							EXCEPT DISTINCT
+
+							SELECT ex.InvocationId, ex.TestName, ex.VariantHash
+							FROM Inclusions incl
+							JOIN Exonerations ex ON ex.InvocationId = incl.IncludedInvocationId
+							WHERE incl.InvocationId = @AttemptInvocationID
+						)
+					) interesting
+					JOIN@{FORCE_JOIN_ORDER=TRUE} (
+						SELECT TestName, VariantHash, ANY_VALUE(VariantDef) VariantDef
+						FROM Inclusions incl
+						JOIN TestRuns tr ON tr.InvocationId = incl.IncludedInvocationId
+						WHERE incl.InvocationId = @AttemptInvocationID
+						GROUP BY TestName, VariantHash
+					) tr ON tr.TestName = interesting.TestName
+			`,
 				Params: map[string]interface{}{
 					"AttemptInvocationID": latest.InvocationId,
 				},

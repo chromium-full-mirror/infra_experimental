@@ -102,10 +102,6 @@ class TestView extends LitElement {
         table.runs ul {
           margin: 0;
         }
-        .failures-card {
-          margin: 10px;
-          padding: 10px;
-        }
 
         .test-container {
           margin: 5px;
@@ -153,17 +149,15 @@ class TestView extends LitElement {
         }
       </style>
 
-      <div class="mdc-card ${this.loaded ? "loaded" : ""} ${this.expanded ? "expanded" : ""}">
-        <div class="mdc-card__primary-action test-container" tabindex="0" @click=${this.onClick.bind(this)}>
-          <div class="mdc-layout-grid title-grid">
-            <div class="mdc-layout-grid__inner">
-              <div class="mdc-layout-grid__cell mdc-layout-grid__cell--span-11 test-name">
-                <test-name testName="${this.test.testName}"></test-name>
-              </div>
-              <div class="mdc-layout-grid__cell mdc-layout-grid__cell--span-1 align-right">
-                <i class="expand-more material-icons" aria-hidden="true">expand_more</i>
-                <i class="expand-less material-icons" aria-hidden="true">expand_less</i>
-              </div>
+      <div class="${this.loaded ? "loaded" : ""} ${this.expanded ? "expanded" : ""}">
+        <div class="test-container mdc-layout-grid title-grid" @click=${this.onClick.bind(this)}>
+          <div class="mdc-layout-grid__inner">
+            <div class="mdc-layout-grid__cell mdc-layout-grid__cell--span-11 test-name">
+              <test-name testName="${this.test.testName}"></test-name>
+            </div>
+            <div class="mdc-layout-grid__cell mdc-layout-grid__cell--span-1 align-right">
+              <i class="expand-more material-icons" aria-hidden="true">expand_more</i>
+              <i class="expand-less material-icons" aria-hidden="true">expand_less</i>
             </div>
           </div>
         </div>
@@ -385,10 +379,6 @@ export class CQAttempt extends LitElement {
         table.runs ul {
           margin: 0;
         }
-        .failures-card {
-          margin: 10px;
-          padding: 10px;
-        }
 
         .test-container {
           margin: 5px;
@@ -436,47 +426,45 @@ export class CQAttempt extends LitElement {
         }
       </style>
 
-      <div class="mdc-card mdc-card--outlined failures-card">
-        <div>
-          <h3>Stats<h3>
-          <div>Tests: ${this.cqAttempt.totalTests}</div>
-          <div>Test variants: ${this.cqAttempt.totalVariants}</div>
-          <div>Test runs: ${this.cqAttempt.totalTestRuns}</div>
-        </div>
+      <div>
+        <h3>Stats<h3>
+        <div>Tests: ${this.cqAttempt.totalTests}</div>
+        <div>Test variants: ${this.cqAttempt.totalVariants}</div>
+        <div>Test runs: ${this.cqAttempt.totalTestRuns}</div>
+      </div>
 
-        <div id="variant-filter-container">
-          Variant filter:
-          <div id="variant-filter" class="mdc-chip-set mdc-chip-set--filter" @MDCChip:selection=${this.variantPairSelected.bind(this)}>
-            ${Array.from(variantPairs).sort().map((p) => html`
-              <div class="mdc-chip mdc-chip--selected" data-variant-pair=${p}>
-                <div class="mdc-chip__checkmark">
-                  <svg class="mdc-chip__checkmark-svg" viewBox="-2 -3 30 30">
-                    <path class="mdc-chip__checkmark-path" fill="none" stroke="black"
-                          d="M1.73,12.91 8.1,19.28 22.79,4.59"/>
-                  </svg>
-                </div>
-                <div class="mdc-chip__text variant-pair">${p}</div>
+      <div id="variant-filter-container">
+        Variant filter:
+        <div id="variant-filter" class="mdc-chip-set mdc-chip-set--filter" @MDCChip:selection=${this.variantPairSelected.bind(this)}>
+          ${Array.from(variantPairs).sort().map((p) => html`
+            <div class="mdc-chip mdc-chip--selected" data-variant-pair=${p}>
+              <div class="mdc-chip__checkmark">
+                <svg class="mdc-chip__checkmark-svg" viewBox="-2 -3 30 30">
+                  <path class="mdc-chip__checkmark-path" fill="none" stroke="black"
+                        d="M1.73,12.91 8.1,19.28 22.79,4.59"/>
+                </svg>
               </div>
-            `)}
-          </div>
-          <button class="mdc-button" @click=${this.toggleVariantFilterHandler(true)}>all</a>
-          <button class="mdc-button" @click=${this.toggleVariantFilterHandler(false)}>none</a>
-        </div>
-
-        <div>
-          <button class="mdc-button" @click=${this.toggleAllTests(true).bind(this)}>EXPAND ALL</button>
-          <button class="mdc-button" @click=${this.toggleAllTests(false).bind(this)}>COLLAPSE ALL</button>
-        </div>
-
-        <div>
-          ${tests.map(test => html`
-            <test-view
-              invocationid="${this.cqAttempt.invocationId}"
-              test="${JSON.stringify(test)}"
-              predicate="${JSON.stringify(predicate)}"
-            ></test-view>
+              <div class="mdc-chip__text variant-pair">${p}</div>
+            </div>
           `)}
         </div>
+        <button class="mdc-button" @click=${this.toggleVariantFilterHandler(true)}>all</a>
+        <button class="mdc-button" @click=${this.toggleVariantFilterHandler(false)}>none</a>
+      </div>
+
+      <div>
+        <button class="mdc-button" @click=${this.toggleAllTests(true).bind(this)}>EXPAND ALL</button>
+        <button class="mdc-button" @click=${this.toggleAllTests(false).bind(this)}>COLLAPSE ALL</button>
+      </div>
+
+      <div>
+        ${tests.map(test => html`
+          <test-view
+            invocationid="${this.cqAttempt.invocationId}"
+            test="${JSON.stringify(test)}"
+            predicate="${JSON.stringify(predicate)}"
+          ></test-view>
+        `)}
       </div>
     `;
   }

@@ -298,97 +298,6 @@ export class CLPage extends LitElement {
               ></cq-attempt>
             `)}
           `}
-
-          <div class="mdc-card mdc-card--outlined failures-card">
-            <h3>
-              <i class="material-icons" aria-hidden="true">error</i>
-              Failures
-            </h3>
-            <h4 class="demo-card__subtitle mdc-typography mdc-typography--subtitle2">Tests failed because of this CL</h4>
-
-            <div id="variant-filter-container">
-              Variant filter:
-              <div id="variant-filter" class="mdc-chip-set mdc-chip-set--filter" @MDCChip:selection=${this.variantPairSelected.bind(this)}>
-              ${Array.from(this.failedVariantPairs()).sort().map((p) => html`
-                <div class="mdc-chip mdc-chip--selected" data-variant-pair=${p}>
-                  <div class="mdc-chip__checkmark">
-                    <svg class="mdc-chip__checkmark-svg" viewBox="-2 -3 30 30">
-                      <path class="mdc-chip__checkmark-path" fill="none" stroke="black"
-                            d="M1.73,12.91 8.1,19.28 22.79,4.59"/>
-                    </svg>
-                  </div>
-                  <div class="mdc-chip__text variant-pair">${p}</div>
-                </div>
-              `)}
-              </div>
-              <button class="mdc-button" @click=${this.toggleVariantFilterHandler(true)}>all</a>
-              <button class="mdc-button" @click=${this.toggleVariantFilterHandler(false)}>none</a>
-            </div>
-
-            <div>
-              <button class="mdc-button" @click=${this.toggleAllTestsHandler(true)}>EXPAND ALL</button>
-              <button class="mdc-button" @click=${this.toggleAllTestsHandler(false)}>COLLAPSE ALL</button>
-            </div>
-
-            <div>
-              ${this.failures.filter((f) => f.visible).map(test => html`
-                <div class="mdc-card test">
-                  <div class="mdc-card__primary-action test-name-container" tabindex="0" @click=${this.onTestClick}>
-                    <div class="mdc-layout-grid title-grid">
-                      <div class="mdc-layout-grid__inner">
-                        <div class="mdc-layout-grid__cell mdc-layout-grid__cell--span-11">
-                          <h5><test-name testName="${test.testName}"></test-name></h5>
-                        </div>
-                        <div class="mdc-layout-grid__cell mdc-layout-grid__cell--span-1 align-right">
-                          <i class="expand-more material-icons" aria-hidden="true">expand_more</i>
-                          <i class="expand-less material-icons" aria-hidden="true">expand_less</i>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="mdc-card__actions test-body">
-
-                    <table class="runs">
-                      <thead>
-                        <tr>
-                          <th class="variant-column">variant</th>
-                          <th class="variants-end">summary</th>
-                          <th>logs & artifacts</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        ${test.runs.filter((r) => r.visible).sort(this.compareByVariant.bind(this)).map(tr => html`
-                          <tr>
-                            <td>
-                              <div class="mdc-chip-set">
-                                ${Object.keys(tr.variant.def).sort().map((k) => html`
-                                  <div class="mdc-chip">
-                                    <div class="mdc-chip__text variant-pair">${k}:${tr.variant.def[k]}</div>
-                                  </div>
-                                `)}
-                              </div>
-                            </td>
-                            <td class="variants-end"><pre style="font: monospace">${tr.summary}</pre></td>
-                            <td>
-                              <div class="mdc-chip-set">
-                              ${tr.logs.sort().map((log) => html`
-                                <div class="mdc-chip" @click=${this.extraContentHandler(log.contentId)}>
-                                  ${log.name}
-                                </div>
-                              `)}
-                              </div>
-                            </td>
-                          </tr>
-                        `)}
-                      </tbody>
-                    </table>
-
-                  </div>
-                </div>
-              `)}
-            </div>
-          </div>
         </div>
         <div id="extra-content-container">
           <a href="#" @click=${this.hideExtraContent}>Close</a>
@@ -567,8 +476,6 @@ export class CLPage extends LitElement {
     //   el.mdc = new MDCChipSet(el);
     //   el.addEventListener('selection', () => {debugger;})
     // }
-
-    this._variantFilterChipSet = new MDCChipSet(this.shadowRoot.getElementById("variant-filter"));
 
     const cqAttemptTabBarEl = this.shadowRoot.getElementById('cq-attempt-tab-bar');
     if (cqAttemptTabBarEl) {
