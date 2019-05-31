@@ -127,6 +127,15 @@ func (h *ChangeHandler) HandleChange(ctx *router.Context) {
 	tag := fmt.Sprintf("cq-attempt/gerrit-patch/%s/%s/%s", ctx.Params.ByName("host"), ctx.Params.ByName("change"), ctx.Params.ByName("patch"))
 	logging.Infof(ctx.Context, "using invocation tag %q, full is %q", tag, hashed(tag))
 
+	info := &ChangeInfo{}
+
+	var err error
+	info.ChangeNumber, err = strconv.Atoi(ctx.Params.ByName("change"))
+	if err != nil {
+		http.Error(ctx.Writer, "invalid change number", http.StatusBadRequest)
+		return
+	}
+
 	spn, err := h.spannerClient(ctx.Context)
 	if err != nil {
 		panic(err)
@@ -136,7 +145,7 @@ func (h *ChangeHandler) HandleChange(ctx *router.Context) {
 	txn := spn.ReadOnlyTransaction()
 	defer txn.Close()
 
-	info, err := h.loadChangeInfo(ctx.Context, txn, tag)
+	info.CQAttempts, err = h.loadCQAttempts(ctx.Context, txn, tag)
 	if err != nil {
 		http.Error(ctx.Writer, err.Error(), http.StatusInternalServerError)
 		return
@@ -157,7 +166,8 @@ func (h *ChangeHandler) HandleChange(ctx *router.Context) {
 }
 
 type ChangeInfo struct {
-	CQAttempts []*CQAttempt `json:"cqAttempts"`
+	ChangeNumber int          `json:"changeNumber"`
+	CQAttempts   []*CQAttempt `json:"cqAttempts"`
 }
 
 type CQAttempt struct {
@@ -206,9 +216,8 @@ type Exoneration struct {
 	ExplanationMarkdown string `json:"explanationMarkdown"`
 }
 
-func (*ChangeHandler) loadChangeInfo(ctx context.Context, txn *spanner.ReadOnlyTransaction, tag string) (*ChangeInfo, error) {
-	ret := &ChangeInfo{}
-
+func (*ChangeHandler) loadCQAttempts(ctx context.Context, txn *spanner.ReadOnlyTransaction, tag string) ([]*CQAttempt, error) {
+	var attempts []*CQAttempt
 	err := txn.Query(ctx, spanner.Statement{
 		SQL: `
 			SELECT DISTINCT InvocationId
@@ -230,21 +239,19 @@ func (*ChangeHandler) loadChangeInfo(ctx context.Context, txn *spanner.ReadOnlyT
 		}
 		attempt.Started = time.Unix(ts/1000, 0)
 
-		ret.CQAttempts = append(ret.CQAttempts, attempt)
+		attempts = append(attempts, attempt)
+		logging.Infof(ctx, "Attempt: %s", attempt.InvocationId)
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	for _, a := range ret.CQAttempts {
-		logging.Infof(ctx, "Attempt: %s", a.InvocationId)
-	}
-	if len(ret.CQAttempts) == 0 {
-		return ret, nil
+	if len(attempts) == 0 {
+		return attempts, nil
 	}
 
-	latest := ret.CQAttempts[len(ret.CQAttempts)-1]
+	latest := attempts[len(attempts)-1]
 	latest.Tests = map[string]*Test{}
 	start := time.Now()
 	err = parallel.FanOutIn(func(work chan<- func() error) {
@@ -378,7 +385,7 @@ func (*ChangeHandler) loadChangeInfo(ctx context.Context, txn *spanner.ReadOnlyT
 		return nil, err
 	}
 	logging.Infof(ctx, "took %s", time.Now().Sub(start))
-	return ret, nil
+	return attempts, nil
 }
 
 func hashed(s string) string {

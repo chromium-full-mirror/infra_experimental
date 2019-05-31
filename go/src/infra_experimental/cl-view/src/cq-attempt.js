@@ -82,26 +82,6 @@ class TestView extends LitElement {
         .variant-chip-set {
           display: inline;
         }
-        table.runs {
-          width: 100%;
-          display: table;
-          border-collapse: collapse;
-          border-spacing: 0;
-          border: none;
-        }
-        table.runs tr:not(:last-child) {
-          border-bottom: 1px solid rgba(0, 0, 0, 0.12);
-        }
-        table.runs th, table.runs td {
-          border: none;
-          display: table-cell;
-          text-align: left;
-          vertical-align: middle;
-          border-radius: 2px;
-        }
-        table.runs ul {
-          margin: 0;
-        }
 
         .test-header {
           cursor: pointer;
@@ -148,10 +128,8 @@ class TestView extends LitElement {
           align-items: center;
         }
         .variant-container {
-          border: solid 1px lightgrey;
-          border-radius: 10px;
           margin-bottom: 2px;
-          padding: 5px 10px;
+          padding: 10px;
         }
         .separator:not(:last-child) {
           border-bottom: solid 1px lightgrey;
@@ -227,15 +205,18 @@ class TestView extends LitElement {
                       <div class="mdc-layout-grid__cell">${run.status}</div>
                       <div class="mdc-layout-grid__cell">Assertion failed</div>
                       <div class="mdc-layout-grid__cell log-container">
-                        <div class="log-button" @click=${this.extraContentHandler(`extra-content-container-${i}`, "1").bind(this)}>Log 1</div>
-                        <div class="log-button" @click=${this.extraContentHandler(`extra-content-container-${i}`, "2").bind(this)}>Log 2</div>
+                        <div class="log-button" @click=${this.extraContentHandler(`extra-content-container-${i}`, "1").bind(this)}>Stack trace</div>
                         <div class="log-button" @click=${this.extraContentHandler(`extra-content-container-${i}`, "3").bind(this)}>Screenshot</div>
                       </div>
                     </div>
                     <div id="extra-content-container-${i}" class="mdc-layout-grid__inner extra-content-container">
                       <div class="mdc-layout-grid__cell">
                         <div class="extra-content" data-content-id="1">
-                          <textarea readonly>Stack trace goes here....</textarea>
+                          <textarea readonly>  RELADDR   FUNCTION                                                                   FILE:LINE
+  0141952d  testing::internal::UnitTestImpl::CurrentOsStackTraceExceptTop(int)         ??:0:0
+  0141928f  testing::internal::AssertHelper::operator=(testing::Message const&) const  ??:0:0
+  01224909  net::URLRequestTestHTTP_RedirectWithFilteredCookies_Test::TestBody()       ??:0:0
+</textarea>
                         </div>
                         <div class="extra-content" data-content-id="2">
                         <textarea readonly>Another log....</textarea>
@@ -372,9 +353,8 @@ export class CQAttempt extends LitElement {
         .loaded .loading-progress {
           display: none;
         }
-        .test-view-container {
-          border: solid 1px lightgrey;
-          border-radius: 10px;
+        .test-view-container:not(:last-child) {
+          border-bottom: solid 1px lightgrey;
           margin-bottom: 2px;
         }
       </style>
