@@ -1,0 +1,20 @@
+consoles {
+  id: "main"
+  name: "%(project)s Main Console"
+  repo_url: "https://%(project)s.googlesource.com/%(project)s"
+  refs: "refs/heads/master"
+  manifest_name: "REVISION"
+
+%(ci_builders)s
+}
+
+consoles {
+  id: "try"
+  name: "%(project)s Try Builders"
+  repo_url: "https://%(project)s.googlesource.com/%(project)s"
+  refs: "refs/heads/master"
+  manifest_name: "REVISION"
+  builder_view_only: true
+
+%(try_builders)s
+}

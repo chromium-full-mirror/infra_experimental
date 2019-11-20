@@ -1,0 +1,15 @@
+{
+  "name": "sheriff",
+  "version": "1.0.0",
+  "description": "slack integration for sheriffing",
+  "main": "index.js",
+  "scripts": {
+    "deploy-sheriff": "gcloud functions deploy update_sheriff --runtime nodejs10 --entry-point updateSheriff --set-env-vars SLACK_TOKEN=${SLACK_TOKEN} --trigger-http"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@slack/web-api": "^5.1.0",
+    "node-fetch": "^2.6.0"
+  }
+}
