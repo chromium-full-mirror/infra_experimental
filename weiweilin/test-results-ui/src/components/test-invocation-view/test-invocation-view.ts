@@ -269,7 +269,7 @@ export class TestInvocationView extends MobxLitElement {
             <span style="font-size: 32px; vertical-align: middle;">LUCI Test Results</span>
         </div>
         <div id="test-invocation-summary">
-            <span>Invocation: ${invocation.name.slice('invocations/'.length)}</span>
+            <span>${invocation.name.slice('invocations/'.length)}</span>
             <span class="badge unexpected">${this.resultStats.unexpected} Unexpected</span>
             <span class="badge exonerated">${this.resultStats.exonerated} Exonerated</span>
             <span class="badge expected">${this.resultStats.expected} Expected</span>
