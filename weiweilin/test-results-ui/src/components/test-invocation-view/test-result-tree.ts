@@ -55,10 +55,6 @@ export class TestResultTree extends MobxLitElement {
                 `
             }
 
-            if (this.branchName.length + branchExt.length + subbranch.length > 40 - this.depth * 2) {
-                break;
-            }
-
             branchExt += subbranch;
             entries = Object.entries(groupBy(this.testResults, (testResult) => {
                 const key = /^([a-zA-Z0-9_-])*?([^a-zA-Z0-9_-]|$)/.exec(testResult.testId.slice(this.pathName.length + branchExt.length))![0];
@@ -151,6 +147,11 @@ export class TestResultTree extends MobxLitElement {
         grid-column: 2;
         font-size: 16px;
         line-height: 24px;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+    }
+    #bar {
         overflow: hidden;
         white-space: nowrap;
         text-overflow: ellipsis;

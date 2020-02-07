@@ -42,16 +42,7 @@ class TestResultsReq {
 
     @computed
     public get testResults() {
-        return this._testResults.map((tr, i) => {
-            if (i < 15) {
-                return tr;
-            } else {
-                return {
-                    ...tr,
-                    testId: 'gpu_tests.pixel_integration_test.PixelIntegrationRegression.' + tr.testId.slice('gpu_tests.pixel_integration_test.PixelIntegrationTest.'.length),
-                }
-            }
-        })
+        return this._testResults;
     }
 
     @observable.ref
@@ -64,15 +55,15 @@ class TestResultsReq {
             'QueryTestResults',
             {
                 invocations: [this.invocationName],
-                predicate: {
-                    expectancy: 1,
-                },
-                pageSize: 20,
             },
         ).then((res: any) => {
             const results = res.testResults as TestResult[];
             this._testResults = this._testResults.concat(results);
             this.pageToken = res.nextPageToken;
+
+            if (this.pageToken) {
+                this.loadNext();
+            }
         });
     }
 
@@ -80,6 +71,7 @@ class TestResultsReq {
         if (!this.pageToken) {
             return;
         }
+        console.log("started loading", Date.now());
         const pageToken = this.pageToken;
         this.pageToken = null;
 
@@ -99,6 +91,10 @@ class TestResultsReq {
         const results = res.testResults as TestResult[];
         this.pageToken = res.nextPageToken || null;
         this._testResults = this._testResults.concat(results);
+        console.log("finished loading", Date.now());
+        if (this.pageToken) {
+            this.loadNext();
+        }
         return results;
     }
 }

@@ -10,15 +10,6 @@ import { observable, computed } from "mobx";
 import { repeat } from "lit-html/directives/repeat";
 import { styleMap } from "lit-html/directives/style-map";
 
-const STATUS_CLASS_MAP = {
-    [TestStatus.Unspecified]: 'unspecified',
-    [TestStatus.Pass]: 'pass',
-    [TestStatus.Fail]: 'fail',
-    [TestStatus.Skip]: 'skip',
-    [TestStatus.Crash]: 'crash',
-    [TestStatus.Abort]: 'abort',
-};
-
 const STATUS_DISPLAY_MAP = {
     [TestStatus.Unspecified]: 'unspecified',
     [TestStatus.Pass]: 'passed',
@@ -107,10 +98,8 @@ export class ResultEntry extends MobxLitElement {
                 <mwc-icon class="expand-toggle">${this.expanded ? 'expand_more' : 'chevron_right'}</mwc-icon>
                 <span class="one-line-content">
                     #${this.testResult!.resultId}
-                    ${this.testResult!.expected ? html`<span style="color: rgb(51, 172, 113);">expectedly</span>` : html`<span style="color: rgb(210, 63, 49);">unexpectedly</span>`}
-                    <span id="status" class=${STATUS_CLASS_MAP[this.testResult!.status]}>
-                        ${STATUS_DISPLAY_MAP[this.testResult!.status]}
-                    </span> after ${this.testResult!.duration || '-s'}
+                    ${this.testResult!.expected ? '' : html`<span style="color: rgb(210, 63, 49);">unexpectedly</span>`}
+                    ${STATUS_DISPLAY_MAP[this.testResult!.status]} after ${this.testResult!.duration || '-s'}
                 </span>
             </div>
             <div id="body">
