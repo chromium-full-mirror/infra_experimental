@@ -1,6 +1,6 @@
 import { customElement, html, css } from "lit-element";
 import { MobxLitElement } from "@adobe/lit-mobx";
-import { Artifact } from "../../../models/resultdb";
+import { Artifact } from "../../models/resultdb";
 import '@material/mwc-icon'
 import { observable } from "mobx";
 

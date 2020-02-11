@@ -1,6 +1,6 @@
 import { customElement, property, html, css } from "lit-element";
 import { MobxLitElement } from "@adobe/lit-mobx";
-import { TestResult, TestStatus } from '../../../models/resultdb';
+import { TestResult, TestStatus } from '../../models/resultdb';
 import { classMap } from "lit-html/directives/class-map";
 import "@material/mwc-icon";
 

@@ -1,7 +1,7 @@
 import { MobxLitElement } from "@adobe/lit-mobx";
 import { customElement, css, property } from "lit-element";
 import { html } from "lit-html";
-import { TestResult, TestExoneration } from '../../models/resultdb';
+import { TestResult, TestExoneration } from '../models/resultdb';
 import '@material/mwc-checkbox';
 import '@material/mwc-formfield';
 import { observable, computed } from "mobx";

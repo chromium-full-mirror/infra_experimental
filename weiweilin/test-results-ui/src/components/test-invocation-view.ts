@@ -8,13 +8,13 @@ import '@material/mwc-icon-button';
 import '@material/mwc-button';
 import * as _ from 'lodash';
 
-import { TestResult, Invocation, TestExoneration, InvocationState } from '../../models/resultdb';
+import { TestResult, Invocation, TestExoneration, InvocationState } from '../models/resultdb';
 import { TestResultFilter } from './test-result-filters';
-import { store } from '../../store';
+import { store } from '../store';
 import './test-invocation-details';
 import './test-result-filters';
 import './test-entry';
-import '../../lib/components/paginator';
+import '../lib/components/paginator';
 import './test-result-tree';
 import moment from 'moment';
 
@@ -307,7 +307,7 @@ export class TestInvocationView extends MobxLitElement {
                     ></tr-test-entry>
                     `)}
                     <div>
-                        <span>Showing ${this.filteredTestResults.length}/${this.filteredTestResults.length + 10} test results.</span>
+                        <span>Showing ${this.filteredTestResults.length}/${this.filteredTestResults.length} test results.</span>
                         <span
                             id="load-more"
                             class=${classMap({hidden: !this.testResultsReq?.pageToken})}

@@ -2,7 +2,7 @@ import { customElement, html, css } from "lit-element";
 import { MobxLitElement } from "@adobe/lit-mobx";
 import { observable, computed } from "mobx";
 import { groupBy } from 'lodash';
-import { TestResult } from "../../models/resultdb";
+import { TestResult } from "../models/resultdb";
 import { repeat } from "lit-html/directives/repeat";
 import '@material/mwc-icon';
 import { classMap } from "lit-html/directives/class-map";

@@ -2,7 +2,7 @@ import { customElement, css } from "lit-element";
 import { MobxLitElement } from "@adobe/lit-mobx";
 import { html } from "lit-html";
 import moment from 'moment';
-import { Invocation, InvocationState } from "../../models/resultdb";
+import { Invocation } from "../models/resultdb";
 import { classMap } from "lit-html/directives/class-map";
 import { observable } from "mobx";
 
