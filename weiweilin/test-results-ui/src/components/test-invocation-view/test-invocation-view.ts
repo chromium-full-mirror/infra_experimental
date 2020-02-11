@@ -71,7 +71,6 @@ class TestResultsReq {
         if (!this.pageToken) {
             return;
         }
-        console.log("started loading", Date.now());
         const pageToken = this.pageToken;
         this.pageToken = null;
 
@@ -80,18 +79,13 @@ class TestResultsReq {
             'QueryTestResults',
             {
                 invocations: [this.invocationName],
-                predicate: {
-                    expectancy: 1,
-                },
                 pageToken,
-                pageSize: 20,
             },
         ) as QueryTestResultsRes;
         
         const results = res.testResults as TestResult[];
         this.pageToken = res.nextPageToken || null;
         this._testResults = this._testResults.concat(results);
-        console.log("finished loading", Date.now());
         if (this.pageToken) {
             this.loadNext();
         }

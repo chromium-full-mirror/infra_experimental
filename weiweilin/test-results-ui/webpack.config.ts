@@ -1,6 +1,5 @@
 import path from 'path';
 import webpack from 'webpack';
-var TypedCssPlugin = require('./plugins/typed-constructable-style-sheet-plugin');
 
 const config: webpack.Configuration = {
   mode: 'development',
@@ -15,7 +14,6 @@ const config: webpack.Configuration = {
         enforce: 'pre',
         test: /\.css$/,
         use: [
-          'constructable-style-sheet-loader',
           'to-string-loader',
           // "@teamsupercell/typings-for-css-modules-loader",
           {
@@ -40,7 +38,6 @@ const config: webpack.Configuration = {
     ]
   },
   plugins: [
-    new TypedCssPlugin({globPattern: '**/*.css'})
   ],
   devServer: {
     contentBase: path.join(__dirname, 'static'),
