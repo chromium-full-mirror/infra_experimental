@@ -20,7 +20,7 @@
     "lit-element": "^2.2.1",
     "lit-html": "^1.1.2",
     "lodash": "^4.17.15",
-    "mobx": "^5.15.1",
+    "mobx": "^5.15.4",
     "moment": "^2.24.0"
   },
   "devDependencies": {
@@ -28,20 +28,20 @@
     "@types/gapi": "0.0.39",
     "@types/gapi.auth2": "0.0.51",
     "@types/lodash": "^4.14.149",
-    "@types/node": "^12.12.24",
-    "@types/webpack": "^4.41.2",
-    "@types/webpack-dev-server": "^3.9.0",
-    "@types/webpack-env": "^1.15.0",
-    "css-loader": "^3.4.1",
+    "@types/node": "^12.12.26",
+    "@types/webpack": "^4.41.6",
+    "@types/webpack-dev-server": "^3.10.0",
+    "@types/webpack-env": "^1.15.1",
+    "css-loader": "^3.4.2",
     "loader-utils": "^1.2.3",
-    "style-loader": "^1.1.2",
+    "style-loader": "^1.1.3",
     "to-string-loader": "^1.1.6",
     "ts-loader": "^6.2.1",
-    "ts-node": "^8.6.0",
-    "typescript": "^3.7.4",
+    "ts-node": "^8.6.2",
+    "typescript": "^3.7.5",
     "webpack": "^4.41.5",
     "webpack-cli": "^3.3.10",
-    "webpack-dev-server": "^3.10.1"
+    "webpack-dev-server": "^3.10.3"
   },
   "scripts": {
     "start": "http-server static -a -p ${PORT:-8080}",
