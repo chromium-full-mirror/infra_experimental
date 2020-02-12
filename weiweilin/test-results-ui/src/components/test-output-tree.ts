@@ -73,7 +73,7 @@ export class TestOutputTreeElement extends MobxLitElement {
                         .depth=${this.depth + 1}
                         .branchName=${k}
                         .pathName=${this.pathName + branchExt + k}
-                        .testResults=${v}
+                        .tests=${v}
                     >
                     </tr-test-output-tree>
                     `)}
@@ -112,7 +112,7 @@ export class TestOutputTreeElement extends MobxLitElement {
                     .depth=${this.depth + 1}
                     .branchName=${k}
                     .pathName=${this.pathName + branchExt + k}
-                    .testResults=${v}
+                    .tests=${v}
                 >
                 </tr-test-output-tree>
                 `)}
