@@ -1,17 +1,18 @@
 import { MobxLitElement } from "@adobe/lit-mobx";
 import { customElement, css, property } from "lit-element";
 import { html } from "lit-html";
-import { TestResult, TestExoneration } from '../models/resultdb';
+import { TestResult, TestExoneration, TestStatus } from '../types/resultdb';
 import '@material/mwc-checkbox';
 import '@material/mwc-formfield';
 import { observable, computed } from "mobx";
 import { Checkbox } from "@material/mwc-checkbox";
+import { isTestResult, TestOutput, Test } from "../models/test-invocation";
 
-export type TestResultFilter = (testResult: TestResult) => boolean
+export type TestFilterMapFn = (test: Test) => Test | undefined;
 
-@customElement('tr-test-result-filters')
-export class TestResultFilters extends MobxLitElement {
-    public onFilterChange: (filter: TestResultFilter) => void = () => undefined;
+@customElement('tr-test-output-filters')
+export class TestOutputFilterElement extends MobxLitElement {
+    public onFilterChange: (filter: TestFilterMapFn) => void = () => undefined;
     @observable.ref
     public testResults: TestResult[] = [];
     @observable.ref
@@ -32,18 +33,28 @@ export class TestResultFilters extends MobxLitElement {
     @observable.ref
     private expectedTests = false;
     @observable.ref
-    private exoneratedTests = false;
+    private exonerations = false;
     @observable.ref
-    private siblingResults = true;
+    private siblingOutputs = true;
 
-    private filterResults = (testResult: TestResult) => {
-        if (this.unexpectedTests && !testResult.expected) {
-            return true;
+    private filterMapTests: TestFilterMapFn = (test: Test) => {
+        if (this.siblingOutputs) {
+            if (this.unexpectedTests && test.outputs.some((output) => isTestResult(output) && !output.expected)) {
+                return test;
+            }
+            if (this.expectedTests && test.outputs.some((output) => isTestResult(output) && output.expected)) {
+                return test;
+            }
+            if (this.exonerations && test.outputs.some((output) => !isTestResult(output))) {
+                return test;
+            }
+            return undefined;
         }
-        if (this.expectedTests && testResult.expected) {
-            return true;
-        }
-        return false;
+
+        return {
+            id: test.id,
+            outputs: test.outputs.filter((output) => isTestResult(output) ? this.unexpectedTests && !output.expected || this.expectedTests && output.expected : this.exonerations),
+        };
     }
 
     protected render() {
@@ -55,13 +66,6 @@ export class TestResultFilters extends MobxLitElement {
                 @change=${(v: MouseEvent) => this.unexpectedTests = (v.target as Checkbox).checked}
             ></mwc-checkbox>
         </mwc-formfield>
-        <mwc-formfield id="siblings" label=${`Siblings`}>
-            <mwc-checkbox
-                ?disabled=${!this.unexpectedTests}
-                ?checked=${this.siblingResults}
-                @change=${(v: MouseEvent) => this.siblingResults = (v.target as Checkbox).checked}
-            ></mwc-checkbox>
-        </mwc-formfield>
         <mwc-formfield id="expected" label=${`Expected (${this.resultStats.expected})`}>
             <mwc-checkbox
                 ?checked=${this.expectedTests}
@@ -70,8 +74,14 @@ export class TestResultFilters extends MobxLitElement {
         </mwc-formfield>
         <mwc-formfield id="exonerated" label=${`Exonerated (${this.resultStats.exonerated})`}>
             <mwc-checkbox
-                ?checked=${this.exoneratedTests}
-                @change=${(v: MouseEvent) => this.exoneratedTests = (v.target as Checkbox).checked}
+                ?checked=${this.exonerations}
+                @change=${(v: MouseEvent) => this.exonerations = (v.target as Checkbox).checked}
+            ></mwc-checkbox>
+        </mwc-formfield>
+        <mwc-formfield id="siblings" label=${`Siblings`}>
+            <mwc-checkbox
+                ?checked=${this.siblingOutputs}
+                @change=${(v: MouseEvent) => this.siblingOutputs = (v.target as Checkbox).checked}
             ></mwc-checkbox>
         </mwc-formfield>
         <span id="advanced">
@@ -85,15 +95,15 @@ export class TestResultFilters extends MobxLitElement {
     }
 
     protected firstUpdated() {
-        this.onFilterChange(this.filterResults);
+        this.onFilterChange(this.filterMapTests);
     }
 
     static styles = css`
         :host {
             display: grid;
             grid-template-areas:
-                "unexpected siblings"
-                "expected exonerated"
+                "unexpected expected"
+                "exonerated siblings"
                 "advanced advanced"
                 "search-box search-box";
             grid-template-rows: repeat(4);
@@ -126,14 +136,14 @@ export class TestResultFilters extends MobxLitElement {
         #unexpected {
             grid-area: unexpected;
         }
-        #siblings {
-            grid-area: siblings;
-        }
         #expected {
             grid-area: expected;
         }
         #exonerated {
             grid-area: exonerated;
+        }
+        #siblings {
+            grid-area: siblings;
         }
         #advanced {
             grid-area: advanced;

@@ -1,11 +1,11 @@
 import { customElement, property, html, css } from "lit-element";
 import { MobxLitElement } from "@adobe/lit-mobx";
-import { TestResult, TestStatus } from '../../models/resultdb';
+import { TestResult, TestStatus } from '../../types/resultdb';
 import { classMap } from "lit-html/directives/class-map";
 import { unsafeHTML } from "lit-html/directives/unsafe-html";
 import "@material/mwc-icon";
 
-import './artifact-view';
+import './artifact';
 import { observable, computed } from "mobx";
 import { repeat } from "lit-html/directives/repeat";
 import { styleMap } from "lit-html/directives/style-map";
@@ -20,7 +20,7 @@ const STATUS_DISPLAY_MAP = {
 };
 
 @customElement('tr-result-entry')
-export class ResultEntry extends MobxLitElement {
+export class ResultEntryElement extends MobxLitElement {
     @observable.ref
     public testResult?: TestResult;
 
@@ -58,9 +58,12 @@ export class ResultEntry extends MobxLitElement {
                 </span>
             </span>
         </div>
-        <ul class=${classMap({hidden: !this.variantExpanded})}>
-            ${variantKV.map(([k, v]) => html`<li>${k}: ${v}</li>`)}
-        </ul>
+        <div class=${classMap({'kv-table': true, hidden: !this.variantExpanded})}>
+        ${variantKV.map(([k, v]) => html`
+            <span class="key">${k}:</span>
+            <span class="value">${v}</span>
+        `)}
+        </div>
         `;
     }
 
@@ -81,9 +84,12 @@ export class ResultEntry extends MobxLitElement {
                     </span>
                 </span>
             </div>
-            <ul class=${classMap({hidden: !this.tagExpanded})}>
-                ${this.testResult!.tags.map((tag) => html`<li>${tag.key}: ${tag.value}</li>`)}
-            </ul>
+            <div class=${classMap({'kv-table': true, hidden: !this.tagExpanded})}>
+            ${this.testResult!.tags.map((tag) => html`
+                <span class="key">${tag.key}:</span>
+                <span class="value">${tag.value}</span>
+            `)}
+            </div>
         </div>
         `
     }
@@ -132,7 +138,7 @@ export class ResultEntry extends MobxLitElement {
                         </div>
                         <ul class=${classMap({hidden: !this.outputArtifactsExpanded})}>
                             ${this.testResult!.outputArtifacts?.map((artifact) => html`
-                            <li><tr-artifact-view .artifact=${artifact}></tr-artifact-view></li>
+                            <li><tr-artifact .artifact=${artifact}></tr-artifact></li>
                             `)}
                         </ul>
                     </div>
@@ -149,7 +155,7 @@ export class ResultEntry extends MobxLitElement {
                         </div>
                         <ul class=${classMap({hidden: !this.inputArtifactsExpanded})}>
                             ${this.testResult!.inputArtifacts?.map((artifact) => html`
-                            <li><tr-artifact-view .artifact=${artifact}></tr-artifact-view></li>
+                            <li><tr-artifact .artifact=${artifact}></tr-artifact></li>
                             `)}
                         </ul>
                     </div>
@@ -161,9 +167,17 @@ export class ResultEntry extends MobxLitElement {
 
     static styles = css`
     .hidden {
-        display: none;
+        display: none !important;
     }
 
+    .kv-table {
+        display: grid;
+        margin-left: 29px;
+        grid-template-columns: auto 1fr;
+    }
+    .kv-table>.value {
+        margin-left: 5px;
+    }
     .expandable-header {
         display: grid;
         grid-template-columns: 24px 1fr;

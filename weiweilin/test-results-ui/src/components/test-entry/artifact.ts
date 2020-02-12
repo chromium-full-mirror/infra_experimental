@@ -1,11 +1,11 @@
 import { customElement, html, css } from "lit-element";
 import { MobxLitElement } from "@adobe/lit-mobx";
-import { Artifact } from "../../models/resultdb";
+import { Artifact } from "../../types/resultdb";
 import '@material/mwc-icon'
 import { observable } from "mobx";
 
-@customElement('tr-artifact-view')
-export class ArtifactView extends MobxLitElement {
+@customElement('tr-artifact')
+export class ArtifactElement extends MobxLitElement {
     @observable.ref
     public artifact?: Artifact;
 

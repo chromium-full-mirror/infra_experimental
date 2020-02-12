@@ -5,7 +5,7 @@ import * as mdcMenuStyle from '@material/menu/dist/mdc.menu.css';
 import * as mdcMenuSurfaceStyle from '@material/menu-surface/dist/mdc.menu-surface.css';
 
 @customElement('tr-cl-menu')
-export class CLMenu extends LitElement {
+export class CLMenuElement extends LitElement {
     private menu?: MDCMenu;
 
     public open(e: MouseEvent) {

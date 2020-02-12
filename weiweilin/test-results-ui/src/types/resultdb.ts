@@ -65,3 +65,13 @@ export interface Tag {
     readonly key: string;
     readonly value: string;
 }
+
+export interface QueryTestResultsResponse {
+    readonly testResults: TestResult[];
+    readonly nextPageToken?: string;
+}
+
+export interface QueryTestExonerationsResponse {
+    readonly testExonerations: TestExoneration[];
+    readonly nextPageToken?: string;
+}

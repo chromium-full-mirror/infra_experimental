@@ -2,19 +2,20 @@ import { customElement, html, css } from "lit-element";
 import { MobxLitElement } from "@adobe/lit-mobx";
 import { observable, computed } from "mobx";
 import { groupBy } from 'lodash';
-import { TestResult } from "../models/resultdb";
+import { TestResult } from "../types/resultdb";
 import { repeat } from "lit-html/directives/repeat";
 import '@material/mwc-icon';
 import { classMap } from "lit-html/directives/class-map";
 import { styleMap } from "lit-html/directives/style-map";
+import { Test } from "../models/test-invocation";
 
-@customElement('tr-test-result-tree')
-export class TestResultTree extends MobxLitElement {
+@customElement('tr-test-output-tree')
+export class TestOutputTreeElement extends MobxLitElement {
     @observable.ref
     public depth: number = 0;
 
     @observable.ref
-    public testResults: TestResult[] = [];
+    public tests: Test[] = [];
 
     @observable.ref
     public branchName: string = '';
@@ -29,7 +30,7 @@ export class TestResultTree extends MobxLitElement {
 
     protected render() {
         let branchExt = '';
-        let entries = Object.entries(groupBy(this.testResults, (testResult) => /^([a-zA-Z0-9_-])*?([^a-zA-Z0-9_-]|$)/.exec(testResult.testId.slice(this.pathName.length))![0]));
+        let entries = Object.entries(groupBy(this.tests, (test) => /^([a-zA-Z0-9_-])*?([^a-zA-Z0-9_-]|$)/.exec(test.id.slice(this.pathName.length))![0]));
         while (entries.length === 1) {
             const subbranch = entries[0][0];
             if (subbranch === '') {
@@ -50,14 +51,14 @@ export class TestResultTree extends MobxLitElement {
                         }
                     }}
                 >
-                    <span class="one-line-content branch-name" style="grid-column: 1/3;">&nbsp;&nbsp;${this.branchName + this.testResults[0].testId.slice(this.pathName.length)}</span>
+                    <span class="one-line-content branch-name" style="grid-column: 1/3;">&nbsp;&nbsp;${this.branchName + this.tests[0].id.slice(this.pathName.length)}</span>
                 </div>
                 `
             }
 
             branchExt += subbranch;
-            entries = Object.entries(groupBy(this.testResults, (testResult) => {
-                const key = /^([a-zA-Z0-9_-])*?([^a-zA-Z0-9_-]|$)/.exec(testResult.testId.slice(this.pathName.length + branchExt.length))![0];
+            entries = Object.entries(groupBy(this.tests, (test) => {
+                const key = /^([a-zA-Z0-9_-])*?([^a-zA-Z0-9_-]|$)/.exec(test.id.slice(this.pathName.length + branchExt.length))![0];
                 return key;
             }));
         }
@@ -68,13 +69,13 @@ export class TestResultTree extends MobxLitElement {
             <div id="body">
                 <div id="content">
                     ${repeat(entries, ([k]) => k, ([k, v]) => html`
-                    <tr-test-result-tree
+                    <tr-test-output-tree
                         .depth=${this.depth + 1}
                         .branchName=${k}
                         .pathName=${this.pathName + branchExt + k}
                         .testResults=${v}
                     >
-                    </tr-test-result-tree>
+                    </tr-test-output-tree>
                     `)}
                 </div>
             </div>
@@ -107,13 +108,13 @@ export class TestResultTree extends MobxLitElement {
             <div id="content-ruler" style=${styleMap({left: `${this.depth * 10}px`})}></div>
             <div id="content" class=${classMap({hidden: !this.expanded})}>
                 ${repeat(entries, ([k]) => k, ([k, v]) => html`
-                <tr-test-result-tree
+                <tr-test-output-tree
                     .depth=${this.depth + 1}
                     .branchName=${k}
                     .pathName=${this.pathName + branchExt + k}
                     .testResults=${v}
                 >
-                </tr-test-result-tree>
+                </tr-test-output-tree>
                 `)}
             </div>
         </div>

@@ -1,28 +1,30 @@
 import { customElement, property, html, css } from "lit-element";
 import { MobxLitElement } from "@adobe/lit-mobx";
-import { TestResult, TestStatus } from '../../models/resultdb';
+import { TestResult, TestStatus } from '../../types/resultdb';
 import { classMap } from "lit-html/directives/class-map";
 import "@material/mwc-icon";
 
 import './result-entry'
+import './exoneration-entry';
 import { observable, computed } from "mobx";
 import { repeat } from "lit-html/directives/repeat";
+import { Test, isTestResult } from "../../models/test-invocation";
 
 @customElement('tr-test-entry')
-export class TestEntry extends MobxLitElement {
+export class TestEntryElement extends MobxLitElement {
     @observable.ref
-    public testId: string = '';
+    public test?: Test;
+    @observable.ref
+    public idCommonPrefix: string = '';
     @observable.ref
     public prevTestId: string = '';
-    @observable.ref
-    public testResults: TestResult[] = [];
 
     @observable.ref
     private expanded: boolean = false;
 
     @computed
     private get unexpectedCount() {
-        return this.testResults.filter((tr) => !tr.expected).length;
+        return this.test!.outputs.filter((tr) => isTestResult(tr) && !tr.expected).length;
     }
     @computed
     private get allExpected() {
@@ -33,7 +35,7 @@ export class TestEntry extends MobxLitElement {
     private get testIdCommonPrefix() {
         let commonPrefixLength = 0;
         for (let i = 0; i < this.prevTestId.length; ++i) {
-            if (this.prevTestId[i] !== this.testId[i]) {
+            if (this.prevTestId[i] !== this.test!.id[i]) {
                 break;
             }
             if (!/\w|-/.test(this.prevTestId[i])) {
@@ -54,14 +56,20 @@ export class TestEntry extends MobxLitElement {
                 <div id="header" class="one-line-content">
                     <mwc-icon id="expectancy-indicator" class=${classMap({expected: this.allExpected})}>${this.allExpected ? 'check' : 'error'}</mwc-icon>
                     <div id="test-identifier">
-                        <span class="light">${this.testIdCommonPrefix}</span>${this.testId.slice(this.testIdCommonPrefix.length)}
+                        <span class="light">${this.testIdCommonPrefix.slice(this.idCommonPrefix.length)}</span>${this.test!.id.slice(this.testIdCommonPrefix.length)}
                     </div>
                 </div>
             </div>
             <div id="body">
                 <div id="content-ruler"></div>
                 <div id="content" class=${classMap({hidden: !this.expanded})}>
-                    ${repeat(this.testResults, (tr) => tr.resultId, (tr) => html`<tr-result-entry .testResult=${tr}></tr-result-entry>`)}
+                    ${repeat(this.test!.outputs, (output) => {
+                        if (isTestResult(output)) {
+                            return html`<tr-result-entry .testResult=${output}></tr-result-entry>`;
+                        } else {
+                            return html`<tr-exoneration-entry .testExoneration=${output}></tr-exoneration-entry>`;
+                        }
+                    })}
                 </div>
             </div>
         </div>

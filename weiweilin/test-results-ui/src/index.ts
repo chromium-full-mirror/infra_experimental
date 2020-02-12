@@ -2,7 +2,7 @@ import { html, customElement, css } from 'lit-element';
 import { MobxLitElement } from '@adobe/lit-mobx';
 import { Router } from '@vaadin/router';
 
-import './components/test-invocation-view';
+import './components/test-invocation';
 import './test-utils';
 import { store } from './store';
 
@@ -23,7 +23,7 @@ export class Milo extends MobxLitElement {
             html`<a @click=${() => store.googleAuth!.signOut()}>Sign Out</a>` :
             html`<a @click=${() => store.googleAuth!.signIn({prompt: 'consent'})}>Sign In</a>`}
         </div>
-        <tr-test-invocation-view .invocationName=${this.invocationName}></tr-test-invocation-view>
+        <tr-test-invocation .invocationName=${this.invocationName}></tr-test-invocation>
         `;
     }
 

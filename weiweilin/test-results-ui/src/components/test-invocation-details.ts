@@ -2,13 +2,13 @@ import { customElement, css } from "lit-element";
 import { MobxLitElement } from "@adobe/lit-mobx";
 import { html } from "lit-html";
 import moment from 'moment';
-import { Invocation } from "../models/resultdb";
+import { Invocation } from "../types/resultdb";
 import { classMap } from "lit-html/directives/class-map";
 import { observable } from "mobx";
 
 
 @customElement('tr-test-invocation-details')
-export class TestInvocationDetails extends MobxLitElement {
+export class TestInvocationDetailsElement extends MobxLitElement {
     @observable.ref
     public invocation?: Invocation;
 
@@ -43,9 +43,12 @@ export class TestInvocationDetails extends MobxLitElement {
                     id="tags"
                     class=${classMap({hidden: this.invocation!.tags.length === 0})}
                 >Tags:
-                    <ul>
-                        ${this.invocation!.tags.map(({key: k, value: v}) => html`<li>${k}: ${v}</li>`)}
-                    </ul>
+                    <div class="kv-table">
+                    ${this.invocation!.tags.map((tag) => html`
+                        <span class="key">${tag.key}:</span>
+                        <span class="value">${tag.value}</span>
+                    `)}
+                    </div>
                 </div>
             </div>
         </div>
@@ -95,6 +98,19 @@ export class TestInvocationDetails extends MobxLitElement {
         }
         #interrupted {
             color: #ffc107;
+        }
+
+        #included-invocation {
+            list-style-type: none;
+        }
+
+        .kv-table {
+            display: grid;
+            margin-left: 29px;
+            grid-template-columns: auto 1fr;
+        }
+        .kv-table>.value {
+            margin-left: 5px;
         }
 
         .hidden {

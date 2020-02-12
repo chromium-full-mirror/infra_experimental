@@ -8,15 +8,17 @@ import '@material/mwc-icon-button';
 import '@material/mwc-button';
 import * as _ from 'lodash';
 
-import { TestResult, Invocation, TestExoneration, InvocationState } from '../models/resultdb';
-import { TestResultFilter } from './test-result-filters';
+import { TestResult, Invocation, TestExoneration, InvocationState } from '../types/resultdb';
+import { TestFilterMapFn } from './test-output-filters';
 import { store } from '../store';
 import './test-invocation-details';
-import './test-result-filters';
+import './test-output-filters';
 import './test-entry';
 import '../lib/components/paginator';
-import './test-result-tree';
+import './test-output-tree';
+import '../lib/array-utils';
 import moment from 'moment';
+import { TestInvocation } from '../models/test-invocation';
 
 const INVOCATION_STATE_DISPLAY_MAP = {
     [InvocationState.Unspecified]: 'unspecified',
@@ -32,69 +34,8 @@ const INVOCATION_STATE_CLASS_MAP = {
     [InvocationState.Finalized]: 'finalized',
 };
 
-interface QueryTestResultsRes {
-    testResults: TestResult[],
-    nextPageToken?: string,
-}
-class TestResultsReq {
-    @observable.ref
-    private _testResults: TestResult[] = [];
-
-    @computed
-    public get testResults() {
-        return this._testResults;
-    }
-
-    @observable.ref
-    public pageToken: string | null = null;
-
-    constructor(private invocationName: string) {
-
-        store.resultDbPrpcClient!.call(
-            'luci.resultdb.rpc.v1.ResultDB',
-            'QueryTestResults',
-            {
-                invocations: [this.invocationName],
-            },
-        ).then((res: any) => {
-            const results = res.testResults as TestResult[];
-            this._testResults = this._testResults.concat(results);
-            this.pageToken = res.nextPageToken;
-
-            if (this.pageToken) {
-                this.loadNext();
-            }
-        });
-    }
-
-    public async loadNext() {
-        if (!this.pageToken) {
-            return;
-        }
-        const pageToken = this.pageToken;
-        this.pageToken = null;
-
-        const res = await store.resultDbPrpcClient!.call(
-            'luci.resultdb.rpc.v1.ResultDB',
-            'QueryTestResults',
-            {
-                invocations: [this.invocationName],
-                pageToken,
-            },
-        ) as QueryTestResultsRes;
-        
-        const results = res.testResults as TestResult[];
-        this.pageToken = res.nextPageToken || null;
-        this._testResults = this._testResults.concat(results);
-        if (this.pageToken) {
-            this.loadNext();
-        }
-        return results;
-    }
-}
-
-@customElement('tr-test-invocation-view')
-export class TestInvocationView extends MobxLitElement {
+@customElement('tr-test-invocation')
+export class TestInvocationElement extends MobxLitElement {
     @observable.ref
     private invocationName: string = "";
 
@@ -102,116 +43,46 @@ export class TestInvocationView extends MobxLitElement {
     private timestamp: number = Date.now();
 
     @observable.ref
-    private filter: TestResultFilter = () => true;
+    private filterMapFn: TestFilterMapFn = () => undefined;
 
     @observable.ref
     private menuExpanded: boolean = false;
 
     @computed
-    private get invocation() {
-        const ret = observable.box(null as Invocation | null);
-        if (!store.isSignedIn) {
-            return ret;
-        }
-        const authRes = store.googleAuth!.currentUser.get().getAuthResponse();
-        // artificially depends on the timestamp
-        // so the API call can be treated as a pure function of f(timestamp, request)
-        this.timestamp;
-        fetch(
-            'https://staging.results.api.cr.dev/prpc/luci.resultdb.rpc.v1.ResultDB/GetInvocation',
-            {
-                method: 'POST',
-                headers: {
-                    accept: 'application/json',
-                    'content-type': 'application/json',
-                    authorization: `${(authRes as any).token_type} ${authRes.access_token}`,
-                },
-                body: JSON.stringify({
-                    "name": this.invocationName
-                }),
-            },
-        ).then(res => res.text())
-            .then(res => JSON.parse(res.slice(4)) as Invocation)
-            .then(res => ret.set(res));
-
-        return ret;
-    }
-
-    @computed
-    private get testResultsReq(): TestResultsReq | null {
-        if (!store.isSignedIn) {
+    private get testInvocation(): TestInvocation | null {
+        if (!store.resultDbPrpcClient) {
             return null;
         }
         // artificially depends on the timestamp
         // so the API call can be treated as a pure function of f(timestamp, request)
         this.timestamp;
-        return new TestResultsReq(this.invocationName);
-    }
-
-    @computed
-    private get testResultsByTestId() {
-        const groupedTestResults: [string, TestResult[]][] = [];
-        let lastTestId = '';
-        for (const testResult of this.filteredTestResults) {
-            if (testResult.testId === lastTestId) {
-                groupedTestResults[groupedTestResults.length - 1][1].push(testResult);
-            } else {
-                lastTestId = testResult.testId;
-                groupedTestResults.push([lastTestId, [testResult]]);
-            }
-        }
-
-        return groupedTestResults;
-    }
-
-    @computed
-    private get testExonerations(): IObservableValue<TestExoneration[]> {
-        const ret = observable.box([] as TestExoneration[], {deep: false});
-        if (!store.isSignedIn) {
-            return ret;
-        }
-        const authRes = store.googleAuth!.currentUser.get().getAuthResponse();
-        // artificially depends on the timestamp
-        // so the API call can be treated as a pure function of f(timestamp, request)
-        this.timestamp;
-        fetch(
-            'https://staging.results.api.cr.dev/prpc/luci.resultdb.rpc.v1.ResultDB/QueryTestExonerations',
-            {
-                method: 'POST',
-                headers: {
-                    accept: 'application/json',
-                    'content-type': 'application/json',
-                    authorization: `${(authRes as any).token_type} ${authRes.access_token}`,
-                },
-                body: JSON.stringify({
-                    "invocations": [this.invocationName]
-                }),
-            },
-        ).then(res => res.text())
-            .then(res => JSON.parse(res.slice(4)).testExonerations as TestExoneration[])
-            .then(res => ret.set(res));
-        return ret;
-    }
-
-
-    @computed
-    private get filteredTestResults() {
-        return this.testResultsReq?.testResults.filter(this.filter) || [];
+        return new TestInvocation(this.invocationName, store.resultDbPrpcClient);
     }
 
     @computed
     private get resultStats() {
-        const expected = this.testResultsReq?.testResults.filter((result) => result.expected).length || 0;
+        const expected = this.testInvocation?.testResults.filter((result) => result.expected).length || 0;
         return {
             expected,
-            unexpected: (this.testResultsReq?.testResults.length || 0) - expected,
-            exonerated: this.testExonerations.get().length,
+            unexpected: (this.testInvocation?.testResults.length || 0) - expected,
+            exonerated: this.testInvocation?.testExonerations.length || 0,
         }
     }
 
     @computed
+    private get filteredTests() {
+        const tests = this.testInvocation?.tests || [];
+        return tests.filterMap(this.filterMapFn);
+    }
+
+    @computed
     private get testIdCommonPrefix() {
-        const testIds = this.filteredTestResults.map((tr) => tr.testId);
+        const tests = this.testInvocation?.tests;
+        if (!tests || tests.length === 1) {
+            return '';
+        }
+
+        const testIds = tests.map((t) => t.id);
         let commonPrefix = testIds[0] || '';
         for (const testId of testIds) {
             if (testId.startsWith(commonPrefix)) {
@@ -233,7 +104,7 @@ export class TestInvocationView extends MobxLitElement {
 
 
     private renderInvocationState() {
-        const invocation = this.invocation.get()!;
+        const invocation = this.testInvocation!.invocation!;
         if (invocation.finalizeTime) {
             return html`
             <i>${INVOCATION_STATE_DISPLAY_MAP[invocation.state]}</i>
@@ -248,8 +119,8 @@ export class TestInvocationView extends MobxLitElement {
     }
 
     protected render() {
-        const invocation = this.invocation.get();
-        if (invocation === null) {
+        const invocation = this.testInvocation?.invocation;
+        if (!invocation) {
             return html`<div>Loading</div>`;
         }
 
@@ -271,18 +142,18 @@ export class TestInvocationView extends MobxLitElement {
         ></tr-test-invocation-details>
         <div id="main" class=${classMap({'show-menu': this.menuExpanded})}>
             <div id="left-panel">
-                <tr-test-result-filters
+                <tr-test-output-filters
                     id="test-result-filter"
-                    .onFilterChange=${(filter: TestResultFilter) => this.filter = filter}
-                    .testResults=${this.testResultsReq?.testResults || []}
-                    .testExonerations=${this.testExonerations.get()}
-                ></tr-test-result-filters>
-                <tr-test-result-tree
+                    .onFilterChange=${(filterMapFn: TestFilterMapFn) => this.filterMapFn = filterMapFn}
+                    .testResults=${this.testInvocation?.testResults || []}
+                    .testExonerations=${this.testInvocation?.testExonerations || []}
+                ></tr-test-output-filters>
+                <tr-test-output-tree
                     .branchName=""
                     .pathName=""
-                    .testResults=${this.filteredTestResults}
+                    .tests=${this.filteredTests}
                     .depth=${-1}
-                ></tr-test-result-tree>
+                ></tr-test-output-tree>
             </div>
             <div id="test-result-view">
                 <div id="test-result-header">
@@ -299,19 +170,17 @@ export class TestInvocationView extends MobxLitElement {
                     </span>
                 </div>
                 <div id="test-result-content">
-                    ${repeat(this.testResultsByTestId, ([testId]) => testId, ([testId, testResults], i) => html`
+                    ${repeat(this.filteredTests, (t) => t.id, (t, i) => html`
                     <tr-test-entry
-                        .testId=${testId.slice(this.testIdCommonPrefix.length)}
-                        .testResults=${testResults}
-                        .prevTestId=${((this.testResultsByTestId[i-1] || [])[0] || '').slice(this.testIdCommonPrefix.length)}
+                        .test=${t}
+                        .idCommonPrefix=${this.testIdCommonPrefix}
+                        .prevTestId=${(this.filteredTests[i-1]?.id || this.testIdCommonPrefix)}
                     ></tr-test-entry>
                     `)}
                     <div>
-                        <span>Showing ${this.filteredTestResults.length}/${this.filteredTestResults.length} test results.</span>
+                        <span>Showing ${this.filteredTests.length}/${this.filteredTests.length} tests.</span>
                         <span
                             id="load-more"
-                            class=${classMap({hidden: !this.testResultsReq?.pageToken})}
-                            @click=${() => this.testResultsReq?.loadNext()}
                         >
                             Load More
                         </span>

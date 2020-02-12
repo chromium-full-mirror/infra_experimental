@@ -40,8 +40,8 @@ const config: webpack.Configuration = {
   plugins: [
   ],
   devServer: {
-    contentBase: path.join(__dirname, 'static'),
-    writeToDisk: true,
+    contentBase: path.join(__dirname, 'public'),
+    publicPath: '/dist/scripts/',
     historyApiFallback: true,
   }
 };
