@@ -51,9 +51,13 @@ export class TestOutputFilterElement extends MobxLitElement {
             return undefined;
         }
 
+        const outputs = test.outputs.filter((output) => isTestResult(output) ? this.unexpectedTests && !output.expected || this.expectedTests && output.expected : this.exonerations);
+        if (outputs.length === 0) {
+            return undefined;
+        }
         return {
             id: test.id,
-            outputs: test.outputs.filter((output) => isTestResult(output) ? this.unexpectedTests && !output.expected || this.expectedTests && output.expected : this.exonerations),
+            outputs,
         };
     }
 
