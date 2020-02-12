@@ -18,11 +18,6 @@ export class Milo extends MobxLitElement {
         }
 
         return html`
-        <div>
-        ${store.isSignedIn ?
-            html`<a @click=${() => store.googleAuth!.signOut()}>Sign Out</a>` :
-            html`<a @click=${() => store.googleAuth!.signIn({prompt: 'consent'})}>Sign In</a>`}
-        </div>
         <tr-test-invocation .invocationName=${this.invocationName}></tr-test-invocation>
         `;
     }
@@ -30,7 +25,7 @@ export class Milo extends MobxLitElement {
     static styles = css`
         :host {
             display: grid;
-            grid-template-rows: auto 1fr;
+            grid-template-rows: 1fr;
             color: #212121;
             font-family: "Roboto";
             font-size: 16px;

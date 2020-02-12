@@ -17,6 +17,7 @@ import './test-entry';
 import '../lib/components/paginator';
 import './test-output-tree';
 import '../lib/array-utils';
+import './page-header';
 import moment from 'moment';
 import { TestInvocation } from '../models/test-invocation';
 
@@ -121,14 +122,14 @@ export class TestInvocationElement extends MobxLitElement {
     protected render() {
         const invocation = this.testInvocation?.invocation;
         if (!invocation) {
-            return html`<div>Loading</div>`;
+            return html`
+            <tr-page-header></tr-page-header>
+            <div>Please Sign In</div>
+            `;
         }
 
         return html`
-        <div id="page-head" style="padding-left: 5px;">
-            <img style="display: inline-block; width: 50px; vertical-align: middle;" src="/assets/chromium-icon.png"/>
-            <span style="font-size: 32px; vertical-align: middle;">LUCI Test Results</span>
-        </div>
+        <tr-page-header></tr-page-header>
         <div id="test-invocation-summary">
             <span>${invocation.name.slice('invocations/'.length)}</span>
             <span class="badge unexpected">${this.resultStats.unexpected} Unexpected</span>
