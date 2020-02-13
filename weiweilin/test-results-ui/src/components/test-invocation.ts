@@ -15,11 +15,11 @@ import './test-invocation-details';
 import './test-output-filters';
 import './test-entry';
 import '../lib/components/paginator';
-import './test-output-tree';
+import './test-nav-tree';
 import '../lib/array-utils';
 import './page-header';
 import moment from 'moment';
-import { TestInvocation } from '../models/test-invocation';
+import { TestInvocation } from '../view-models/test-invocation';
 import { TestEntryElement } from './test-entry';
 
 const INVOCATION_STATE_DISPLAY_MAP = {
@@ -154,12 +154,9 @@ export class TestInvocationElement extends MobxLitElement {
                     .testResults=${this.testInvocation?.testResults || []}
                     .testExonerations=${this.testInvocation?.testExonerations || []}
                 ></tr-test-output-filters>
-                <tr-test-output-tree
-                    .branchName=""
-                    .pathName=""
+                <tr-test-nav-tree
                     .tests=${this.filteredTests}
-                    .depth=${-1}
-                ></tr-test-output-tree>
+                ></tr-test-nav-tree>
             </div>
             <div id="test-result-view">
                 <div id="test-result-header">

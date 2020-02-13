@@ -1,16 +1,16 @@
 import { customElement, html, css } from "lit-element";
 import { MobxLitElement } from "@adobe/lit-mobx";
-import { observable, computed } from "mobx";
+import { observable } from "mobx";
 import { groupBy } from 'lodash';
-import { TestResult } from "../types/resultdb";
 import { repeat } from "lit-html/directives/repeat";
 import '@material/mwc-icon';
 import { classMap } from "lit-html/directives/class-map";
 import { styleMap } from "lit-html/directives/style-map";
-import { Test } from "../models/test-invocation";
+import { Test } from "../../view-models/test-invocation";
 
-@customElement('tr-test-output-tree')
-export class TestOutputTreeElement extends MobxLitElement {
+
+@customElement('tr-test-nav-node')
+export class TestNavNodeElement extends MobxLitElement {
     @observable.ref
     public depth: number = 0;
 
@@ -63,25 +63,6 @@ export class TestOutputTreeElement extends MobxLitElement {
             }));
         }
 
-        if (this.depth === -1) {
-            return html`
-            <div id="bar">${this.branchName + branchExt}</div>
-            <div id="body" style="overflow-y: auto; height: 100%;">
-                <div id="content">
-                    ${repeat(entries, ([k]) => k, ([k, v]) => html`
-                    <tr-test-output-tree
-                        .depth=${this.depth + 1}
-                        .branchName=${k}
-                        .pathName=${this.pathName + branchExt + k}
-                        .tests=${v}
-                    >
-                    </tr-test-output-tree>
-                    `)}
-                </div>
-            </div>
-            `;
-        }
-
         return html`
         <div
             class=${classMap({
@@ -108,13 +89,13 @@ export class TestOutputTreeElement extends MobxLitElement {
             <div id="content-ruler" style=${styleMap({left: `${this.depth * 10}px`})}></div>
             <div id="content" class=${classMap({hidden: !this.expanded})}>
                 ${repeat(entries, ([k]) => k, ([k, v]) => html`
-                <tr-test-output-tree
+                <tr-test-nav-node
                     .depth=${this.depth + 1}
                     .branchName=${k}
                     .pathName=${this.pathName + branchExt + k}
                     .tests=${v}
                 >
-                </tr-test-output-tree>
+                </tr-test-nav-node>
                 `)}
             </div>
         </div>
@@ -127,10 +108,6 @@ export class TestOutputTreeElement extends MobxLitElement {
     }
     mwc-icon {
         --mwc-icon-size: 1em;
-    }
-    #bar {
-        background-color: #DDDDDD;
-        padding: 2px 5px;
     }
 
     .expandable-header {
@@ -148,11 +125,6 @@ export class TestOutputTreeElement extends MobxLitElement {
         grid-column: 2;
         font-size: 16px;
         line-height: 24px;
-        overflow: hidden;
-        white-space: nowrap;
-        text-overflow: ellipsis;
-    }
-    #bar {
         overflow: hidden;
         white-space: nowrap;
         text-overflow: ellipsis;

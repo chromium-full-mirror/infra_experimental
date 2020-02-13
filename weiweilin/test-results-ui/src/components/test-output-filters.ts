@@ -6,7 +6,7 @@ import '@material/mwc-checkbox';
 import '@material/mwc-formfield';
 import { observable, computed } from "mobx";
 import { Checkbox } from "@material/mwc-checkbox";
-import { isTestResult, TestOutput, Test } from "../models/test-invocation";
+import { isTestResult, TestOutput, Test } from "../view-models/test-invocation";
 
 export type TestFilterMapFn = (test: Test) => Test | undefined;
 

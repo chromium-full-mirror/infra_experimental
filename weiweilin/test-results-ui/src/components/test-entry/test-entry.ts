@@ -8,7 +8,7 @@ import './result-entry'
 import './exoneration-entry';
 import { observable, computed } from "mobx";
 import { repeat } from "lit-html/directives/repeat";
-import { Test, isTestResult } from "../../models/test-invocation";
+import { Test, isTestResult } from "../../view-models/test-invocation";
 
 @customElement('tr-test-entry')
 export class TestEntryElement extends MobxLitElement {
