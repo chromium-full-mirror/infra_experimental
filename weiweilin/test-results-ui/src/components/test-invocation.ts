@@ -20,6 +20,7 @@ import '../lib/array-utils';
 import './page-header';
 import moment from 'moment';
 import { TestInvocation } from '../models/test-invocation';
+import { TestEntryElement } from './test-entry';
 
 const INVOCATION_STATE_DISPLAY_MAP = {
     [InvocationState.Unspecified]: 'unspecified',
@@ -119,6 +120,10 @@ export class TestInvocationElement extends MobxLitElement {
         `
     }
 
+    private toggleAllTests(expand: boolean) {
+        this.shadowRoot!.querySelectorAll("tr-test-entry").forEach((e) => (e as TestEntryElement).expanded = expand);
+    }
+
     protected render() {
         const invocation = this.testInvocation?.invocation;
         if (!invocation) {
@@ -166,8 +171,14 @@ export class TestInvocationElement extends MobxLitElement {
                     </div>
                     <span style="vertical-align: middle; display: inline-table; height: 100%; margin-left: 5px;">${this.testIdCommonPrefix}</span>
                     <span style="float: right">
-                        <mwc-button label="Expand All"></mwc-button>
-                        <mwc-button label="Collapse All"></mwc-button>
+                        <mwc-button
+                            label="Expand All"
+                            @click=${() => this.toggleAllTests(true)}
+                        ></mwc-button>
+                        <mwc-button
+                            label="Collapse All"
+                            @click=${() => this.toggleAllTests(false)}
+                        ></mwc-button>
                     </span>
                 </div>
                 <div id="test-result-content">

@@ -20,7 +20,7 @@ export class TestEntryElement extends MobxLitElement {
     public prevTestId: string = '';
 
     @observable.ref
-    private expanded: boolean = false;
+    public expanded: boolean = false;
 
     @computed
     private get unexpectedCount() {
