@@ -66,7 +66,7 @@ export class TestOutputTreeElement extends MobxLitElement {
         if (this.depth === -1) {
             return html`
             <div id="bar">${this.branchName + branchExt}</div>
-            <div id="body">
+            <div id="body" style="overflow-y: auto; height: 100%;">
                 <div id="content">
                     ${repeat(entries, ([k]) => k, ([k, v]) => html`
                     <tr-test-output-tree

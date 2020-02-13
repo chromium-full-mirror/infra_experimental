@@ -6,8 +6,8 @@ import './components/test-invocation';
 import './test-utils';
 import { store } from './store';
 
-@customElement('app-test-results-view')
-export class Milo extends MobxLitElement {
+@customElement('app-test-results-ui')
+export class TestResultsUI extends MobxLitElement {
     private get invocationName() {
         return this.location!.params['invocation_name'];
     }
@@ -25,7 +25,6 @@ export class Milo extends MobxLitElement {
     static styles = css`
         :host {
             display: grid;
-            grid-template-rows: 1fr;
             color: #212121;
             font-family: "Roboto";
             font-size: 16px;
@@ -37,5 +36,5 @@ export class Milo extends MobxLitElement {
 
 const router = new Router(document.getElementById('app-root'));
 router.setRoutes([
-    {path: '/invocation/:invocation_name', component: 'app-test-results-view'}
+    {path: '/invocation/:invocation_name', component: 'app-test-results-ui'}
 ]);

@@ -197,6 +197,7 @@ export class TestInvocationElement extends MobxLitElement {
             display: grid;
             grid-gap: 5px;
             grid-template-rows: auto auto auto 1fr;
+            overflow-y: hidden;
         }
         #refresh-icon {
             color: #03a9f4;
@@ -229,6 +230,7 @@ export class TestInvocationElement extends MobxLitElement {
             grid-template-rows: 1fr;
             grid-template-areas: "test-result-view test-result-view";
             border-top: 2px solid #DDDDDD;
+            overflow-y: hidden;
         }
         #main.show-menu {
             grid-template-areas: "left-panel test-result-view";
@@ -236,7 +238,7 @@ export class TestInvocationElement extends MobxLitElement {
         #left-panel {
             grid-area: left-panel;
             display: none;
-            height: 100%;
+            overflow-y: hidden;
             border-right: 2px solid #DDDDDD;
         }
         #main.show-menu #left-panel {
@@ -245,6 +247,7 @@ export class TestInvocationElement extends MobxLitElement {
         #test-result-view {
             grid-area: test-result-view;
             display: grid;
+            overflow-y: hidden;
             grid-template-rows: 32px 1fr;
         }
         #test-result-header {
@@ -253,6 +256,9 @@ export class TestInvocationElement extends MobxLitElement {
         #test-result-content > * {
             margin: 5px 0 5px 0;
             display: block;
+        }
+        #test-result-content {
+            overflow-y: auto;
         }
         #test-invocation-summary {
             border-bottom: solid red;
