@@ -21,7 +21,7 @@ import './page-header';
 import moment from 'moment';
 import { TestInvocation } from '../view-models/test-invocation';
 import { TestEntryElement } from './test-entry';
-import { TestNavTreeNode } from '../view-models/test-nav-tree';
+import { TestNavTreeNode } from '../view-models/test-nav-tree-node';
 
 const INVOCATION_STATE_DISPLAY_MAP = {
     [InvocationState.Unspecified]: 'unspecified',

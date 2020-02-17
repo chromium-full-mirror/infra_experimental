@@ -6,7 +6,7 @@ import { repeat } from "lit-html/directives/repeat";
 import '@material/mwc-icon';
 import { Test } from "../../view-models/test-invocation";
 import './test-nav-tree-node';
-import { TestNavTreeNode } from "../../view-models/test-nav-tree";
+import { TestNavTreeNode } from "../../view-models/test-nav-tree-node";
 
 @customElement('tr-test-nav-tree')
 export class TestNavTreeElement extends MobxLitElement {

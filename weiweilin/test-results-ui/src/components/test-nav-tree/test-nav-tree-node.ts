@@ -7,7 +7,7 @@ import '@material/mwc-icon';
 import { classMap } from "lit-html/directives/class-map";
 import { styleMap } from "lit-html/directives/style-map";
 import { Test } from "../../view-models/test-invocation";
-import { TestNavTreeNode } from "../../view-models/test-nav-tree";
+import { TestNavTreeNode } from "../../view-models/test-nav-tree-node";
 
 interface TestsSelectedEventDetails {
     testIds: string[];
