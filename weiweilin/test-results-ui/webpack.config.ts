@@ -5,7 +5,7 @@ const config: webpack.Configuration = {
   mode: 'development',
   entry: './src/index.ts',
   output: {
-    path: path.resolve(__dirname, 'static/dist/scripts'),
+    path: path.resolve(__dirname, 'public/dist/scripts'),
     filename: 'index.js'
   },
   module: {

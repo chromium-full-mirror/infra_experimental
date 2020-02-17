@@ -46,7 +46,7 @@
     "webpack-dev-server": "^3.10.3"
   },
   "scripts": {
-    "start": "http-server static -a -p ${PORT:-8080}",
+    "start": "http-server public -a -p ${PORT:-8080}",
     "build": "webpack",
     "watch": "webpack -w",
     "dev": "webpack-dev-server"

@@ -16,11 +16,12 @@ import './test-output-filters';
 import './test-entry';
 import '../lib/components/paginator';
 import './test-nav-tree';
-import '../lib/array-utils';
+import '../lib/aug-utils/array-utils';
 import './page-header';
 import moment from 'moment';
 import { TestInvocation } from '../view-models/test-invocation';
 import { TestEntryElement } from './test-entry';
+import { TestNavTreeNode } from '../view-models/test-nav-tree';
 
 const INVOCATION_STATE_DISPLAY_MAP = {
     [InvocationState.Unspecified]: 'unspecified',
@@ -49,6 +50,13 @@ export class TestInvocationElement extends MobxLitElement {
 
     @observable.ref
     private menuExpanded: boolean = false;
+    @observable.ref
+    private selectedTestIds: string[] = [];
+
+    @computed
+    private get testNavTreeNode() {
+        return new TestNavTreeNode(null, '', this.filteredTestIds);
+    }
 
     @computed
     private get testInvocation(): TestInvocation | null {
@@ -75,6 +83,19 @@ export class TestInvocationElement extends MobxLitElement {
     private get filteredTests() {
         const tests = this.testInvocation?.tests || [];
         return tests.filterMap(this.filterMapFn);
+    }
+
+    @computed
+    private get filteredTestIds() {
+        return this.filteredTests.map(({id}) => id);
+    }
+
+    @computed
+    private get selectedTests() {
+        if (this.testNavTreeNode.selectedTestIds.length === 0) {
+            return this.filteredTests;
+        }
+        return this.filteredTests.filter(({id}) => this.testNavTreeNode.selectedTestIds.indexOf(id) !== -1);
     }
 
     @computed
@@ -155,7 +176,9 @@ export class TestInvocationElement extends MobxLitElement {
                     .testExonerations=${this.testInvocation?.testExonerations || []}
                 ></tr-test-output-filters>
                 <tr-test-nav-tree
-                    .tests=${this.filteredTests}
+                    .testIds=${this.filteredTestIds}
+                    .selectedTests=${(tests: string[]) => this.selectedTestIds = tests}
+                    .node=${this.testNavTreeNode}
                 ></tr-test-nav-tree>
             </div>
             <div id="test-result-view">
@@ -179,15 +202,15 @@ export class TestInvocationElement extends MobxLitElement {
                     </span>
                 </div>
                 <div id="test-result-content">
-                    ${repeat(this.filteredTests, (t) => t.id, (t, i) => html`
+                    ${repeat(this.selectedTests, (t) => t.id, (t, i) => html`
                     <tr-test-entry
                         .test=${t}
                         .idCommonPrefix=${this.testIdCommonPrefix}
-                        .prevTestId=${(this.filteredTests[i-1]?.id || this.testIdCommonPrefix)}
+                        .prevTestId=${(this.selectedTests[i-1]?.id || this.testIdCommonPrefix)}
                     ></tr-test-entry>
                     `)}
                     <div>
-                        <span>Showing ${this.filteredTests.length}/${this.filteredTests.length} tests.</span>
+                        <span>Showing ${this.selectedTests.length}/${this.selectedTests.length} tests.</span>
                         <span
                             id="load-more"
                         >

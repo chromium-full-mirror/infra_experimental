@@ -4,6 +4,7 @@ import { Router } from '@vaadin/router';
 
 import './components/test-invocation';
 import './test-utils';
+import './lib/aug-utils';
 import { store } from './store';
 
 @customElement('app-test-results-ui')

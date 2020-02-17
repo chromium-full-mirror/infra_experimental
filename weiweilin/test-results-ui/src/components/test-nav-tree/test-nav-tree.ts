@@ -5,41 +5,28 @@ import { groupBy } from 'lodash';
 import { repeat } from "lit-html/directives/repeat";
 import '@material/mwc-icon';
 import { Test } from "../../view-models/test-invocation";
-import './test-nav-node';
+import './test-nav-tree-node';
+import { TestNavTreeNode } from "../../view-models/test-nav-tree";
 
 @customElement('tr-test-nav-tree')
 export class TestNavTreeElement extends MobxLitElement {
     @observable.ref
-    public tests: Test[] = [];
+    public testIds: string[] = [];
+
+    @observable.ref
+    public node?: TestNavTreeNode;
 
     protected render() {
-        let branchExt = '';
-        let entries = Object.entries(groupBy(this.tests, (test) => /^([a-zA-Z0-9_-])*?([^a-zA-Z0-9_-]|$)/.exec(test.id)![0]));
-        while (entries.length === 1) {
-            const subbranch = entries[0][0];
-            if (branchExt.length + subbranch.length === entries[0][1][0].id.length) {
-                break;
-            }
-
-            branchExt += subbranch;
-            entries = Object.entries(groupBy(this.tests, (test) => {
-                const key = /^([a-zA-Z0-9_-])*?([^a-zA-Z0-9_-]|$)/.exec(test.id.slice(branchExt.length))![0];
-                return key;
-            }));
-        }
-
         return html`
-        <div id="header">${branchExt}</div>
+        <div id="header">${this.node!.logicalBranchName}</div>
         <div id="body" style="overflow-y: auto; height: 100%;">
             <div id="content">
-                ${repeat(entries, ([k]) => k, ([k, v]) => html`
-                <tr-test-nav-node
+                ${repeat(this.node!.logicalChildren, (node) => node.logicalBranchName, (node) => html`
+                <tr-test-nav-tree-node
                     .depth=${0}
-                    .branchName=${k}
-                    .pathName=${branchExt + k}
-                    .tests=${v}
+                    .node=${node}
                 >
-                </tr-test-nav-node>
+                </tr-test-nav-tree-node>
                 `)}
             </div>
         </div>
