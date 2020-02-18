@@ -50,11 +50,12 @@ export class TestNavNodeElement extends MobxLitElement {
                 class="one-line-content branch-name"
                 style=${styleMap({
                     'grid-column': this.node!.logicalChildren.length === 0 ? '1/3' : '',
+                    'padding-left': this.node!.logicalChildren.length === 0 ? '8px' : '',
                 })}
                 @click=${(e: MouseEvent) => {
                     if (e.shiftKey) {
                         this.node!;
-                    } else if (e.altKey) {
+                    } else if (e.ctrlKey) {
                         this.node!.toggleSelect();
                     } else {
                         this.node!.toggleSelectExclusive();

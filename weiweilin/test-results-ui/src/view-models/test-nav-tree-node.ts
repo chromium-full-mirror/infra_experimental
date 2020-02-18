@@ -14,7 +14,7 @@ export class TestNavTreeNode {
     @computed
     public get testIds(): string[] {
         if (this.children.length === 0) {
-            return [this.prefix]
+            return [this.prefix];
         }
         return this.children.map((child) => child.testIds).flat();
     }
@@ -26,6 +26,15 @@ export class TestNavTreeNode {
         } else {
             return this.children.map((child) => child.selectedTestIds).flat()
         }
+    }
+
+    @computed
+    public get selectedNodes(): TestNavTreeNode[] {
+        const ret = this.children.map((child) => child.selectedNodes).flat();
+        if (this._selected) {
+            ret.push(this);
+        }
+        return ret;
     }
 
     @computed
@@ -58,7 +67,7 @@ export class TestNavTreeNode {
     }
 
     public toggleSelectExclusive() {
-        if (this._selected && this.root.selectedTestIds.length === 1) {
+        if (this._selected && this.root.selectedNodes.length === 1) {
             this._selected = false;
             return;
         }
