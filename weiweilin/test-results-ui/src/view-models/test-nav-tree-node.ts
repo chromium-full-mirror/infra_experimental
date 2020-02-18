@@ -16,7 +16,7 @@ export class TestNavTreeNode {
         if (this.children.length === 0) {
             return [this.prefix]
         }
-        return this.children.map((child) => child.testIds).flat()
+        return this.children.map((child) => child.testIds).flat();
     }
 
     @computed
@@ -50,14 +50,30 @@ export class TestNavTreeNode {
         }
     }
 
-    public toggleSelected() {
-        if (this._selected) {
+    public setSelectedAll(selected: boolean) {
+        this._selected = selected;
+        for (const child of this.children) {
+            child.setSelectedAll(selected);
+        }
+    }
+
+    public toggleSelectExclusive() {
+        if (this._selected && this.root.selectedTestIds.length === 1) {
             this._selected = false;
             return;
         }
 
         this.root.unselectBranch();
         this._selected = true;
+    }
+
+    public toggleSelect() {
+        this._selected = !this._selected;
+    }
+
+    public selectRange(node: TestNavTreeNode) {
+        if (node.prefix.localeCompare(this.prefix) < 0) {
+        }
     }
 
     @observable.shallow

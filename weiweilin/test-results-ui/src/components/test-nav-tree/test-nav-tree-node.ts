@@ -8,6 +8,7 @@ import { classMap } from "lit-html/directives/class-map";
 import { styleMap } from "lit-html/directives/style-map";
 import { Test } from "../../view-models/test-invocation";
 import { TestNavTreeNode } from "../../view-models/test-nav-tree-node";
+import '../../lib/components/expandable-entry';
 
 interface TestsSelectedEventDetails {
     testIds: string[];
@@ -24,34 +25,10 @@ export class TestNavNodeElement extends MobxLitElement {
     @observable.ref
     public node?: TestNavTreeNode;
 
-    public selectedTests: (string: string[]) => void = () => undefined;
-
     @observable.ref
     private expanded = true;
 
     protected render() {
-        if (this.node!.logicalChildren.length === 0) {
-            return html`
-            <div 
-                class=${classMap({
-                    'expandable-header': true,
-                    selected: this.node!.selected,
-                })}
-                style=${styleMap({
-                    'padding-left': `${this.depth * 10}px`,
-                })}
-            >
-                <span
-                    class="one-line-content branch-name"
-                    style="grid-column: 1/3;"
-                    @click=${() => this.node!.toggleSelected()}
-                >
-                    &nbsp;&nbsp;${this.node!.logicalBranchName}
-                </span>
-            </div>
-            `
-        }
-
         return html`
         <div
             class=${classMap({
@@ -64,13 +41,25 @@ export class TestNavNodeElement extends MobxLitElement {
         >
             <mwc-icon
                 class="expand-toggle"
+                style=${styleMap({display: this.node!.logicalChildren.length === 0 ? 'none' : ''})}
                 @click=${() => this.expanded = !this.expanded}
             >
                 ${this.expanded ? 'expand_more' : 'chevron_right'}
             </mwc-icon>
             <span
                 class="one-line-content branch-name"
-                @click=${() => this.node!.toggleSelected()}
+                style=${styleMap({
+                    'grid-column': this.node!.logicalChildren.length === 0 ? '1/3' : '',
+                })}
+                @click=${(e: MouseEvent) => {
+                    if (e.shiftKey) {
+                        this.node!;
+                    } else if (e.altKey) {
+                        this.node!.toggleSelect();
+                    } else {
+                        this.node!.toggleSelectExclusive();
+                    }
+                }}
             >${this.node!.logicalBranchName}&lrm;</span>
         </div>
         <div id="body">
