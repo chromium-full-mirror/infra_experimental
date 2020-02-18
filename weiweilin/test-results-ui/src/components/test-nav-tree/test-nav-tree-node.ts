@@ -10,13 +10,6 @@ import { Test } from "../../view-models/test-invocation";
 import { TestNavTreeNode } from "../../view-models/test-nav-tree-node";
 import '../../lib/components/expandable-entry';
 
-interface TestsSelectedEventDetails {
-    testIds: string[];
-}
-
-export type TestsSelectedEvent = CustomEvent<TestsSelectedEventDetails>;
-
-
 @customElement('tr-test-nav-tree-node')
 export class TestNavNodeElement extends MobxLitElement {
     @observable.ref
@@ -27,6 +20,8 @@ export class TestNavNodeElement extends MobxLitElement {
 
     @observable.ref
     private expanded = true;
+
+    public nodeClicked = (node: TestNavTreeNode, e: MouseEvent) => {};
 
     protected render() {
         return html`
@@ -52,15 +47,7 @@ export class TestNavNodeElement extends MobxLitElement {
                     'grid-column': this.node!.logicalChildren.length === 0 ? '1/3' : '',
                     'padding-left': this.node!.logicalChildren.length === 0 ? '8px' : '',
                 })}
-                @click=${(e: MouseEvent) => {
-                    if (e.shiftKey) {
-                        this.node!;
-                    } else if (e.ctrlKey) {
-                        this.node!.toggleSelect();
-                    } else {
-                        this.node!.toggleSelectExclusive();
-                    }
-                }}
+                @click=${(e: MouseEvent) => this.nodeClicked(this.node!, e)}
             >${this.node!.logicalBranchName}&lrm;</span>
         </div>
         <div id="body">
@@ -70,6 +57,7 @@ export class TestNavNodeElement extends MobxLitElement {
                 <tr-test-nav-tree-node
                     .depth=${this.depth + 1}
                     .node=${node}
+                    .nodeClicked=${this.nodeClicked}
                 >
                 </tr-test-nav-tree-node>
                 `)}
@@ -91,6 +79,7 @@ export class TestNavNodeElement extends MobxLitElement {
         grid-template-columns: 24px 1fr;
         grid-template-rows: 24px;
         cursor: pointer;
+        user-select: none;
     }
     .expandable-header .expand-toggle {
         grid-row: 1;

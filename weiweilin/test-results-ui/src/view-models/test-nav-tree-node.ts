@@ -12,6 +12,11 @@ export class TestNavTreeNode {
     public readonly root: TestNavTreeNode;
 
     @computed
+    public get flattenedNodes(): TestNavTreeNode[] {
+        return [this, ...this.children.map((child) => child.flattenedNodes).flat()];
+    }
+
+    @computed
     public get testIds(): string[] {
         if (this.children.length === 0) {
             return [this.prefix];
@@ -80,9 +85,15 @@ export class TestNavTreeNode {
         this._selected = !this._selected;
     }
 
-    public selectRange(node: TestNavTreeNode) {
-        if (node.prefix.localeCompare(this.prefix) < 0) {
+    public setSelectedRange(node: TestNavTreeNode, selected: boolean) {
+
+        let start = this.root.flattenedNodes.indexOf(this);
+        let end = this.root.flattenedNodes.indexOf(node);
+        if (start > end) {
+            [start, end] = [end, start];
         }
+        this.root.flattenedNodes.slice(start, end + 1)
+            .forEach((node) => node._selected = selected);
     }
 
     @observable.shallow

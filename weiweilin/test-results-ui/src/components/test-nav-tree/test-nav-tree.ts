@@ -16,6 +16,27 @@ export class TestNavTreeElement extends MobxLitElement {
     @observable.ref
     public node?: TestNavTreeNode;
 
+    private lastSelectedNode: TestNavTreeNode | null = null;
+    private lastShiftSelectedNode: TestNavTreeNode | null = null;
+    private nodeClicked = (node: TestNavTreeNode, e: MouseEvent) => {
+        if (e.shiftKey && this.lastSelectedNode) {
+            if (this.lastShiftSelectedNode) {
+                node.setSelectedRange(this.lastShiftSelectedNode, false);
+            }
+
+            node.setSelectedRange(this.lastSelectedNode, true);
+            this.lastShiftSelectedNode = node;
+            return;
+        }
+        this.lastShiftSelectedNode = null;
+        this.lastSelectedNode = node;
+        if (e.ctrlKey) {
+            node.toggleSelect();
+        } else {
+            node.toggleSelectExclusive();
+        }
+    }
+
     protected render() {
         return html`
         <div id="header">${this.node!.logicalBranchName}</div>
@@ -25,6 +46,7 @@ export class TestNavTreeElement extends MobxLitElement {
                 <tr-test-nav-tree-node
                     .depth=${0}
                     .node=${node}
+                    .nodeClicked=${this.nodeClicked}
                 >
                 </tr-test-nav-tree-node>
                 `)}
