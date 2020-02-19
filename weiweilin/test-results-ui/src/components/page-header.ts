@@ -1,5 +1,5 @@
 import { MobxLitElement } from '@adobe/lit-mobx';
-import { html, css, customElement } from 'lit-element';
+import { css, customElement, html } from 'lit-element';
 import { store } from '../store';
 
 @customElement('tr-page-header')

@@ -1,8 +1,8 @@
-import { LitElement, html, customElement, css } from 'lit-element';
-import { MDCMenu } from '@material/menu';
 import * as mdcListStyle from '@material/list/dist/mdc.list.css';
-import * as mdcMenuStyle from '@material/menu/dist/mdc.menu.css';
+import { MDCMenu } from '@material/menu';
 import * as mdcMenuSurfaceStyle from '@material/menu-surface/dist/mdc.menu-surface.css';
+import * as mdcMenuStyle from '@material/menu/dist/mdc.menu.css';
+import { css, customElement, html, LitElement } from 'lit-element';
 
 @customElement('tr-cl-menu')
 export class CLMenuElement extends LitElement {

@@ -1,6 +1,6 @@
-import { TestResult, TestExoneration, QueryTestResultsResponse, QueryTestExonerationsResponse, Invocation } from '../types/resultdb';
-import { observable, computed } from 'mobx';
 import { PrpcClient } from '@chopsui/prpc-client';
+import { computed, observable } from 'mobx';
+import { Invocation, QueryTestExonerationsResponse, QueryTestResultsResponse, TestExoneration, TestResult } from '../types/resultdb';
 
 export interface Test {
     id: string;
@@ -37,7 +37,7 @@ export class TestInvocation {
                 ret[ret.length - 1].outputs.push(this.testResults[testResultPivot]);
                 testResultPivot += 1;
             } else if (testExonerationPivot < this.testExonerations.length && this.testExonerations[testExonerationPivot].testId === lastTestId) {
-                ret[ret.length - 1].outputs.push(this.testExonerations[testExonerationPivot])
+                ret[ret.length - 1].outputs.push(this.testExonerations[testExonerationPivot]);
                 testExonerationPivot += 1;
             } else {
                 lastTestId = testResultPivot < this.testResults.length ? this.testResults[testResultPivot].testId : this.testExonerations[testExonerationPivot].testId;

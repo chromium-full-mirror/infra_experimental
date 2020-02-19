@@ -1,14 +1,12 @@
-import { customElement, property, html, css } from "lit-element";
-import { MobxLitElement } from "@adobe/lit-mobx";
+import { MobxLitElement } from '@adobe/lit-mobx';
+import '@material/mwc-icon';
+import { css, customElement, html } from 'lit-element';
+import { classMap } from 'lit-html/directives/class-map';
+import { unsafeHTML } from 'lit-html/directives/unsafe-html';
 import { TestResult, TestStatus } from '../../types/resultdb';
-import { classMap } from "lit-html/directives/class-map";
-import { unsafeHTML } from "lit-html/directives/unsafe-html";
-import "@material/mwc-icon";
 
+import { observable } from 'mobx';
 import './artifact';
-import { observable, computed } from "mobx";
-import { repeat } from "lit-html/directives/repeat";
-import { styleMap } from "lit-html/directives/style-map";
 
 const STATUS_DISPLAY_MAP = {
     [TestStatus.Unspecified]: 'unspecified',
@@ -25,17 +23,17 @@ export class ResultEntryElement extends MobxLitElement {
     public testResult?: TestResult;
 
     @observable.ref
-    private expanded: boolean = true;
+    private expanded = true;
     @observable.ref
-    private outputArtifactsExpanded: boolean = true;
+    private outputArtifactsExpanded = true;
     @observable.ref
-    private inputArtifactsExpanded: boolean = false;
+    private inputArtifactsExpanded = false;
     @observable.ref
-    private summaryExpanded: boolean = true;
+    private summaryExpanded = true;
     @observable.ref
-    private variantExpanded: boolean = false;
+    private variantExpanded = false;
     @observable.ref
-    private tagExpanded: boolean = false;
+    private tagExpanded = false;
 
     private renderVariant() {
         const variantKV = Object.entries(this.testResult!.variant?.def ?? {});
@@ -91,7 +89,7 @@ export class ResultEntryElement extends MobxLitElement {
             `)}
             </div>
         </div>
-        `
+        `;
     }
 
     protected render() {

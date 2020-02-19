@@ -1,23 +1,12 @@
-import { customElement, property, html, css } from "lit-element";
-import { MobxLitElement } from "@adobe/lit-mobx";
-import { TestResult, TestStatus, TestExoneration } from '../../types/resultdb';
-import { classMap } from "lit-html/directives/class-map";
-import { unsafeHTML } from "lit-html/directives/unsafe-html";
-import "@material/mwc-icon";
+import { MobxLitElement } from '@adobe/lit-mobx';
+import '@material/mwc-icon';
+import { css, customElement, html, property } from 'lit-element';
+import { classMap } from 'lit-html/directives/class-map';
+import { unsafeHTML } from 'lit-html/directives/unsafe-html';
+import { TestExoneration, TestStatus } from '../../types/resultdb';
 
+import { observable } from 'mobx';
 import './artifact';
-import { observable, computed } from "mobx";
-import { repeat } from "lit-html/directives/repeat";
-import { styleMap } from "lit-html/directives/style-map";
-
-const STATUS_DISPLAY_MAP = {
-    [TestStatus.Unspecified]: 'unspecified',
-    [TestStatus.Pass]: 'passed',
-    [TestStatus.Fail]: 'failed',
-    [TestStatus.Skip]: 'skipped',
-    [TestStatus.Crash]: 'crashed',
-    [TestStatus.Abort]: 'aborted',
-};
 
 @customElement('tr-exoneration-entry')
 export class ExonerationEntryElement extends MobxLitElement {
@@ -25,11 +14,11 @@ export class ExonerationEntryElement extends MobxLitElement {
     public testExoneration?: TestExoneration;
 
     @observable.ref
-    private expanded: boolean = false;
+    private expanded = false;
     @observable.ref
-    private explanationExpanded: boolean = true;
+    private explanationExpanded = true;
     @observable.ref
-    private variantExpanded: boolean = false;
+    private variantExpanded = false;
 
     private renderVariant() {
         const variantKV = Object.entries(this.testExoneration!.variant?.def ?? {});

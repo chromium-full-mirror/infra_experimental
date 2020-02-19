@@ -1,8 +1,8 @@
-import { customElement, html, css } from "lit-element";
-import { MobxLitElement } from "@adobe/lit-mobx";
-import { Artifact } from "../../types/resultdb";
-import '@material/mwc-icon'
-import { observable } from "mobx";
+import { MobxLitElement } from '@adobe/lit-mobx';
+import '@material/mwc-icon';
+import { css, customElement, html } from 'lit-element';
+import { observable } from 'mobx';
+import { Artifact } from '../../types/resultdb';
 
 @customElement('tr-artifact')
 export class ArtifactElement extends MobxLitElement {

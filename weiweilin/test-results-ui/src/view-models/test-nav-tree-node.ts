@@ -1,5 +1,5 @@
-import { observable, computed } from "mobx";
-import { groupBy } from "lodash";
+import { groupBy } from 'lodash';
+import { computed, observable } from 'mobx';
 
 const FIRST_BRANCH_REGEX = /^([a-zA-Z0-9_-])*?([^a-zA-Z0-9_-]|$)/;
 
@@ -29,7 +29,7 @@ export class TestNavTreeNode {
         if (this.selected) {
             return this.testIds;
         } else {
-            return this.children.map((child) => child.selectedTestIds).flat()
+            return this.children.map((child) => child.selectedTestIds).flat();
         }
     }
 
@@ -47,7 +47,7 @@ export class TestNavTreeNode {
         return this.children.some((child) => child.selected || child.descendentSelected);
     }
     @observable.ref
-    private _selected: boolean = false;
+    private _selected = false;
     @computed
     public get selected() {
         return this._selected;
@@ -93,7 +93,7 @@ export class TestNavTreeNode {
             [start, end] = [end, start];
         }
         this.root.flattenedNodes.slice(start, end + 1)
-            .forEach((node) => node._selected = selected);
+            .forEach((child) => child._selected = selected);
     }
 
     @observable.shallow
@@ -127,7 +127,7 @@ export class TestNavTreeNode {
         if (this.prefix === (testIds[0] || '')) {
             return;
         }
-        let entries = Object.entries(groupBy(testIds, (testId) => FIRST_BRANCH_REGEX.exec(testId.slice(this.prefix.length))![0]));
-        this.children = entries.map(([branchName, testIds]) => new TestNavTreeNode(this, branchName, testIds));
+        const entries = Object.entries(groupBy(testIds, (testId) => FIRST_BRANCH_REGEX.exec(testId.slice(this.prefix.length))![0]));
+        this.children = entries.map(([childBranchName, childTestIds]) => new TestNavTreeNode(this, childBranchName, childTestIds));
     }
 }

@@ -1,7 +1,7 @@
-import { LitElement, html, css, customElement, property, PropertyValues } from 'lit-element';
+import { css, customElement, html, LitElement, property, PropertyValues } from 'lit-element';
 import { repeat } from 'lit-html/directives/repeat';
 
-import { TemplateResult, render } from 'lit-html';
+import { render, TemplateResult } from 'lit-html';
 import { styleMap } from 'lit-html/directives/style-map';
 
 
@@ -86,7 +86,7 @@ export class SortableList extends LitElement {
                 }}
                 @dragend=${() => {
                     this.dispatchEvent(new CustomEvent<ListUpdatedEventDetail>('list-updated', {
-                        detail: { items: this.currentItemKeys.map((key) => key) },
+                        detail: { items: this.currentItemKeys.map((itemKey) => itemKey) },
                         bubbles: false,
                         composed: true,
                     }));

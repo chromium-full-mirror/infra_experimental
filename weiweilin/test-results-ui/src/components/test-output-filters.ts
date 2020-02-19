@@ -1,12 +1,12 @@
-import { MobxLitElement } from "@adobe/lit-mobx";
-import { customElement, css, property } from "lit-element";
-import { html } from "lit-html";
-import { TestResult, TestExoneration, TestStatus } from '../types/resultdb';
+import { MobxLitElement } from '@adobe/lit-mobx';
 import '@material/mwc-checkbox';
+import { Checkbox } from '@material/mwc-checkbox';
 import '@material/mwc-formfield';
-import { observable, computed } from "mobx";
-import { Checkbox } from "@material/mwc-checkbox";
-import { isTestResult, TestOutput, Test } from "../view-models/test-invocation";
+import { css, customElement, property } from 'lit-element';
+import { html } from 'lit-html';
+import { computed, observable } from 'mobx';
+import { TestExoneration, TestResult, TestStatus } from '../types/resultdb';
+import { isTestResult, Test, TestOutput } from '../view-models/test-invocation';
 
 export type TestFilterMapFn = (test: Test) => Test | undefined;
 
@@ -25,7 +25,7 @@ export class TestOutputFilterElement extends MobxLitElement {
             expected,
             unexpected: (this.testResults.length || 0) - expected,
             exonerated: this.testExonerations.length,
-        }
+        };
     }
 
     @observable.ref

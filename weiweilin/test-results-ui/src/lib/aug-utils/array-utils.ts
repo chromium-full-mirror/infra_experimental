@@ -10,7 +10,7 @@ Array.prototype.filterMap = function<V>(filterMapFn: (item: any, i: number, arra
         if (item !== undefined) {
            ret.push(item);
         }
-    }  
+    }
     return ret;
 };
 

@@ -12,14 +12,14 @@ String.prototype.splitAt = function* splitAt(indices: Iterable<number>): Generat
         yield this.slice(start, i);
         start = i;
     }
-}
+};
 
 String.prototype.splitWith = function* splitWith(chars: Iterable<string>): Generator<string> {
-    let ret = [this];
+    const ret = [this];
     for (const char of chars) {
-        ret.flatMap((v) => v.split(char))
+        ret.flatMap((v) => v.split(char));
     }
     return ret;
-}
+};
 
 export default String;

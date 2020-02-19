@@ -1,18 +1,18 @@
-import { customElement, html, css } from "lit-element";
-import { MobxLitElement } from "@adobe/lit-mobx";
-import { observable } from "mobx";
-import { groupBy } from 'lodash';
-import { repeat } from "lit-html/directives/repeat";
+import { MobxLitElement } from '@adobe/lit-mobx';
 import '@material/mwc-icon';
-import { classMap } from "lit-html/directives/class-map";
-import { styleMap } from "lit-html/directives/style-map";
-import { Test } from "../../view-models/test-invocation";
-import { TestNavTreeNode } from "../../view-models/test-nav-tree-node";
+import { css, customElement, html } from 'lit-element';
+import { classMap } from 'lit-html/directives/class-map';
+import { repeat } from 'lit-html/directives/repeat';
+import { styleMap } from 'lit-html/directives/style-map';
+import { groupBy } from 'lodash';
+import { observable } from 'mobx';
+import { Test } from '../../view-models/test-invocation';
+import { TestNavTreeNode } from '../../view-models/test-nav-tree-node';
 
 @customElement('tr-test-nav-tree-node')
 export class TestNavNodeElement extends MobxLitElement {
     @observable.ref
-    public depth: number = 0;
+    public depth = 0;
 
     @observable.ref
     public node?: TestNavTreeNode;
@@ -20,6 +20,7 @@ export class TestNavNodeElement extends MobxLitElement {
     @observable.ref
     private expanded = true;
 
+    // tslint:disable-next-line: no-empty
     public nodeClicked = (node: TestNavTreeNode, e: MouseEvent) => {};
 
     protected render() {

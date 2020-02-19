@@ -1,12 +1,10 @@
-import { customElement, html, css } from "lit-element";
-import { MobxLitElement } from "@adobe/lit-mobx";
-import { observable, computed } from "mobx";
-import { groupBy } from 'lodash';
-import { repeat } from "lit-html/directives/repeat";
+import { MobxLitElement } from '@adobe/lit-mobx';
 import '@material/mwc-icon';
-import { Test } from "../../view-models/test-invocation";
+import { css, customElement, html } from 'lit-element';
+import { repeat } from 'lit-html/directives/repeat';
+import { observable } from 'mobx';
+import { TestNavTreeNode } from '../../view-models/test-nav-tree-node';
 import './test-nav-tree-node';
-import { TestNavTreeNode } from "../../view-models/test-nav-tree-node";
 
 @customElement('tr-test-nav-tree')
 export class TestNavTreeElement extends MobxLitElement {

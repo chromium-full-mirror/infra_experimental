@@ -1,6 +1,7 @@
-import { observable, action, computed } from "mobx";
 import { PrpcClient } from '@chopsui/prpc-client';
-const config = require("../config.json");
+import { action, computed, observable } from 'mobx';
+// tslint:disable-next-line: no-var-requires
+const config = require('../config.json');
 
 export class Store {
     @observable.ref
@@ -8,13 +9,15 @@ export class Store {
 
     // better than listening to the user object, because googleAuth mutates the user object instead of creating a new one
     @observable
-    isSignedIn: boolean = false;
+    isSignedIn = false;
 
     @computed
     get resultDbPrpcClient() {
+        // tslint:disable-next-line: no-use-before-declare
         if (!store.isSignedIn) {
             return null;
         }
+        // tslint:disable-next-line: no-use-before-declare
         const authRes = store.googleAuth!.currentUser.get().getAuthResponse();
         return new PrpcClient({
             host: 'staging.results.api.cr.dev',
@@ -29,6 +32,6 @@ gapi.load('auth2', () => {
         client_id: config['client-id'],
         scope: 'openid',
     });
-    googleAuth.then((googleAuth) => store.googleAuth = googleAuth);
+    googleAuth.then((gAuth) => store.googleAuth = gAuth);
     googleAuth.isSignedIn.listen((isSignedIn) => store.isSignedIn = isSignedIn);
 });

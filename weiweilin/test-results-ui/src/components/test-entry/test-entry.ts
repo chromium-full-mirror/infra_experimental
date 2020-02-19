@@ -1,26 +1,25 @@
-import { customElement, property, html, css } from "lit-element";
-import { MobxLitElement } from "@adobe/lit-mobx";
-import { TestResult, TestStatus } from '../../types/resultdb';
-import { classMap } from "lit-html/directives/class-map";
-import "@material/mwc-icon";
+import { MobxLitElement } from '@adobe/lit-mobx';
+import '@material/mwc-icon';
+import { css, customElement, html, property } from 'lit-element';
+import { classMap } from 'lit-html/directives/class-map';
 
-import './result-entry'
+import { repeat } from 'lit-html/directives/repeat';
+import { computed, observable } from 'mobx';
+import { isTestResult, Test } from '../../view-models/test-invocation';
 import './exoneration-entry';
-import { observable, computed } from "mobx";
-import { repeat } from "lit-html/directives/repeat";
-import { Test, isTestResult } from "../../view-models/test-invocation";
+import './result-entry';
 
 @customElement('tr-test-entry')
 export class TestEntryElement extends MobxLitElement {
     @observable.ref
     public test?: Test;
     @observable.ref
-    public idCommonPrefix: string = '';
+    public idCommonPrefix = '';
     @observable.ref
-    public prevTestId: string = '';
+    public prevTestId = '';
 
     @observable.ref
-    public expanded: boolean = false;
+    public expanded = false;
 
     @computed
     private get unexpectedCount() {

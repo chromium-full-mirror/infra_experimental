@@ -1,6 +1,6 @@
-import { customElement, html, css, property } from "lit-element";
-import { MobxLitElement } from "@adobe/lit-mobx";
-import { observable, computed } from "mobx";
+import { MobxLitElement } from '@adobe/lit-mobx';
+import { css, customElement, html, property } from 'lit-element';
+import { computed, observable } from 'mobx';
 
 @customElement('tr-paginator')
 export class Paginator extends MobxLitElement {
@@ -8,6 +8,7 @@ export class Paginator extends MobxLitElement {
     public pageSize = 5;
     @observable
     public total: number | null = null;
+    // tslint:disable-next-line: no-empty
     public onStartIndexUpdated: (startIndex: number) => void = () => {};
 
     // separate startIndex & _startIndex, so setting startIndex externally won't trigger an update event
@@ -27,7 +28,7 @@ export class Paginator extends MobxLitElement {
 
     @computed
     private get endIndex() {
-        return Math.min(this._startIndex + this.pageSize, this.total ?? Infinity)
+        return Math.min(this._startIndex + this.pageSize, this.total ?? Infinity);
     }
 
     protected render() {

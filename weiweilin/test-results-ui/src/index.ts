@@ -1,16 +1,16 @@
-import { html, customElement, css } from 'lit-element';
 import { MobxLitElement } from '@adobe/lit-mobx';
 import { Router } from '@vaadin/router';
+import { css, customElement, html } from 'lit-element';
 
 import './components/test-invocation';
-import './test-utils';
 import './lib/aug-utils';
 import { store } from './store';
+import './test-utils';
 
 @customElement('app-test-results-ui')
 export class TestResultsUI extends MobxLitElement {
     private get invocationName() {
-        return this.location!.params['invocation_name'];
+        return this.location!.params.invocation_name;
     }
 
     protected render() {

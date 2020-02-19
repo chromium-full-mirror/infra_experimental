@@ -1,10 +1,10 @@
-import { customElement, css } from "lit-element";
-import { MobxLitElement } from "@adobe/lit-mobx";
-import { html } from "lit-html";
+import { MobxLitElement } from '@adobe/lit-mobx';
+import { css, customElement } from 'lit-element';
+import { html } from 'lit-html';
+import { classMap } from 'lit-html/directives/class-map';
+import { observable } from 'mobx';
 import moment from 'moment';
-import { Invocation } from "../types/resultdb";
-import { classMap } from "lit-html/directives/class-map";
-import { observable } from "mobx";
+import { Invocation } from '../types/resultdb';
 
 
 @customElement('tr-test-invocation-details')
@@ -13,7 +13,7 @@ export class TestInvocationDetailsElement extends MobxLitElement {
     public invocation?: Invocation;
 
     @observable.ref
-    public expanded: boolean = false;
+    public expanded = false;
 
     protected render() {
         return html`

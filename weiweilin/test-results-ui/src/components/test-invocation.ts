@@ -1,27 +1,27 @@
 import { MobxLitElement } from '@adobe/lit-mobx';
-import { html, css, customElement } from 'lit-element';
-import { computed, observable, IObservableValue } from 'mobx';
-import { repeat } from 'lit-html/directives/repeat';
-import { classMap } from 'lit-html/directives/class-map';
+import '@material/mwc-button';
 import '@material/mwc-icon';
 import '@material/mwc-icon-button';
-import '@material/mwc-button';
+import { css, customElement, html } from 'lit-element';
+import { classMap } from 'lit-html/directives/class-map';
+import { repeat } from 'lit-html/directives/repeat';
 import * as _ from 'lodash';
+import { computed, IObservableValue, observable } from 'mobx';
 
-import { TestResult, Invocation, TestExoneration, InvocationState } from '../types/resultdb';
-import { TestFilterMapFn } from './test-output-filters';
-import { store } from '../store';
-import './test-invocation-details';
-import './test-output-filters';
-import './test-entry';
-import '../lib/components/paginator';
-import './test-nav-tree';
-import '../lib/aug-utils/array-utils';
-import './page-header';
 import moment from 'moment';
+import '../lib/aug-utils/array-utils';
+import '../lib/components/paginator';
+import { store } from '../store';
+import { Invocation, InvocationState, TestExoneration, TestResult } from '../types/resultdb';
 import { TestInvocation } from '../view-models/test-invocation';
-import { TestEntryElement } from './test-entry';
 import { TestNavTreeNode } from '../view-models/test-nav-tree-node';
+import './page-header';
+import './test-entry';
+import { TestEntryElement } from './test-entry';
+import './test-invocation-details';
+import './test-nav-tree';
+import { TestFilterMapFn } from './test-output-filters';
+import './test-output-filters';
 
 const INVOCATION_STATE_DISPLAY_MAP = {
     [InvocationState.Unspecified]: 'unspecified',
@@ -40,16 +40,16 @@ const INVOCATION_STATE_CLASS_MAP = {
 @customElement('tr-test-invocation')
 export class TestInvocationElement extends MobxLitElement {
     @observable.ref
-    private invocationName: string = "";
+    private invocationName = '';
 
     @observable.ref
     private timestamp: number = Date.now();
 
     @observable.ref
-    private filterMapFn: TestFilterMapFn = () => undefined;
+    private filterMapFn: TestFilterMapFn = () => undefined
 
     @observable.ref
-    private menuExpanded: boolean = false;
+    private menuExpanded = false;
     @observable.ref
     private selectedTestIds: string[] = [];
 
@@ -65,6 +65,7 @@ export class TestInvocationElement extends MobxLitElement {
         }
         // artificially depends on the timestamp
         // so the API call can be treated as a pure function of f(timestamp, request)
+        // tslint:disable-next-line: no-unused-expression
         this.timestamp;
         return new TestInvocation(this.invocationName, store.resultDbPrpcClient);
     }
@@ -76,7 +77,7 @@ export class TestInvocationElement extends MobxLitElement {
             expected,
             unexpected: (this.testInvocation?.testResults.length || 0) - expected,
             exonerated: this.testInvocation?.testExonerations.length || 0,
-        }
+        };
     }
 
     @computed
@@ -132,17 +133,17 @@ export class TestInvocationElement extends MobxLitElement {
             return html`
             <i>${INVOCATION_STATE_DISPLAY_MAP[invocation.state]}</i>
             at ${moment(invocation.finalizeTime).format('YYYY-MM-DD HH:mm:ss')}
-            `
+            `;
         }
 
         return html`
         <i>${INVOCATION_STATE_DISPLAY_MAP[invocation.state]}</i>
         since ${moment(invocation.createTime).format('YYYY-MM-DD HH:mm:ss')}
-        `
+        `;
     }
 
     private toggleAllTests(expand: boolean) {
-        this.shadowRoot!.querySelectorAll("tr-test-entry").forEach((e) => (e as TestEntryElement).expanded = expand);
+        this.shadowRoot!.querySelectorAll('tr-test-entry').forEach((e) => (e as TestEntryElement).expanded = expand);
     }
 
     protected render() {

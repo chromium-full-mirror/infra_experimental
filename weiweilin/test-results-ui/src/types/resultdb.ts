@@ -1,10 +1,10 @@
 export enum TestStatus {
-    Unspecified = "STATUS_UNSPECIFIED",
-    Pass = "PASS",
-    Fail = "FAIL",
-    Crash = "CRASH",
-    Abort = "ABORT",
-    Skip = "SKIP",
+    Unspecified = 'STATUS_UNSPECIFIED',
+    Pass = 'PASS',
+    Fail = 'FAIL',
+    Crash = 'CRASH',
+    Abort = 'ABORT',
+    Skip = 'SKIP',
 }
 
 export enum InvocationState {
