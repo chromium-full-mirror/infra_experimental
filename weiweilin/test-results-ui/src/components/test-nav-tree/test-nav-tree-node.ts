@@ -8,7 +8,6 @@ import { classMap } from "lit-html/directives/class-map";
 import { styleMap } from "lit-html/directives/style-map";
 import { Test } from "../../view-models/test-invocation";
 import { TestNavTreeNode } from "../../view-models/test-nav-tree-node";
-import '../../lib/components/expandable-entry';
 
 @customElement('tr-test-nav-tree-node')
 export class TestNavNodeElement extends MobxLitElement {
