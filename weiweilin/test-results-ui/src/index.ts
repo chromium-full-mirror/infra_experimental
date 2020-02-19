@@ -5,7 +5,6 @@ import { css, customElement, html } from 'lit-element';
 import './components/test-invocation';
 import './lib/aug-utils';
 import { store } from './store';
-import './test-utils';
 
 @customElement('app-test-results-ui')
 export class TestResultsUI extends MobxLitElement {
