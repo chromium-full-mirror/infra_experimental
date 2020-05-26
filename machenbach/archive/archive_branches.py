@@ -86,8 +86,6 @@ git('push', 'origin', '%s:refs/heads/ignore/foo' % merge)
 # Delete refs.
 del_specs = (
     ['push', 'origin'] +
-    [':refs/heads/%s' % ref for ref in refs] +
-    [':refs/pending/heads/%s' % ref for ref in refs] +
-    [':refs/pending-tags/heads/%s' % ref for ref in refs]
+    [':refs/heads/%s' % ref for ref in refs]
 )
 git(*del_specs)
