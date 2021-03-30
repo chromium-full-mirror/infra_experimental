@@ -1,0 +1,22 @@
+{
+  "name": "gdoc2emailtemplate",
+  "version": "1.0.0",
+  "description": "Google AppsScript library for converting GDoc to Gmail HTML templates.",
+  "main": "main.js",
+  "dependencies": {
+    "@google/clasp": "^2.3.0",
+    "@types/google-apps-script": "^1.0.28"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://chromium.googlesource.com/infra/experimental.git"
+  },
+  "devDependencies": {
+    "@types/google-apps-script-oauth2": "^38.0.0"
+  }
+}
