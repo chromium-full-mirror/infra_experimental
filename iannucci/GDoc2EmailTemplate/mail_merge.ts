@@ -50,6 +50,7 @@ const MailMergeSheetHeader = Object.freeze([
   "To",
   "Cc",
   "Bcc",
+  "ReplyTo",
 ])
 
 function GetMailMergeSheetHeader(): Readonly<string[]> {
@@ -117,7 +118,7 @@ function walkMerge_(
   for (let idx = 1; idx < data.length; idx++) {
     let currentStage = 'initializing'
     try {
-      let [rawStatus, _errMsg, to, cc, bcc, ...userData] = data[idx]
+      let [rawStatus, _errMsg, to, cc, bcc, replyTo, ...userData] = data[idx]
       let status: MailMergeStatus = rawStatus
 
       currentStage = 'transforming data'
@@ -142,6 +143,7 @@ function walkMerge_(
           to: to,
           cc: cc,
           bcc: bcc,
+          replyTo: replyTo,
           htmlBody: parsedDoc.body.evaluate().getContent(),
           inlineImages: parsedDoc.images,
         }
@@ -173,6 +175,7 @@ function adjustPreviewMessage_(msg: GoogleAppsScript.Mail.MailAdvancedParameters
       msg.to  ? `<p>To: [${escapeHTML_(msg.to)}]</p>`   : '',
       msg.cc  ? `<p>Cc: [${escapeHTML_(msg.cc)}]</p>`   : '',
       msg.bcc ? `<p>Bcc: [${escapeHTML_(msg.bcc)}]</p>` : '',
+      msg.replyTo ? `<p>Reply-To: [${escapeHTML_(msg.replyTo)}]</p>` : '',
       `<p><hr/></p>`,
     ].join(''),
   )
@@ -221,7 +224,7 @@ function adjustPreviewMessage_(msg: GoogleAppsScript.Mail.MailAdvancedParameters
  *   email address each of the populated templates. They have the following
  *   differences:
  *     * The Subject will be prepended with `[GDoc2EmailTemplate Test] `
- *     * The `To`, `Cc`, and `Bcc` lines will be in the body of the email.
+ *     * The `To`, `Cc`, `Bcc` and `ReplyTo` lines will be in the body of the email.
  *
  *   - If strategy == 'BROADCAST', this sends the emails out to the intended
  *   recipients.
@@ -234,9 +237,6 @@ function adjustPreviewMessage_(msg: GoogleAppsScript.Mail.MailAdvancedParameters
  *       `new ctorMap[kind]()` as the target of Object.assign.
  *     * If the new object has a function `postJson`, it will be called.
  *
- * @param {string} replyTo - If specified, will be used as the replyTo address
- *   for all messages.
- *
  * @param {Object<string, any>} extraProps - If provided, all properties of this
  *   object will be assigned as context within the template. This can be used to
  *   make processing functions available within template scriptlets.
@@ -246,7 +246,6 @@ function MailMerge(
   template: GoogleAppsScript.Document.Document,
   strategy: MailMergeStrategy = MailMergeStrategy.MailDryRun,
   ctorMap: {[kind: string]: () => object},
-  replyTo = '',
   extraProps: {[key: string]: any} = {}
 ) {
 
@@ -289,7 +288,6 @@ function MailMerge(
         msg.to = userAddress
         msg.cc = undefined
         msg.bcc = undefined
-        msg.replyTo = replyTo
         break
 
       default:
