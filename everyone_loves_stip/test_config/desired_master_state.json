@@ -1,5 +1,0 @@
-{
-  "master.chromium.fyi": [
-    {"desired_state": "running", "transition_time_utc": 1000}
-  ]
-}
