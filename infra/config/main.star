@@ -3,8 +3,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-# Enable LUCI Realms support.
-lucicfg.enable_experiment("crbug.com/1085650")
+# Use LUCI Scheduler BBv2 names and add Scheduler realms configs.
+lucicfg.enable_experiment("crbug.com/1182002")
 
 luci.project(
     name = "infra-experimental",
