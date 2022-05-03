@@ -25,7 +25,7 @@ zle -N zle-keymap-select
 local return_code="%(?..%{$fg[red]%}%? ↵%{$reset_color%})"
 
 PROMPT='%{$reset_color%}%{${fg[green]}%}$($HOME/martiniss_scripts/title -currentPane $(pwd)) %{$reset_color%}:$(vi_mode_prompt_info): $(git_prompt_info)%{${fg_bold[$CARETCOLOR]}%}
-➜ %{${reset_color}%} '
+=> %{${reset_color}%} '
 
 RPS1='${return_code}'
 

@@ -1,3 +1,5 @@
+// Opens a vim editor for a given CL. It tries to re-use existing vim
+// windows if possible.
 package main
 
 import (
@@ -10,15 +12,16 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
-
-	"github.com/moowiz/autocomp"
+	// "github.com/moowiz/autocomp"
 )
 
+var knownDigest string
+
 func main() {
-	autocomp.KeepFresh()
 	if len(os.Args) < 2 {
 		fmt.Printf("CL link required\n")
 		os.Exit(1)
@@ -37,6 +40,7 @@ func main() {
 		panic(err)
 	}
 
+	// FIXME: Should guess from the thing
 	host := "https://chromium-review.googlesource.com"
 	wg := &sync.WaitGroup{}
 	var clInfo *clInfo
@@ -53,82 +57,87 @@ func main() {
 	wg.Wait()
 
 	path := getRepoPath(clInfo.Project) + string(os.PathSeparator) + changedFiles[0]
-	fileDirectory := filepath.Dir(path)
-	fmt.Printf("Going to %v\n", filepath.Base(path))
+	fmt.Printf("Going to %v\n", path)
+	//autocomp.EditFile(path)
+	os.Exit(0)
 
-	tmux := os.Getenv("TMUX")
-	if tmux == "" {
-		// Change directory to just outside this file
-		// NOT MAINTAINED
-		fmt.Printf("%v\n", fileDirectory)
-	} else {
-		// fmt.Printf("path to check %v\n", fileDirectory)
-		pathToTmuxID := getPathToTmuxID()
-		length := 0
-		candidates := []string{}
-		for tmuxPath := range pathToTmuxID {
-			paths := []string{fileDirectory, tmuxPath}
-			pathPrefix := commonPathExcludingHome(paths)
-			if pathPrefix == "" {
-				continue
-			}
-			if len(pathPrefix) == length {
-				candidates = append(candidates, pathPrefix)
-			}
-			if len(pathPrefix) > length {
-				candidates = []string{pathPrefix}
-				tmp := trimPrefix(os.Getenv("HOME"), candidates...)
-				if len(tmp[0]) > 0 {
-					length = len(pathPrefix)
-				} else {
-					candidates = []string{}
+	/*
+		fileDirectory := filepath.Dir(path)
+			tmux := os.Getenv("TMUX")
+			if tmux == "" {
+				// Change directory to just outside this file
+				// NOT MAINTAINED
+				fmt.Printf("%v\n", fileDirectory)
+			} else {
+				// fmt.Printf("path to check %v\n", fileDirectory)
+				pathToTmuxID := getPathToTmuxID()
+				length := 0
+				candidates := []string{}
+				for tmuxPath := range pathToTmuxID {
+					paths := []string{fileDirectory, tmuxPath}
+					pathPrefix := commonPathExcludingHome(paths)
+					if pathPrefix == "" {
+						continue
+					}
+					if len(pathPrefix) == length {
+						candidates = append(candidates, pathPrefix)
+					}
+					if len(pathPrefix) > length {
+						candidates = []string{pathPrefix}
+						tmp := trimPrefix(os.Getenv("HOME"), candidates...)
+						if len(tmp[0]) > 0 {
+							length = len(pathPrefix)
+						} else {
+							// Maybe wrong?
+							candidates = []string{}
+						}
+					}
+				}
+				switch len(candidates) {
+				case 0:
+					// Make new window
+					cmd := exec.Command("tmux", "new-window", "-c", fileDirectory)
+					if err := cmd.Run(); err != nil {
+						panic(err)
+					}
+				case 1:
+					id := pathToTmuxID[candidates[0]]
+					if id == "" {
+						fmt.Printf("No tmux window ID found for %v\nValid paths:\n", candidates[0])
+						for path := range pathToTmuxID {
+							fmt.Printf("  %v\n", path)
+						}
+						os.Exit(1)
+					}
+					// fmt.Printf("selecting %v\n", id)
+					cmd := exec.Command("tmux", "select-window", "-t", pathToTmuxID[candidates[0]])
+					if err := cmd.Run(); err != nil {
+						panic(err)
+					}
+				default:
+					fmt.Printf("Candidates\n")
+					for _, c := range candidates {
+						fmt.Printf("  %v\n", c)
+					}
+					panic(fmt.Errorf("more than one candidate aaa"))
+				}
+
+				cmd := exec.Command("tmux", "send-keys", fmt.Sprintf("git cl checkout %v", os.Args[1]), "Enter", "tmux wait-for -S after_checkout", "Enter")
+				if err := cmd.Run(); err != nil {
+					panic(err)
+				}
+
+				cmd = exec.Command("tmux", "wait-for", "after_checkout")
+				if err := cmd.Run(); err != nil {
+					panic(err)
 				}
 			}
-		}
-		switch len(candidates) {
-		case 0:
-			// Make new window
-			cmd := exec.Command("tmux", "new-window", "-c", fileDirectory)
+
+			cmd := exec.Command("ovim", path)
 			if err := cmd.Run(); err != nil {
 				panic(err)
 			}
-		case 1:
-			id := pathToTmuxID[candidates[0]]
-			if id == "" {
-				fmt.Printf("No ID found for %v\nValid paths:\n", candidates[0])
-				for path := range pathToTmuxID {
-					fmt.Printf("  %v\n", path)
-				}
-				os.Exit(1)
-			}
-			// fmt.Printf("selecting %v\n", id)
-			cmd := exec.Command("tmux", "select-window", "-t", pathToTmuxID[candidates[0]])
-			if err := cmd.Run(); err != nil {
-				panic(err)
-			}
-		default:
-			fmt.Printf("Candidates\n")
-			for _, c := range candidates {
-				fmt.Printf("  %v\n", c)
-			}
-			panic(fmt.Errorf("more than one candidate aaa"))
-		}
-
-		cmd := exec.Command("tmux", "send-keys", fmt.Sprintf("git cl checkout %v", os.Args[1]), "Enter", "tmux wait-for -S after_checkout", "Enter")
-		if err := cmd.Run(); err != nil {
-			panic(err)
-		}
-
-		cmd = exec.Command("tmux", "wait-for", "after_checkout")
-		if err := cmd.Run(); err != nil {
-			panic(err)
-		}
-	}
-
-	cmd := exec.Command("ovim", path)
-	if err := cmd.Run(); err != nil {
-		panic(err)
-	}
+	*/
 	os.Exit(0)
 }
 
@@ -154,32 +163,15 @@ func getPathToTmuxID() map[string]string {
 	return rval
 }
 
+/*
 var repoMap = map[string]string{
 	"chromium/src":         "~/chromium/src",
 	"chromium/tools/build": "~/src/build",
 }
 
-type clInfo struct {
+*/
 
-	/*
-	  {
-	    "id": "myProject~master~I8473b95934b5732ac55d26311a706c9c2bde9940",
-	    "project": "myProject",
-	    "branch": "master",
-	    "change_id": "I8473b95934b5732ac55d26311a706c9c2bde9940",
-	    "subject": "Implementing Feature X",
-	    "status": "NEW",
-	    "created": "2013-02-01 09:59:32.126000000",
-	    "updated": "2013-02-21 11:16:36.775000000",
-	    "mergeable": true,
-	    "insertions": 34,
-	    "deletions": 101,
-	    "_number": 3965,
-	    "owner": {
-	      "name": "John Doe"
-	    }
-	  }
-	*/
+type clInfo struct {
 	Id      string `json:"id"`
 	Project string `json:"project"`
 }
@@ -230,11 +222,57 @@ func getChangedFiles(host string, changeID int) []string {
 		split := strings.Split(line, "b/")
 		files = append(files, split[1])
 	}
+	return sortByExtension(files)
+}
+
+// File extension weight. Higher means we want to open it more.
+var extWeight = map[string]int{
+	"py":   10,
+	"pyl":  5,
+	"json": 2,
+}
+
+func sortByExtension(files []string) []string {
+	sort.Slice(files, func(i, j int) bool {
+		return files[i] > files[j]
+	})
 	return files
 }
 
+func getConfigPath() string {
+	return expandHome("~/.config/autocomp_repomap.json")
+}
+
+// readRepoConfig reads the repository config from local disk
+// and returns it as a map of project name to directory on disk.
+func readRepoConfig() (rval map[string]string) {
+	cfgPath := getConfigPath()
+	f, err := os.Open(cfgPath)
+	if err != nil {
+		panic(err)
+	}
+	enc := json.NewDecoder(f)
+	err = enc.Decode(&rval)
+	if err != nil {
+		panic(err)
+	}
+	return
+}
+
+// updateRepoConfig
+func updateRepoConfig(mapping map[string]string) error {
+	cfgPath := getConfigPath()
+	f, err := os.Create(cfgPath)
+	if err != nil {
+		panic(err)
+	}
+	enc := json.NewEncoder(f)
+	return enc.Encode(mapping)
+}
+
 func getRepoPath(repoName string) string {
-	val, ok := repoMap[repoName]
+	mapping := readRepoConfig()
+	val, ok := mapping[repoName]
 	if !ok {
 		panic(fmt.Errorf("repo %v not in map\n", repoName))
 	}
@@ -255,6 +293,7 @@ func commonPathExcludingHome(paths []string) string {
 	return commonPrefix(paths...)
 }
 
+// trimPrefix removes a prefix from every path given to it, if it's present in the path.
 func trimPrefix(prefix string, paths ...string) []string {
 	newPaths := make([]string, len(paths))
 	for i, path := range paths {

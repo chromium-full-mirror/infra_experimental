@@ -32,11 +32,11 @@ func main() {
 		panic(err)
 	}
 	// fmt.Printf("original path %v\n", originalPath)
-	res := findCachedFiles(originalPath)
-	filtered := filterPaths(res, originalPath)
+	cached := findCachedFiles()
+	filtered := filterPaths(cached, originalPath)
 	if len(filtered) == 0 {
 		fmt.Printf("Opening new editor...\n")
-		cmd := exec.Command("gvim", originalPath)
+		cmd := exec.Command("vim", originalPath)
 		if err := cmd.Run(); err != nil {
 			panic(err)
 		}
@@ -125,7 +125,7 @@ func getCacheLocation() string {
 	return filepath.Join(HOME, ".vim", "cache")
 }
 
-func findCachedFiles(path string) []string {
+func findCachedFiles() []string {
 	files, err := ioutil.ReadDir(getCacheLocation())
 	if err != nil {
 		panic(err)

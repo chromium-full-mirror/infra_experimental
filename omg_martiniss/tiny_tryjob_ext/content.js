@@ -7,7 +7,7 @@ function replaceClick() {
         "section#secondaryActions"
     ]
 
-    var needle = document.querySelector("gr-app-p2");
+    var needle = document.querySelector("gr-app");
     for (const item in chain) {
         if (!needle) {
             return;
@@ -88,7 +88,10 @@ function makeModal(callback) {
     span.style.fontSize = "14px";
     span.style.font = "Roboto";
     span.style.padding = "2px";
-    span.innerHTML = "Hi there! You decided to dogfood the tiny tryjob utility, and installed an extension as a result.<br>If you are testing your CL while developing it, please try using the tiny tryjob command, as detailed <a href=\"https://chromium.googlesource.com/chromium/src/tools/mb/+/HEAD/docs/user_guide.md#mb-try\">here</a> and click \"No\".<br>If you do want to actually run a CQ Dry Run, click \"Yes\", and one will be triggered.";
+    let p = document.createElement("p");
+    p.style.paddingLeft = "10px";
+    p.innerHTML = "Hi there! You decided to dogfood the tiny tryjob utility, and installed an extension as a result.<br>If you are testing your CL while developing it, please try using the tiny tryjob command, as detailed <a href=\"https://chromium.googlesource.com/chromium/src/tools/mb/+/HEAD/docs/user_guide.md#mb-try\">here</a> and click \"No\".<br>If you do want to actually run a CQ Dry Run, click \"Yes\", and one will be triggered.";
+    span.appendChild(p);
     subDiv.appendChild(span);
 
     let buttonDiv = document.createElement("div");

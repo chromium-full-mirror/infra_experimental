@@ -16,7 +16,7 @@ if isdirectory(expand('$HOME/.vim/bundle/Vundle.vim'))
   Plugin 'kien/ctrlp.vim'
   Plugin 'scrooloose/nerdcommenter'
   Plugin 'scrooloose/nerdtree'
-  Plugin 'scrooloose/syntastic'
+  "Plugin 'scrooloose/syntastic'
   Plugin 'tpope/vim-fugitive'
   Plugin 'tpope/vim-surround'
   Plugin 'tpope/vim-sensible'
@@ -24,10 +24,10 @@ if isdirectory(expand('$HOME/.vim/bundle/Vundle.vim'))
   Plugin 'Yggdroot/indentLine'
   Plugin 'Valloric/MatchTagAlways'
   Plugin 'vim-scripts/netrw.vim'
-  Plugin 'suan/vim-instant-markdown'
-  "Plugin 'fatih/vim-go'
+  Plugin 'fatih/vim-go'
   Plugin 'altercation/vim-colors-solarized'
   Plugin 'encody/nvim'
+  Plugin 'cappyzawa/starlark.vim'
   call vundle#end()
 else
   echomsg 'Vundle is not installed. You can install Vundle from'
@@ -51,7 +51,9 @@ syntax enable
 set t_Co=256
 
 set background=dark
-colorscheme peachpuff
+colorscheme primary
+
+autocmd FileType starlark setlocal shiftwidth=2 softtabstop=2 expandtab
 
 " Uncomment if you want to map ; to : to cut down on chording
 " nnoremap ; :
@@ -101,6 +103,8 @@ augroup autoformat
   autocmd BufRead,BufNewFile *.py set foldmethod=indent
   autocmd BufRead,BufNewFile *.go set tabstop=2
   autocmd BufRead,BufNewFile *.cfg set syntax=python
+  autocmd BufRead,BufNewFile *.pyl set syntax=python
+  autocmd BufRead,BufNewFile *.pyl set expandtab
 augroup END
 
 
@@ -150,17 +154,23 @@ let g:syntastic_go_checkers = ['golint', 'govet', 'errcheck']
 let g:syntastic_mode_map = { 'mode': 'active', 'passive_filetypes': ['go'] }
 
 " syntastic stuff
-set statusline+=%#warningmsg#
-set statusline+=%{SyntasticStatuslineFlag()}
-set statusline+=%*
-let g:syntastic_always_populate_loc_list = 1
-let g:syntastic_auto_loc_list = 1
-let g:syntastic_check_on_open = 1
-let g:syntastic_check_on_wq = 0
+" set statusline+=%#warningmsg#
+" set statusline+=%{SyntasticStatuslineFlag()}
+" set statusline+=%*
+" let g:syntastic_always_populate_loc_list = 1
+" let g:syntastic_auto_loc_list = 1
+" let g:syntastic_check_on_open = 1
+" let g:syntastic_check_on_wq = 0
 
 nnoremap )e :lnext<CR>
 nnoremap (e :lprevious<CR>
 
 vnoremap <leader>/ y/<C-R>"<CR>
 
-let g:instant_markdown_autostart = 0
+"let g:instant_markdown_autostart = 0
+
+
+" GUI font stuff
+set guifont=Noto\ Mono\ 14
+
+:nmap <F1> :echo<CR>
