@@ -3,6 +3,6 @@ mongolian rock
 
 Bii Biyelgee
 
-yak yak yak
+yak yak yak ox
 
 Tartary ox
