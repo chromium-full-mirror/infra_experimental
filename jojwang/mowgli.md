@@ -3,7 +3,7 @@ mongolian rock
 
 Bii Biyelgee
 
-yak yak yak ox
+yak yak yak ox teammate's chicken.3
 
 Tartary ox
 HI
