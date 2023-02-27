@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import json
 import re
 import subprocess
@@ -14,7 +16,7 @@ import sys
 # [5-7]\\.\\d+\\.\\d+ and then 8\\.[0-3]\\.\\d+
 #
 # 4) For each regexp call:
-# python process_branches.py path/to/v8 path/to/+refs.txt regexp
+# python3 process_branches.py path/to/v8 path/to/+refs.txt regexp
 
 assert len(sys.argv) > 3
 
@@ -39,7 +41,7 @@ def process(refs):
     return
   head = refs[:10]
 
-  cmd = 'python archive_branches.py %s %s' % (v8_dir, ' '.join(head))
+  cmd = 'python3 archive_branches.py %s %s' % (v8_dir, ' '.join(head))
   print(cmd)
   subprocess.check_call(cmd, shell=True)
   process(refs[10:])

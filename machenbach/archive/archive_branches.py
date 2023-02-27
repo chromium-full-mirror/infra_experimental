@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import os
 import re
@@ -26,7 +26,7 @@ def git(*args, **kwargs):
   stdin_data = None
   stdin_handle = None
   if kwargs.get('stdin'):
-    stdin_data = kwargs.pop('stdin')
+    stdin_data = kwargs.pop('stdin').encode('utf-8')
     stdin_handle = subprocess.PIPE
   proc = subprocess.Popen(('git',) + args,
                           stdout=subprocess.PIPE,
@@ -34,8 +34,8 @@ def git(*args, **kwargs):
                           stdin=stdin_handle,
                           **kwargs)
   output, _ = proc.communicate(stdin_data)
-  assert proc.returncode == 0, output.strip()
-  return output.strip()
+  assert proc.returncode == 0, output.decode('utf-8').strip()
+  return output.decode('utf-8').strip()
 
 
 def synthesize(refs):
@@ -76,7 +76,7 @@ for ref in refs:
   assert re.match(r'\d*\.\d*\.\d*', ref)
 
 # Print what we're doning.
-print 'archive_branches.py ' + ' '.join(sys.argv[1:])
+print('archive_branches.py ' + ' '.join(sys.argv[1:]))
 
 # Merge into ignore/foo.
 git('fetch', 'origin', 'refs/heads/ignore/foo')
