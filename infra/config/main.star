@@ -32,6 +32,20 @@ luci.project(
     ],
 )
 
+luci.realm(
+    name = "test",
+    bindings = [
+        luci.binding(
+            roles = "role/luci.realmServiceAccount",
+            users = "adhoc-testing@luci-token-server-dev.iam.gserviceaccount.com",
+        ),
+        luci.binding(
+            roles = "role/luci.serviceAccountTokenCreator",
+            groups = "mdb/chrome-troopers",
+        ),
+    ],
+)
+
 luci.logdog(gs_bucket = "chromium-luci-logdog")
 
 # This hack is needed because we actually still use prod LUCI Config for this
