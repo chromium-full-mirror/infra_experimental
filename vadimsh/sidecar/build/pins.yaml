@@ -1,0 +1,20 @@
+# Managed by cloudbuildhelper.
+#
+# All comments or unrecognized fields will be overwritten. To comment an entry
+# use "comment" field.
+#
+# To update digests of all entries:
+#   $ cloudbuildhelper pins-update <path-to-this-file>
+#
+# To add an entry (or update an existing one):
+#   $ cloudbuildhelper pins-add <path-to-this-file> <image>[:<tag>]
+#
+# To remove an entry just delete it from the file.
+#
+# To prevent an entry from being updated by pins-update, add "freeze" field with
+# an explanation why it is frozen.
+
+pins:
+- image: docker.io/library/python
+  tag: 3.11-slim
+  digest: sha256:364ee1a9e029fb7b60102ae56ff52153ccc929ceab9aa387402fe738432d24cc

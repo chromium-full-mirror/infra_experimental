@@ -1,0 +1,18 @@
+name: experimental/sidecar/flask
+
+contextdir: ../
+deterministic: true
+
+imagepins: pins.yaml
+
+cloudbuild:
+  builder: linux
+
+infra:
+  dev:
+    storage: gs://chops-public-images-dev/dev
+    registry: gcr.io/chops-public-images-dev
+    cloudbuild:
+      linux:
+        project: chops-public-images-dev
+        executable: gcr.io/cloud-builders/docker:18.09.6
