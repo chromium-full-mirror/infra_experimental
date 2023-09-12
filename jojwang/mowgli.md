@@ -1,4 +1,4 @@
-mongolian rock poop poop poop poop poop poop poop poop poop poop
+mongolian rock poop poop poop poop poop poop poop poop poop poop poop
 My favorite chick flick is chicken little.
 
 tibetan fox
