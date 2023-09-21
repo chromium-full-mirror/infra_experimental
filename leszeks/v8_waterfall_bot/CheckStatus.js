@@ -3,7 +3,13 @@ const {BigQuery} = require('@google-cloud/bigquery');
 
 const CHAT_URL = 'https://chat.googleapis.com/v1/spaces/AAAAy3GcQSI/messages?key=KEY&token=TOKEN'
 const TREE_URL = 'https://v8-status.appspot.com/current?format=json'
-const ROLL_URL = 'https://chromium-review.googlesource.com/changes/?q=owner:v8-ci-autoroll-builder@chops-service-accounts.iam.gserviceaccount.com+project:chromium/src&n=1&o=MESSAGES'
+
+const REVIEW_HOST = 'https://chromium-review.googlesource.com'
+const ROLL_ACCOUNT = 'chromium-autoroll@skia-public.iam.gserviceaccount.com'
+const QUERY_PARAM = `q=owner:${ROLL_ACCOUNT}+project:chromium/src+subject:"Roll+v8+from"`
+const QUERY_OPTIONS = 'o=MESSAGES&o=CURRENT_REVISION&o=CURRENT_COMMIT'
+const ROLL_URL = `${REVIEW_HOST}/changes/?${QUERY_PARAM}&n=1&${QUERY_OPTIONS}`
+
 const BIG_QUERY = new BigQuery();
 
 async function getSavedStatus() {
@@ -99,8 +105,9 @@ async function fetchRollStatus() {
     break;
   }
 
-  roll_state.number = content._number
-  roll_state.version = content.subject.match(/Update V8 to version (.*)\./)?.[1] ?? "Unknown";
+  roll_state.number = content._number;
+  const commit_message = content.revisions[content.current_revision].commit.message;
+  roll_state.version = commit_message.match(/ Version (\d+\.\d+\.\d+(?:\.\d+)?)/)?.[1] ?? "Unknown";
 
   return roll_state
 }
