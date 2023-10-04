@@ -104,6 +104,13 @@ async function fetchRollStatus() {
 
     roll_state.msg = message
     roll_state.date = msg.date;
+
+    if (roll_state.status == "Merged") {
+      // The message on merged rolls is too verbose after the first
+      // line, which states the commit hash.
+      roll_state.msg = roll_state.msg.split('\n', 1)[0]
+    }
+
     break;
   }
 
