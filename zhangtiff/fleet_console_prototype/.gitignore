@@ -1,0 +1,5 @@
+# build outputs
+docker/helloworld
+docker/fleet_console
+
+.DS_Store
