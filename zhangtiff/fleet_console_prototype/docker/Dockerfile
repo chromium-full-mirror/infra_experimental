@@ -6,7 +6,7 @@ FROM gcr.io/distroless/static:latest
 
 # The binary should be built outside the container and placed in the Docker
 # context directory. See Makefile for how it can be done during development.
-COPY helloworld .
+COPY fleet_console .
 
 USER nobody
-ENTRYPOINT ["./helloworld"]
+ENTRYPOINT ["./fleet_console"]

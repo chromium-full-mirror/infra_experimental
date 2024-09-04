@@ -100,6 +100,9 @@ func main() {
 			}
 		})
 
+		// Ensure only authorized users can access the pRPC API.
+		srv.RegisterUnifiedServerInterceptors(RPCAccessInterceptor)
+
 		// Redis example.
 		//
 		// To run Redis for tests locally (in particular on OSX):

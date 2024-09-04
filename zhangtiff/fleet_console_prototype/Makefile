@@ -20,6 +20,7 @@ run-image: build-image-local
 			-http-addr :8800 \
 			-admin-addr :8900 \
 			-token-cache-dir /tokens
+			-project fleet-console-prototype
 
 build-image-prod:
 	docker build ./docker --tag  us-docker.pkg.dev/fleet-console-prototype/fleet/helloworld:latest --platform linux/amd64
