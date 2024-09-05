@@ -24,7 +24,6 @@ import (
 
 	"github.com/gomodule/redigo/redis"
 	"go.opentelemetry.io/otel"
-	"google.golang.org/protobuf/types/known/emptypb"
 
 	"go.chromium.org/luci/common/logging"
 	"go.chromium.org/luci/grpc/prpc"
@@ -40,7 +39,7 @@ import (
 	"go.chromium.org/luci/server/router"
 	"go.chromium.org/luci/server/secrets"
 
-	"go.chromium.org/luci/examples/k8s/helloworld/apipb"
+	"fleet_console/apipb"
 )
 
 var tracer = otel.Tracer("go.chromium.org/luci/example")
@@ -56,7 +55,7 @@ func main() {
 
 	server.Main(nil, modules, func(srv *server.Server) error {
 		// gRPC example.
-		apipb.RegisterGreeterServer(srv, &greeterServer{})
+		apipb.RegisterDeviceServiceServer(srv, &deviceServer{})
 
 		// Logging and tracing example.
 		srv.Routes.GET("/", nil, func(c *router.Context) {
@@ -186,10 +185,14 @@ type TestEntity struct {
 	_ datastore.PropertyMap `gae:"-,extra"`
 }
 
-type greeterServer struct{}
+type deviceServer struct{}
 
-func (*greeterServer) SayHi(ctx context.Context, _ *emptypb.Empty) (*emptypb.Empty, error) {
+func (*deviceServer) GetDevice(ctx context.Context, req *apipb.GetDeviceRequest) (*apipb.Device, error) {
 	logging.Infof(ctx, "Hi %s", auth.CurrentIdentity(ctx))
-	time.Sleep(100 * time.Millisecond)
-	return &emptypb.Empty{}, nil
+	return &apipb.Device{}, nil
+}
+
+func (*deviceServer) ListDevices(ctx context.Context, _ *apipb.ListDevicesRequest) (*apipb.ListDevicesResponse, error) {
+	logging.Infof(ctx, "Hi %s", auth.CurrentIdentity(ctx))
+	return &apipb.ListDevicesResponse{}, nil
 }

@@ -35,3 +35,11 @@ deploy: build-image-prod push-image-prod
 		--port=8800 \
 		--args="--http-addr=:8800" \
 		--image=us-docker.pkg.dev/fleet-console-prototype/fleet/helloworld:latest
+
+gen-proto-client:
+	sh scripts/gen_client_proto.sh
+
+gen-proto-go:
+	go generate ./...
+
+gen-proto: gen-proto-go gen-proto-client
