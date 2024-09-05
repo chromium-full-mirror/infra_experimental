@@ -34,7 +34,7 @@ message HardwareRequirements {
     message LabelValues {
       repeated string values = 1;
     }
-  
+
     // A map for schedulable labels used to request a matching device.
     map<string, LabelValues> schedulable_labels = 1;
   }
