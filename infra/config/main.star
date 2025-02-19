@@ -9,6 +9,7 @@ lucicfg.enable_experiment("crbug.com/1182002")
 luci.project(
     name = "infra-experimental",
     dev = True,
+    change_verifier = "luci-change-verifier-dev.appspot.com",
     buildbucket = "cr-buildbucket-dev.appspot.com",
     logdog = "luci-logdog-dev.appspot.com",
     milo = "luci-milo-dev.appspot.com",
@@ -28,6 +29,14 @@ luci.project(
         acl.entry(
             roles = acl.LOGDOG_WRITER,
             groups = "luci-logdog-chromium-dev-writers",
+        ),
+        acl.entry(
+            acl.CQ_COMMITTER,
+            groups = "project-infra-tryjob-access",
+        ),
+        acl.entry(
+            roles = acl.CQ_DRY_RUNNER,
+            groups = "project-infra-tryjob-access",
         ),
     ],
 )
@@ -68,4 +77,13 @@ realms {
   }
 }
 """.lstrip(),
+)
+
+# This should equate to a no-op CQ, so that CLs can at least be submitted.
+luci.cq_group(
+    name = "infra_experimental",
+    watch = cq.refset(
+        repo = "https://chromium.googlesource.com/infra/experimental",
+        refs = [r"refs/heads/main"],
+    ),
 )
