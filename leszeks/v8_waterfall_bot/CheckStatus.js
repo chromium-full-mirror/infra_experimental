@@ -122,7 +122,7 @@ async function fetchRollStatus() {
 
   roll_state.number = content._number;
   const commit_message = content.revisions[content.current_revision].commit.message;
-  roll_state.version = commit_message.match(/ Version (\d+\.\d+\.\d+(?:\.\d+)?)/)?.[1] ?? "Unknown";
+  roll_state.version = commit_message.match(/[ (]Version (\d+\.\d+\.\d+(?:\.\d+)?)/)?.[1] ?? "Unknown";
 
   if (content.messages.length == 1) {
     // The Skia auto-roller uploads an empty patchset at first and populates
